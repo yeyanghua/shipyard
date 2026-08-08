@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一构建发布平台 - 原型 Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-soft: #9ca3af;
+    --primary: #3b82f6;
+    --primary-soft: #dbeafe;
+    --success: #10b981;
+    --success-soft: #d1fae5;
+    --warn: #f59e0b;
+    --warn-soft: #fef3c7;
+    --danger: #ef4444;
+    --danger-soft: #fee2e2;
+    --gray-bg: #f3f4f6;
+    --gray-bg-2: #e5e7eb;
+    --toolbar: #1f2937;
+    --annotate: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+  }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; }
+
+  /* ===== Layout ===== */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .header .sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .nav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .nav a:hover { background: var(--primary-soft); color: var(--primary); }
+  .container { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+  /* ===== Page section ===== */
+  .page-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 40px;
+    overflow: hidden;
+  }
+  .page-section-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .page-section-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .page-section-sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  .page-section-id {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-soft);
+    font-size: 12px;
+    background: var(--gray-bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .page-section-body {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 32px;
+  }
+  @media (max-width: 1024px) {
+    .page-section-body { grid-template-columns: 1fr; }
+  }
+
+  /* ===== Wireframe frame (the actual UI mockup) ===== */
+  .wireframe {
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    position: relative;
+    min-height: 480px;
+  }
+  .wf-toolbar {
+    background: var(--toolbar);
+    color: #e5e7eb;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .wf-dots { display: flex; gap: 6px; }
+  .wf-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .wf-dots span:nth-child(1) { background: #ef4444; }
+  .wf-dots span:nth-child(2) { background: #f59e0b; }
+  .wf-dots span:nth-child(3) { background: #10b981; }
+  .wf-url {
+    background: #374151;
+    color: #d1d5db;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    flex: 1;
+    margin-left: 8px;
+  }
+  .wf-body {
+    padding: 0;
+    background: var(--bg);
+    min-height: 420px;
+    position: relative;
+  }
+  /* Generic wf blocks */
+  .wf-row { display: flex; align-items: center; gap: 8px; }
+  .wf-block {
+    background: var(--gray-bg);
+    border-radius: 6px;
+    height: 12px;
+  }
+  .wf-block.dark { background: var(--border-strong); }
+  .wf-block.primary { background: var(--primary-soft); }
+  .wf-block.success { background: var(--success-soft); }
+  .wf-block.warn { background: var(--warn-soft); }
+  .wf-block.danger { background: var(--danger-soft); }
+  .wf-text { color: var(--text-soft); font-size: 12px; }
+  .wf-text-muted { color: var(--text-muted); font-size: 12px; }
+  .wf-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .wf-pill.success { background: var(--success-soft); color: #047857; }
+  .wf-pill.running { background: var(--primary-soft); color: #1d4ed8; }
+  .wf-pill.failed { background: var(--danger-soft); color: #b91c1c; }
+  .wf-pill.pending { background: var(--gray-bg-2); color: var(--text-muted); }
+  .wf-btn {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--primary);
+    color: white;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .wf-btn.outline {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+  .wf-btn.ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .wf-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .wf-divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+  /* Annotations */
+  .annotate {
+    border: 2px dashed var(--annotate);
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: relative;
+    background: rgba(239, 68, 68, 0.04);
+  }
+  .annotate::before {
+    content: attr(data-num);
+    position: absolute;
+    top: -12px;
+    left: 12px;
+    background: var(--annotate);
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Side-by-side: sidebar + content */
+  .wf-app {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 420px;
+  }
+  .wf-sidebar {
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 12px 8px;
+  }
+  .wf-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .wf-sidebar-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 500;
+  }
+  .wf-content { padding: 16px; }
+
+  /* Top bar within content */
+  .wf-topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .wf-topbar h3 { margin: 0; font-size: 15px; font-weight: 600; }
+
+  /* ===== Description panel ===== */
+  .descriptions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .desc-item {
+    background: var(--gray-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .desc-item strong {
+    color: var(--text);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+  .desc-item ul { margin: 4px 0 0 0; padding-left: 18px; }
+  .desc-item li { margin: 3px 0; }
+  .desc-num {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background: var(--annotate);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 18px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 48px 32px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
+    max-width: 700px;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .hero-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .hero-meta strong { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>统一构建发布平台 — 原型 Wireframes</h1>
+  <p>V1 横向 demo 阶段的 8 个核心页面低保真原型。所有 UI 基于 Vue 3 + TypeScript + Element Plus 设计语言。点击顶部导航跳转。</p>
+  <div class="hero-meta">
+    <span>📐 <strong>8</strong> 核心页面</span>
+    <span>🎨 <strong>Data UI</strong> 模式</span>
+    <span>🛠 <strong>Element Plus</strong> 视觉语言</span>
+    <span>📱 <strong>响应式</strong>(桌面优先)</span>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>页面导航</h1>
+      <div class="sub">8 个核心页面 · 标注关键设计点</div>
+    </div>
+    <nav class="nav">
+      <a href="#dashboard">① Dashboard</a>
+      <a href="#project-detail">② 项目详情</a>
+      <a href="#create-project">③ 创建项目</a>
+      <a href="#pipeline-edit">④ 流水线编辑</a>
+      <a href="#build-detail">⑤ 构建详情</a>
+      <a href="#deploy-detail">⑥ 发布详情</a>
+      <a href="#env-vars">⑦ 环境变量</a>
+      <a href="#ai-diagnosis">⑧ AI 诊断弹窗</a>
+    </nav>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- 1. DASHBOARD -->
+<!-- ============================================================ -->
+<section class="page-section" id="dashboard">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">① Dashboard 首页</h2>
+      <div class="page-section-sub">项目总览 + 最近活动 + 关键指标</div>
+    </div>
+    <span class="page-section-id">route: /</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/</div>
+      </div>
+      <div class="wf-app">
+        <!-- Sidebar -->
+        <div class="wf-sidebar">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;">
+            <div style="width:18px;height:18px;background:var(--primary);border-radius:4px;"></div>
+            <strong style="font-size:13px;">master</strong>
+          </div>
+          <div class="wf-sidebar-item active">
+            <span>📊</span> Dashboard
+          </div>
+          <div class="wf-sidebar-item"><span>📦</span> 项目</div>
+          <div class="wf-sidebar-item"><span>🌐</span> 环境</div>
+          <div class="wf-sidebar-item"><span>📋</span> 流水线模板</div>
+          <div class="wf-sidebar-item"><span>🤖</span> AI 互动</div>
+          <div class="wf-sidebar-item"><span>🔔</span> 告警 <span class="wf-pill failed" style="margin-left:auto;">3</span></div>
+          <div class="wf-sidebar-item"><span>📈</span> 监控</div>
+          <div class="wf-sidebar-item"><span>⚙️</span> 设置</div>
+        </div>
+        <!-- Content -->
+        <div class="wf-content" style="padding:0;">
+          <div class="wf-topbar">
+            <h3>Dashboard</h3>
+            <div class="wf-row" style="gap:8px;">
+              <span class="wf-text-muted">仔哥</span>
+              <div style="width:28px;height:28px;background:var(--primary-soft);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--primary);">仔</div>
+            </div>
+          </div>
+          <div style="padding:16px;">
+            <!-- Stats row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+              <div class="wf-card">
+                <div class="wf-text-muted" style="font-size:11px;">今日构建</div>
+                <div style="font-size:22px;font-weight:600;margin-top:2px;">42</div>
+                <div class="wf-text" style="font-size:11px;">↑ 12% 昨日</div>
+              </div>
+              <div class="wf-card">
+                <div class="wf-text-muted" style="font-size:11px;">成功率</div>
+                <div style="font-size:22px;font-weight:600;margin-top:2px;color:var(--success);">94%</div>
+                <div class="wf-text" style="font-size:11px;">↑ 2%</div>
+              </div>
+              <div class="wf-card">
+                <div class="wf-text-muted" style="font-size:11px;">在跑构建</div>
+                <div style="font-size:22px;font-weight:600;margin-top:2px;color:var(--primary);">3</div>
+                <div class="wf-text" style="font-size:11px;">平均 4m 12s</div>
+              </div>
+              <div class="wf-card">
+                <div class="wf-text-muted" style="font-size:11px;">今日发布</div>
+                <div style="font-size:22px;font-weight:600;margin-top:2px;">17</div>
+                <div class="wf-text" style="font-size:11px;">demo-env 14 / test 3</div>
+              </div>
+            </div>
+            <!-- Recent builds -->
+            <div class="wf-card">
+              <div class="wf-row" style="justify-content:space-between;margin-bottom:10px;">
+                <strong style="font-size:13px;">最近构建</strong>
+                <span class="wf-text-muted" style="font-size:11px;">查看全部 →</span>
+              </div>
+              <div class="wf-divider" style="margin:6px 0;"></div>
+              <div class="wf-row" style="justify-content:space-between;padding:6px 0;">
+                <div>
+                  <strong style="font-size:12px;">user-service</strong>
+                  <span class="wf-text mono" style="margin-left:6px;">a3f2c1d</span>
+                </div>
+                <span class="wf-pill success">success</span>
+              </div>
+              <div class="wf-row" style="justify-content:space-between;padding:6px 0;">
+                <div>
+                  <strong style="font-size:12px;">web-portal</strong>
+                  <span class="wf-text mono" style="margin-left:6px;">8b9d4e2</span>
+                </div>
+                <span class="wf-pill running">running</span>
+              </div>
+              <div class="wf-row" style="justify-content:space-between;padding:6px 0;">
+                <div>
+                  <strong style="font-size:12px;">order-service</strong>
+                  <span class="wf-text mono" style="margin-left:6px;">ff10a2b</span>
+                </div>
+                <span class="wf-pill failed">failed</span>
+              </div>
+              <div class="wf-row" style="justify-content:space-between;padding:6px 0;">
+                <div>
+                  <strong style="font-size:12px;">payment-api</strong>
+                  <span class="wf-text mono" style="margin-left:6px;">1c2d3e4</span>
+                </div>
+                <span class="wf-pill success">success</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        单一门面首页，开发者的"指挥中心"。4 个关键指标 + 最近构建列表，5 秒内能扫完。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>侧边栏导航</strong>
+        8 个一级菜单：Dashboard / 项目 / 环境 / 流水线模板 / AI 互动 / 告警 / 监控 / 设置。告警项带未读数徽章。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>关键指标卡</strong>
+        今日构建 / 成功率 / 在跑构建 / 今日发布。**成功率 + 在跑构建**用颜色（绿/蓝）突出。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>最近构建列表</strong>
+        5-8 条最近记录，项目名 + commit SHA 短 + 状态徽章。点行跳构建详情。
+      </div>
+      <div class="desc-item">
+        <strong>未来扩展</strong>
+        V1.5 加"最近发布"+"AI 决策建议"模块。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 2. PROJECT DETAIL -->
+<!-- ============================================================ -->
+<section class="page-section" id="project-detail">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">② 项目详情页</h2>
+      <div class="page-section-sub">单项目概览 + 标签页切换（概览/流水线/Dockerfile/变量/构建/部署）</div>
+    </div>
+    <span class="page-section-id">route: /projects/{id}</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/projects/user-service</div>
+      </div>
+      <div class="wf-body" style="padding:0;">
+        <!-- Top -->
+        <div style="padding:16px;background:var(--card);border-bottom:1px solid var(--border);">
+          <div class="wf-row" style="justify-content:space-between;">
+            <div>
+              <div class="wf-row" style="gap:8px;">
+                <strong style="font-size:18px;">user-service</strong>
+                <span class="wf-pill success">运行中</span>
+                <span class="wf-text-muted mono" style="font-size:11px;">main · a3f2c1d</span>
+              </div>
+              <div class="wf-text-muted" style="font-size:12px;margin-top:4px;">Java 17 + Maven · git@gitlab.com:org/user-service.git</div>
+            </div>
+            <div class="wf-row" style="gap:6px;">
+              <span class="wf-btn outline">查看仓库</span>
+              <span class="wf-btn">触发构建</span>
+            </div>
+          </div>
+          <!-- Tabs -->
+          <div style="display:flex;gap:18px;margin-top:14px;border-top:1px solid var(--border);padding-top:10px;">
+            <strong style="font-size:12px;color:var(--primary);border-bottom:2px solid var(--primary);padding-bottom:6px;">概览</strong>
+            <span class="wf-text-muted" style="font-size:12px;">流水线</span>
+            <span class="wf-text-muted" style="font-size:12px;">Dockerfile</span>
+            <span class="wf-text-muted" style="font-size:12px;">变量</span>
+            <span class="wf-text-muted" style="font-size:12px;">构建历史</span>
+            <span class="wf-text-muted" style="font-size:12px;">部署历史</span>
+            <span class="wf-text-muted" style="font-size:12px;">设置</span>
+          </div>
+        </div>
+        <!-- Body -->
+        <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="wf-card">
+            <div class="wf-text-muted" style="font-size:11px;">最新构建</div>
+            <div class="wf-row" style="justify-content:space-between;margin-top:4px;">
+              <div>
+                <span class="wf-pill success">success</span>
+                <span class="mono wf-text-muted" style="margin-left:6px;font-size:11px;">#128 · 4m 12s</span>
+              </div>
+              <span class="wf-btn ghost" style="font-size:11px;">详情 →</span>
+            </div>
+            <div class="wf-divider"></div>
+            <div class="wf-text" style="font-size:11px;">commit: fix(user): NPE on null avatar</div>
+            <div class="wf-text" style="font-size:11px;">image: harbor.local/user-service:v128</div>
+          </div>
+          <div class="wf-card">
+            <div class="wf-text-muted" style="font-size:11px;">最新部署</div>
+            <div class="wf-row" style="justify-content:space-between;margin-top:4px;">
+              <div>
+                <span class="wf-pill success">deployed</span>
+                <span class="wf-text-muted" style="margin-left:6px;font-size:11px;">demo-env</span>
+              </div>
+              <span class="wf-btn ghost" style="font-size:11px;">详情 →</span>
+            </div>
+            <div class="wf-divider"></div>
+            <div class="wf-text" style="font-size:11px;">v128 · 2 replicas · 1m 23s ago</div>
+            <div class="wf-text" style="font-size:11px;">ready 2/2 · 0 crash</div>
+          </div>
+          <div class="wf-card" style="grid-column:1/-1;">
+            <strong style="font-size:12px;">最近活动</strong>
+            <div class="wf-divider"></div>
+            <div class="wf-text" style="font-size:11px;margin:4px 0;">2m ago · 仔哥 触发构建 #128 → success</div>
+            <div class="wf-text" style="font-size:11px;margin:4px 0;">3m ago · 仔哥 发布 #128 → demo-env → success</div>
+            <div class="wf-text" style="font-size:11px;margin:4px 0;">1h ago · AI 改流水线 v3 → v4(用户已审核)</div>
+            <div class="wf-text" style="font-size:11px;margin:4px 0;">2h ago · Dockerfile v2 已推送到仓库</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        顶部固定项目元信息，标签页切换不同关注点。默认"概览"是 dashboard 的项目版——最新构建 + 最新部署 + 活动流。
+      </div>
+      <div class="desc-item">
+        <strong>7 个标签</strong>
+        概览 / 流水线 / Dockerfile / 变量 / 构建历史 / 部署历史 / 设置。**V1 demo 先做 4 个**：概览 + 流水线 + Dockerfile + 变量。构建/部署历史用全局页面。
+      </div>
+      <div class="desc-item">
+        <strong>右上角触发按钮</strong>
+        "触发构建"是主操作（蓝色实心），"查看仓库"是次要（蓝色描边）。区分主次。
+      </div>
+      <div class="desc-item">
+        <strong>活动流</strong>
+        横向时间线：构建 / 发布 / AI 改动 / Dockerfile 推送。**未来用 SSE 实时更新**（V1.5 升级）。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 3. CREATE PROJECT -->
+<!-- ============================================================ -->
+<section class="page-section" id="create-project">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">③ 创建项目</h2>
+      <div class="page-section-sub">表单：仓库地址 + 项目类型 → 自动生成 Dockerfile</div>
+    </div>
+    <span class="page-section-id">route: /projects/new</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:520px;">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/projects/new</div>
+      </div>
+      <div class="wf-body" style="padding:24px;background:var(--card);">
+        <div style="max-width:560px;margin:0 auto;">
+          <h3 style="margin:0 0 4px 0;font-size:20px;">创建项目</h3>
+          <div class="wf-text-muted" style="font-size:12px;margin-bottom:20px;">master 会用模板自动生成 Dockerfile 并推送到仓库（§6.7 流程）</div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">项目标识 <span style="color:var(--danger);">*</span></label>
+            <div class="wf-card" style="padding:8px 10px;">user-service</div>
+            <div class="wf-text" style="font-size:11px;margin-top:3px;">小写英文 + 中划线，创建后不可改</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">显示名</label>
+            <div class="wf-card" style="padding:8px 10px;">用户服务</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">仓库地址 <span style="color:var(--danger);">*</span></label>
+            <div class="wf-card" style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;">git@gitlab.com:org/user-service.git</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">默认分支</label>
+            <div class="wf-card" style="padding:8px 10px;">main</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">项目类型 <span style="color:var(--danger);">*</span></label>
+            <div class="wf-card" style="padding:8px 10px;background:var(--primary-soft);border-color:var(--primary);">
+              <span style="font-size:12px;">☕ Java + Maven</span>
+              <span class="wf-text" style="margin-left:6px;">→</span>
+              <span class="wf-text" style="font-size:11px;">用模板 java_maven_jdk17 自动生成 Dockerfile</span>
+            </div>
+            <div class="wf-text" style="font-size:11px;margin-top:3px;">可选：Java/Gradle · Node/pnpm · Python/poetry</div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">仓库访问 Token</label>
+            <div class="wf-card" style="padding:8px 10px;background:var(--gray-bg-2);font-family:'JetBrains Mono',monospace;font-size:12px;">••••••••••••••••</div>
+            <div class="wf-text" style="font-size:11px;margin-top:3px;color:var(--warn);">⚠ AES-256 加密存储，建议用项目专属 token</div>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label style="display:block;font-size:12px;font-weight:500;margin-bottom:6px;">描述</label>
+            <div class="wf-card" style="padding:8px 10px;min-height:60px;">
+              <span class="wf-text-muted" style="font-size:12px;">用户管理服务，提供注册/登录/资料接口</span>
+            </div>
+          </div>
+
+          <div class="wf-row" style="gap:8px;justify-content:flex-end;">
+            <span class="wf-btn ghost">取消</span>
+            <span class="wf-btn">创建并生成 Dockerfile</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        单页表单，7 个字段。**项目类型是核心**——它决定 master 用哪个 Dockerfile 模板。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>项目类型高亮</strong>
+        选中后立即展示"用模板 xxx 自动生成 Dockerfile"提示，让用户预期到下一步会发生什么。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>Token 字段警示</strong>
+        标"⚠ AES-256 加密存储"——给用户安全感（不会被明文存），同时建议项目专属 token（最小权限原则）。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>提交按钮文案</strong>
+        "创建并生成 Dockerfile" 而不是"创建"——明确告诉用户这一步会发生两件事：建项目 + 推 Dockerfile。
+      </div>
+      <div class="desc-item">
+        <strong>流程衔接</strong>
+        提交后跳到 §6.7 Dockerfile 生成流：选模板变量 → 渲染 → 推仓库 → 创建 MR。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 4. PIPELINE EDIT -->
+<!-- ============================================================ -->
+<section class="page-section" id="pipeline-edit">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">④ 流水线编辑页</h2>
+      <div class="page-section-sub">YAML 编辑器 + AI 改按钮 + 版本历史时间线</div>
+    </div>
+    <span class="page-section-id">route: /projects/{id}/pipeline</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:560px;">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/projects/user-service/pipeline</div>
+      </div>
+      <div class="wf-body" style="padding:0;">
+        <div class="wf-topbar">
+          <div class="wf-row" style="gap:12px;">
+            <strong style="font-size:15px;">流水线配置</strong>
+            <span class="wf-pill success">v3 · approved</span>
+            <span class="wf-text-muted" style="font-size:11px;">最后修改 2h ago</span>
+          </div>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn outline" style="background:var(--primary-soft);color:var(--primary);border-color:var(--primary-soft);">🤖 AI 帮我改</span>
+            <span class="wf-btn outline">新建版本</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;min-height:480px;">
+          <!-- YAML editor -->
+          <div style="background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:12px;padding:16px;line-height:1.6;overflow:hidden;">
+<div style="color:#8b949e;"># user-service .drone.yml · v3 (approved)</div>
+<div><span style="color:#ff7b72;">kind</span>: pipeline</div>
+<div><span style="color:#ff7b72;">name</span>: default</div>
+<div></div>
+<div><span style="color:#ff7b72;">steps</span>:</div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">- name</span>: <span style="color:#a5d6ff;">build</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">image</span>: <span style="color:#a5d6ff;">maven:3.9-eclipse-temurin-17</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">commands</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- mvn -B clean package -DskipTests</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">environment</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a5d6ff;">JAVA_OPTS</span>: <span style="color:#a5d6ff;">${JAVA_OPTS}</span></div>
+<div></div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">- name</span>: <span style="color:#a5d6ff;">test</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">image</span>: <span style="color:#a5d6ff;">maven:3.9-eclipse-temurin-17</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">commands</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- mvn -B test</div>
+<div></div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">- name</span>: <span style="color:#a5d6ff;">docker-build</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">image</span>: <span style="color:#a5d6ff;">plugins/docker</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">settings</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a5d6ff;">username</span>: <span style="color:#a5d6ff;">${HARBOR_USER}</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a5d6ff;">password</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a5d6ff;">from_secret</span>: <span style="color:#a5d6ff;">harbor_password</span></div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">repo</span>: <span style="color:#a5d6ff;">harbor.local/user-service</span></div>
+          </div>
+          <!-- Version history -->
+          <div style="padding:16px;background:var(--card);border-left:1px solid var(--border);">
+            <strong style="font-size:13px;">版本历史</strong>
+            <div style="margin-top:10px;border-left:2px solid var(--border);padding-left:14px;">
+              <div style="position:relative;padding:4px 0 14px 0;">
+                <div style="position:absolute;left:-20px;top:4px;width:10px;height:10px;background:var(--success);border-radius:50%;border:2px solid var(--card);"></div>
+                <div class="wf-row" style="justify-content:space-between;">
+                  <strong style="font-size:12px;">v3</strong>
+                  <span class="wf-pill success">approved</span>
+                </div>
+                <div class="wf-text" style="font-size:11px;">2h ago · 仔哥</div>
+                <div class="wf-text-muted" style="font-size:11px;">手动编辑</div>
+              </div>
+              <div style="position:relative;padding:4px 0 14px 0;">
+                <div style="position:absolute;left:-20px;top:4px;width:10px;height:10px;background:var(--gray-bg-2);border-radius:50%;border:2px solid var(--card);"></div>
+                <div class="wf-row" style="justify-content:space-between;">
+                  <strong style="font-size:12px;">v2</strong>
+                  <span class="wf-pill pending">rejected</span>
+                </div>
+                <div class="wf-text" style="font-size:11px;">1d ago · 仔哥</div>
+                <div class="wf-text-muted" style="font-size:11px;">AI 改: "加 sonarqube"</div>
+              </div>
+              <div style="position:relative;padding:4px 0 14px 0;">
+                <div style="position:absolute;left:-20px;top:4px;width:10px;height:10px;background:var(--gray-bg-2);border-radius:50%;border:2px solid var(--card);"></div>
+                <div class="wf-row" style="justify-content:space-between;">
+                  <strong style="font-size:12px;">v1</strong>
+                  <span class="wf-pill pending">rejected</span>
+                </div>
+                <div class="wf-text" style="font-size:11px;">3d ago · 仔哥</div>
+                <div class="wf-text-muted" style="font-size:11px;">手动编辑</div>
+              </div>
+            </div>
+            <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
+              <strong style="font-size:11px;" class="wf-text-muted">最近 3 次改动</strong>
+              <div class="wf-text" style="font-size:11px;margin-top:4px;color:var(--text-soft);">还有 8 条历史...</div>
+            </div>
+          </div>
+        </div>
+        <div class="wf-topbar" style="border-top:1px solid var(--border);">
+          <span class="wf-text-muted" style="font-size:12px;">v3 当前生效 · 修改后会创建 v4(draft)</span>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn ghost">保存草稿</span>
+            <span class="wf-btn">保存并审核通过</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        左右分栏：左 YAML 编辑器（深色主题，对应 Monaco Editor），右版本历史时间线。**AI 改**按钮是主亮点。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>YAML 编辑器（深色）</strong>
+        VS Code 同款 Monaco Editor，深色主题 + 语法高亮。**只读模式**默认（点编辑才解锁），防止误改。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>AI 帮我改按钮</strong>
+        浅蓝背景区分主次（不是主操作）。点击弹输入框 → 用户说"加 sonarqube 步骤" → AI 返回新 yaml draft → 用户 review → apply。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>版本时间线</strong>
+        颜色编码：绿点 = approved / 灰点 = rejected / 蓝点 = draft。每个版本带状态徽章 + 作者 + 改动来源（手动/AI）。
+      </div>
+      <div class="desc-item">
+        <strong>底部保存策略</strong>
+        "保存草稿"= 仅创建 v4 draft。"保存并审核通过"= v4 直接 approved 立即生效（**慎用**）。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 5. BUILD DETAIL -->
+<!-- ============================================================ -->
+<section class="page-section" id="build-detail">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">⑤ 构建详情页（实时日志）</h2>
+      <div class="page-section-sub">左元信息 + 右实时日志 · SSE 流式 · 失败时弹 AI 诊断</div>
+    </div>
+    <span class="page-section-id">route: /builds/{id}</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:560px;">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/builds/128</div>
+      </div>
+      <div class="wf-body" style="padding:0;">
+        <div class="wf-topbar">
+          <div class="wf-row" style="gap:10px;">
+            <strong style="font-size:15px;">构建 #128</strong>
+            <span class="wf-pill success">success</span>
+            <span class="wf-text-muted" style="font-size:11px;">4m 12s · 仔哥 · 2m ago</span>
+          </div>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn outline">查看 drone 日志</span>
+            <span class="wf-btn">发布到 demo-env</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;min-height:480px;">
+          <!-- Left meta -->
+          <div style="background:var(--card);border-right:1px solid var(--border);padding:14px;">
+            <div class="wf-text-muted" style="font-size:11px;margin-bottom:4px;">commit</div>
+            <div class="mono" style="font-size:12px;background:var(--gray-bg);padding:4px 6px;border-radius:4px;">a3f2c1d</div>
+            <div class="wf-text" style="font-size:11px;margin-top:4px;">fix(user): NPE on null avatar</div>
+
+            <div class="wf-divider"></div>
+            <div class="wf-text-muted" style="font-size:11px;margin-bottom:4px;">触发</div>
+            <div class="wf-text" style="font-size:12px;">仔哥 · manual</div>
+
+            <div class="wf-divider"></div>
+            <div class="wf-text-muted" style="font-size:11px;margin-bottom:4px;">镜像</div>
+            <div class="mono wf-text" style="font-size:11px;word-break:break-all;">harbor.local/user-service:v128</div>
+
+            <div class="wf-divider"></div>
+            <div class="wf-text-muted" style="font-size:11px;margin-bottom:6px;">步骤</div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;">
+              <span style="color:var(--success);">✓</span>
+              <span>build</span>
+              <span class="wf-text-muted mono" style="font-size:10px;margin-left:auto;">1m 24s</span>
+            </div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;">
+              <span style="color:var(--success);">✓</span>
+              <span>test</span>
+              <span class="wf-text-muted mono" style="font-size:10px;margin-left:auto;">2m 30s</span>
+            </div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;">
+              <span style="color:var(--success);">✓</span>
+              <span>docker-build</span>
+              <span class="wf-text-muted mono" style="font-size:10px;margin-left:auto;">18s</span>
+            </div>
+          </div>
+          <!-- Right log -->
+          <div style="background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:11px;padding:14px;line-height:1.55;overflow:hidden;position:relative;">
+<div style="color:#8b949e;">+ echo "Starting build..."</div>
+<div>+ mvn -B clean package -DskipTests</div>
+<div><span style="color:#8b949e;">[INFO] Scanning for projects...</span></div>
+<div><span style="color:#8b949e;">[INFO] Building user-service 1.0.128</span></div>
+<div><span style="color:#79c0ff;">[INFO] --- maven-compiler-plugin:3.11.0:compile ---</span></div>
+<div><span style="color:#8b949e;">[INFO] Compiling 142 source files</span></div>
+<div><span style="color:#56d364;">[INFO] BUILD SUCCESS</span></div>
+<div><span style="color:#8b949e;">...</span></div>
+<div style="color:#8b949e;">+ echo "Running tests..."</div>
+<div>+ mvn -B test</div>
+<div><span style="color:#79c0ff;">[INFO] Tests run: 327, Failures: 0, Errors: 0</span></div>
+<div><span style="color:#56d364;">[INFO] BUILD SUCCESS</span></div>
+<div><span style="color:#8b949e;">...</span></div>
+<div style="color:#8b949e;">+ docker build -t harbor.local/user-service:v128 .</div>
+<div style="color:#56d364;">→ sha256:a3f2c1d4...</div>
+<div style="color:#56d364;">+ docker push harbor.local/user-service:v128</div>
+<div><span style="color:#3fb950;">✓ Build complete · image pushed to Harbor</span></div>
+<div style="position:absolute;bottom:10px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:center;color:#8b949e;font-size:10px;">
+  <span>SSE streaming · 1.2 KB/s</span>
+  <span>↓ jump to bottom</span>
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        这是**最关键的页面**——开发者盯得最多的就是这。左右分栏 280px + 1fr，实时日志自动滚到底。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>顶部状态徽章</strong>
+        success / running / failed / timeout 四种状态，颜色编码清晰。"发布到 demo-env"按钮在成功后亮起。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>左侧元信息 280px</strong>
+        commit / 触发人 / 镜像 tag / 步骤列表(各步骤耗时)。**镜像 tag 整路径可复制**。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>右侧实时日志(SSE)</strong>
+        等宽字体 + 深色背景 + 颜色编码(INFO 灰 / SUCCESS 绿 / ERROR 红)。底部"↓ jump to bottom"按钮 + "1.2 KB/s"流速显示。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">4</span>失败时 AI 诊断</strong>
+        顶部红色 alert 横幅 + "🤖 AI 诊断"按钮（不自动弹，**让用户主动点**避免打扰）。
+      </div>
+      <div class="desc-item">
+        <strong>技术</strong>
+        EventSource 连 `/api/builds/{id}/logs/stream` · master 用 SseEmitter 调 drone stream API 转发 · 完成时落 MySQL。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 6. DEPLOY DETAIL -->
+<!-- ============================================================ -->
+<section class="page-section" id="deploy-detail">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">⑥ 发布详情页</h2>
+      <div class="page-section-sub">镜像版本 + snapshot YAML + 操作（停止/回滚）</div>
+    </div>
+    <span class="page-section-id">route: /deploys/{id}</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:480px;">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/deploys/56</div>
+      </div>
+      <div class="wf-body" style="padding:0;">
+        <div class="wf-topbar">
+          <div class="wf-row" style="gap:10px;">
+            <strong style="font-size:15px;">发布 #56</strong>
+            <span class="wf-pill success">deployed</span>
+            <span class="wf-text-muted" style="font-size:11px;">→ demo-env</span>
+          </div>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn outline">查看 snapshot</span>
+            <span class="wf-btn" style="background:var(--warn);">回滚到 #50</span>
+          </div>
+        </div>
+        <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="wf-card">
+            <div class="wf-text-muted" style="font-size:11px;">部署信息</div>
+            <div class="wf-divider"></div>
+            <div class="wf-row" style="justify-content:space-between;margin:4px 0;">
+              <span class="wf-text-muted" style="font-size:12px;">镜像</span>
+              <span class="mono" style="font-size:11px;">v128</span>
+            </div>
+            <div class="wf-row" style="justify-content:space-between;margin:4px 0;">
+              <span class="wf-text-muted" style="font-size:12px;">replicas</span>
+              <span style="font-size:12px;">2</span>
+            </div>
+            <div class="wf-row" style="justify-content:space-between;margin:4px 0;">
+              <span class="wf-text-muted" style="font-size:12px;">环境变量</span>
+              <span style="font-size:12px;">5 个</span>
+            </div>
+            <div class="wf-row" style="justify-content:space-between;margin:4px 0;">
+              <span class="wf-text-muted" style="font-size:12px;">触发人</span>
+              <span style="font-size:12px;">仔哥</span>
+            </div>
+            <div class="wf-row" style="justify-content:space-between;margin:4px 0;">
+              <span class="wf-text-muted" style="font-size:12px;">耗时</span>
+              <span style="font-size:12px;">12s</span>
+            </div>
+          </div>
+          <div class="wf-card">
+            <div class="wf-text-muted" style="font-size:11px;">Pod 状态</div>
+            <div class="wf-divider"></div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;">
+              <span style="color:var(--success);">●</span>
+              <span>user-service-7b8d9-xk2j4</span>
+              <span class="wf-pill success" style="margin-left:auto;font-size:10px;">Running</span>
+            </div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;">
+              <span style="color:var(--success);">●</span>
+              <span>user-service-7b8d9-h3k7p</span>
+              <span class="wf-pill success" style="margin-left:auto;font-size:10px;">Running</span>
+            </div>
+            <div class="wf-row" style="gap:6px;font-size:12px;margin:4px 0;color:var(--text-muted);">
+              <span>ready 2/2</span>
+              <span style="margin-left:auto;font-size:11px;">CPU 23% / MEM 145MB</span>
+            </div>
+          </div>
+          <div class="wf-card" style="grid-column:1/-1;">
+            <div class="wf-row" style="justify-content:space-between;">
+              <div class="wf-text-muted" style="font-size:11px;">snapshot.yaml (Deployment)</div>
+              <span class="wf-btn ghost" style="font-size:11px;">展开</span>
+            </div>
+            <div class="wf-divider"></div>
+            <div class="mono" style="background:#0d1117;color:#e6edf3;padding:10px;border-radius:6px;font-size:11px;line-height:1.5;">
+<div><span style="color:#ff7b72;">apiVersion</span>: apps/v1</div>
+<div><span style="color:#ff7b72;">kind</span>: Deployment</div>
+<div><span style="color:#ff7b72;">metadata</span>:</div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">name</span>: user-service</div>
+<div><span style="color:#ff7b72;">spec</span>:</div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">replicas</span>: 2</div>
+<div>&nbsp;&nbsp;<span style="color:#ff7b72;">template</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">spec</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">containers</span>:</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">- name</span>: user-service</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff7b72;">image</span>: harbor.local/user-service:v128</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        跟构建详情页结构对称（顶部状态 + 元信息 + snapshot）。**snapshot YAML 是回滚的关键**——把它放显眼位置。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>"回滚到 #50"按钮</strong>
+        黄色（warn 色调）而不是红色——回滚是常规操作不是紧急操作。让用户选回滚到任一历史版本，不只是上一个。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>Pod 状态</strong>
+        实时显示 Pod 列表（名字 / Running 状态 / CPU+MEM）。**worker 5 分钟内持续 report**（超过则提示可能问题）。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>snapshot YAML 可折叠</strong>
+        默认只展示前 10 行（让人知道有这东西），点"展开"看完整。**完整版是回滚用的**——worker apply 这个 yaml 就回到发布 #50 的状态。
+      </div>
+      <div class="desc-item">
+        <strong>手动停止按钮</strong>
+        进行中(pod 启动失败但 Deployment progressing)的部署会有"停止"按钮——worker `kubectl rollout undo` 让 Deployment 退出 progressing。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 7. ENV VARS -->
+<!-- ============================================================ -->
+<section class="page-section" id="env-vars">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">⑦ 环境变量管理</h2>
+      <div class="page-section-sub">按 env × project 维度存 · 敏感字段加密</div>
+    </div>
+    <span class="page-section-id">route: /envs/{id}/variables</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:440px;">
+      <div class="wf-toolbar">
+        <div class="wf-dots"><span></span><span></span><span></span></div>
+        <div class="wf-url">master.local/envs/demo-env/variables</div>
+      </div>
+      <div class="wf-body" style="padding:0;">
+        <div class="wf-topbar">
+          <div class="wf-row" style="gap:10px;">
+            <strong style="font-size:15px;">demo-env 环境变量</strong>
+            <span class="wf-pill pending" style="background:var(--gray-bg-2);">DEV</span>
+          </div>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn outline">导出为 .env</span>
+            <span class="wf-btn">+ 新增变量</span>
+          </div>
+        </div>
+        <div style="padding:14px;">
+          <!-- Filter row -->
+          <div class="wf-row" style="gap:8px;margin-bottom:12px;">
+            <div class="wf-card" style="padding:6px 10px;font-size:12px;flex:1;">🔍 搜索变量名...</div>
+            <div class="wf-card" style="padding:6px 10px;font-size:12px;">项目: 全部</div>
+            <div class="wf-card" style="padding:6px 10px;font-size:12px;">类型: 全部</div>
+          </div>
+          <!-- Table -->
+          <div class="wf-card" style="padding:0;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;background:var(--gray-bg);padding:8px 12px;font-size:11px;font-weight:600;color:var(--text-muted);">
+              <div>变量名</div>
+              <div>值</div>
+              <div>类型</div>
+              <div>最后修改</div>
+              <div>项目</div>
+              <div>操作</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;padding:8px 12px;font-size:12px;border-top:1px solid var(--border);">
+              <div class="mono">DATABASE_URL</div>
+              <div class="mono" style="font-size:11px;">jdbc:mysql://mysql:3306/user_db</div>
+              <div><span class="wf-pill pending">普通</span></div>
+              <div class="wf-text-muted" style="font-size:11px;">3d ago</div>
+              <div class="wf-text" style="font-size:11px;">user-service</div>
+              <div class="wf-row" style="gap:4px;font-size:11px;">
+                <span style="color:var(--primary);cursor:pointer;">编辑</span>
+                <span style="color:var(--danger);cursor:pointer;">删除</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;padding:8px 12px;font-size:12px;border-top:1px solid var(--border);">
+              <div class="mono">DB_PASSWORD</div>
+              <div class="mono" style="font-size:11px;background:var(--gray-bg-2);padding:2px 6px;border-radius:4px;">••••••••••••••</div>
+              <div><span class="wf-pill" style="background:var(--warn-soft);color:#92400e;">🔒 敏感</span></div>
+              <div class="wf-text-muted" style="font-size:11px;">3d ago</div>
+              <div class="wf-text" style="font-size:11px;">user-service</div>
+              <div class="wf-row" style="gap:4px;font-size:11px;">
+                <span style="color:var(--primary);cursor:pointer;">编辑</span>
+                <span style="color:var(--danger);cursor:pointer;">删除</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;padding:8px 12px;font-size:12px;border-top:1px solid var(--border);">
+              <div class="mono">REDIS_HOST</div>
+              <div class="mono" style="font-size:11px;">redis-master</div>
+              <div><span class="wf-pill pending">普通</span></div>
+              <div class="wf-text-muted" style="font-size:11px;">1w ago</div>
+              <div class="wf-text" style="font-size:11px;">全局</div>
+              <div class="wf-row" style="gap:4px;font-size:11px;">
+                <span style="color:var(--primary);cursor:pointer;">编辑</span>
+                <span style="color:var(--danger);cursor:pointer;">删除</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;padding:8px 12px;font-size:12px;border-top:1px solid var(--border);">
+              <div class="mono">LLM_API_KEY</div>
+              <div class="mono" style="font-size:11px;background:var(--gray-bg-2);padding:2px 6px;border-radius:4px;">••••••••••••••</div>
+              <div><span class="wf-pill" style="background:var(--warn-soft);color:#92400e;">🔒 敏感</span></div>
+              <div class="wf-text-muted" style="font-size:11px;">2w ago</div>
+              <div class="wf-text" style="font-size:11px;">全局</div>
+              <div class="wf-row" style="gap:4px;font-size:11px;">
+                <span style="color:var(--primary);cursor:pointer;">编辑</span>
+                <span style="color:var(--danger);cursor:pointer;">删除</span>
+              </div>
+            </div>
+          </div>
+          <div class="wf-text" style="font-size:11px;margin-top:8px;">共 8 个变量 · AES-256 加密存储 · 注入 drone 构建时解密</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        表格化展示，敏感变量默认遮罩（•••••）+ 🔒 徽章。**解密只发生在 drone 构建时**，UI 不暴露原值。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>敏感 vs 普通</strong>
+        敏感变量用黄色徽章 + 🔒 标识。**值永远不在 UI 明文展示**——点"显示"按钮弹出"确认要展示？明文会被记入审计日志"。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>项目级 vs 全局</strong>
+        全局变量对该环境下所有项目生效；项目级变量只对该项目生效。**项目级优先于全局**。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>"导出为 .env"</strong>
+        一键导出该环境所有变量为 .env 格式（敏感变量只导出变量名，值是空），方便本地开发复用。
+      </div>
+      <div class="desc-item">
+        <strong>注入流程</strong>
+        master 触发 drone 构建时，把 env_id 下的所有变量（按项目合并）解密封装成 vars.yaml 传给 drone。**vars.yaml 不落盘**。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 8. AI DIAGNOSIS MODAL -->
+<!-- ============================================================ -->
+<section class="page-section" id="ai-diagnosis">
+  <div class="page-section-header">
+    <div>
+      <h2 class="page-section-title">⑧ AI 故障诊断弹窗</h2>
+      <div class="page-section-sub">构建失败时弹出 · 根因 + 修复建议 + 相关文档</div>
+    </div>
+    <span class="page-section-id">route: 弹窗（覆盖在构建详情页上）</span>
+  </div>
+  <div class="page-section-body">
+    <div class="wireframe" style="min-height:520px;background:#1f2937;">
+      <!-- Backdrop hint -->
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9ca3af;font-size:12px;z-index:0;">↑ 半透明背景遮罩（构建详情页）</div>
+      <!-- Modal -->
+      <div style="position:relative;z-index:1;max-width:640px;margin:24px auto;background:var(--card);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+        <!-- Header -->
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div class="wf-row" style="gap:10px;">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+            <div>
+              <strong style="font-size:15px;">AI 故障诊断</strong>
+              <div class="wf-text-muted" style="font-size:11px;">构建 #127 · user-service · order-service 失败</div>
+            </div>
+          </div>
+          <span style="color:var(--text-soft);cursor:pointer;font-size:18px;">×</span>
+        </div>
+        <!-- Body -->
+        <div style="padding:20px;max-height:380px;overflow:auto;">
+          <!-- Root cause -->
+          <div style="background:var(--danger-soft);border-left:3px solid var(--danger);padding:12px 14px;border-radius:6px;margin-bottom:16px;">
+            <div class="wf-row" style="justify-content:space-between;margin-bottom:6px;">
+              <strong style="font-size:12px;color:#991b1b;">根因分析</strong>
+              <span class="wf-pill" style="background:white;color:#991b1b;font-size:10px;">置信度 87%</span>
+            </div>
+            <div style="font-size:13px;color:#7f1d1d;line-height:1.6;">
+              <code class="mono" style="background:rgba(0,0,0,0.05);padding:1px 4px;border-radius:3px;">OrderServiceTest.testConcurrentInsert</code>
+              在 step 3 of build 失败。日志显示 <code class="mono" style="background:rgba(0,0,0,0.05);padding:1px 4px;border-radius:3px;">deadlock found when trying to get lock</code>，疑似数据库行锁竞争。
+            </div>
+          </div>
+          <!-- Evidence -->
+          <div style="margin-bottom:16px;">
+            <strong style="font-size:12px;">📋 证据</strong>
+            <div class="wf-divider"></div>
+            <div class="mono" style="background:#0d1117;color:#e6edf3;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.5;">
+<div><span style="color:#f85149;">[ERROR] Caused by: java.sql.SQLException: Lock wait timeout exceeded</span></div>
+<div>at com.example.OrderDao.insert(OrderDao.java:42)</div>
+<div>at com.example.OrderService.create(OrderService.java:78)</div>
+            </div>
+          </div>
+          <!-- Suggested fixes -->
+          <div>
+            <strong style="font-size:12px;">💡 建议修复</strong>
+            <div class="wf-divider"></div>
+            <div style="margin:8px 0;padding:10px;background:var(--gray-bg);border-radius:6px;">
+              <div class="wf-row" style="gap:6px;margin-bottom:4px;">
+                <span style="color:var(--success);font-weight:600;">①</span>
+                <strong style="font-size:12px;">缩小事务范围</strong>
+                <span class="wf-pill pending" style="margin-left:auto;font-size:10px;">高优</span>
+              </div>
+              <div class="wf-text" style="font-size:11px;">将 <code class="mono">OrderService.create()</code> 的事务从 Service 层下沉到 Dao 层单个 insert 操作</div>
+            </div>
+            <div style="margin:8px 0;padding:10px;background:var(--gray-bg);border-radius:6px;">
+              <div class="wf-row" style="gap:6px;margin-bottom:4px;">
+                <span style="color:var(--success);font-weight:600;">②</span>
+                <strong style="font-size:12px;">加超时重试</strong>
+                <span class="wf-pill pending" style="margin-left:auto;font-size:10px;">中</span>
+              </div>
+              <div class="wf-text" style="font-size:11px;">用 Spring Retry 在 dao 层对 LockTimeout 异常重试 2 次，间隔 100ms</div>
+            </div>
+            <div style="margin:8px 0;padding:10px;background:var(--gray-bg);border-radius:6px;">
+              <div class="wf-row" style="gap:6px;margin-bottom:4px;">
+                <span style="color:var(--success);font-weight:600;">③</span>
+                <strong style="font-size:12px;">加索引</strong>
+                <span class="wf-pill pending" style="margin-left:auto;font-size:10px;">低</span>
+              </div>
+              <div class="wf-text" style="font-size:11px;">order 表 user_id 字段加索引减少行锁范围</div>
+            </div>
+          </div>
+          <!-- Related docs -->
+          <div style="margin-top:14px;padding:10px 12px;background:var(--primary-soft);border-radius:6px;">
+            <strong style="font-size:11px;">📚 相关文档</strong>
+            <div class="wf-text" style="font-size:11px;margin-top:4px;">MySQL 锁等待 · Spring 事务边界 · OrderService 提交历史(最近 5 次都成功)</div>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--gray-bg);display:flex;justify-content:space-between;align-items:center;">
+          <span class="wf-text" style="font-size:11px;">🤖 基于 build_log.content + 历史 5 次成功部署分析</span>
+          <div class="wf-row" style="gap:6px;">
+            <span class="wf-btn ghost">忽略</span>
+            <span class="wf-btn outline">采纳建议 ①</span>
+            <span class="wf-btn">打开文件</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="descriptions">
+      <div class="desc-item">
+        <strong>设计要点</strong>
+        模态弹窗覆盖在构建详情页上。**4 个区块**：根因(红) → 证据(黑) → 建议(灰) → 相关文档(蓝)。颜色编码让用户 5 秒抓住重点。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">1</span>置信度徽章</strong>
+        LLM 返回 confidence(0-1)，> 0.8 高 / 0.5-0.8 中 / < 0.5 低。**让用户决定是否采纳**——不假装 AI 永远对。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">2</span>证据 + 建议分离</strong>
+        证据来自 build_log 原文（不加工），让用户能验证 AI 没瞎说。**这是建立信任的关键**。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">3</span>建议带优先级</strong>
+        ①②③ 标"高优/中/低"——用户从高优开始看。
+      </div>
+      <div class="desc-item">
+        <strong><span class="desc-num">4</span>"采纳建议 ①"按钮</strong>
+        点了后 → master 在项目仓库创建 fix 分支 + 改代码 + 提 MR。**一键闭环**。"打开文件"是只跳 IDE 看。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div style="text-align:center;padding:40px 0 20px;color:var(--text-muted);font-size:12px;">
+  全部 8 个核心页面 · 基于 Vue 3 + Element Plus 视觉语言 · V1 横向 demo 范围
+</div>
+
+</div>
+
+</body>
+</html>
