@@ -167,7 +167,7 @@ flowchart TB
 
 | 组件 | 选型 | 理由 |
 |---|---|---|
-| master 后端 | Java 17 + Spring Boot 3 | 团队技术栈、成熟生态 |
+| master 后端 | **Java 21 LTS + Spring Boot 3.2+**（启用虚拟线程） | 团队技术栈、虚拟线程完美匹配 master 的 I/O bound 场景 |
 | master 前端 | Vue 3 + TS + Element Plus | 国内主流、上手快 |
 | DB | MySQL 8 | 公司默认栈 |
 | 缓存/锁 | Redis | 构建状态缓存、分布式锁防重 |
@@ -179,6 +179,56 @@ flowchart TB
 | 监控 | Prometheus + Grafana + Alertmanager | 工业标准、复用生态 |
 | 测试 | JUnit 5 + jqwik + Testcontainers + Vitest + Playwright | 见 §8 |
 | 容器化 | Docker + docker-compose（开发） + k3s（demo 集群） | 跨平台、轻量 |
+
+### 3.2.1 虚拟线程设计（Java 21）
+
+master 的请求路径**几乎全是 I/O bound**：
+
+- 调 drone REST API（构建触发、状态查询、日志流）
+- 调 worker HTTP API（部署、回滚、停止）
+- 调 LLM Provider（外部 LLM 推理）
+- 调 GitLab/Gitee API（仓库读写、MR 创建、commit diff）
+- DB 查询（MySQL + MyBatis）
+- Redis 操作（缓存 + 分布式锁）
+- **SSE 实时日志推送**（长连接，每个 build 都占一个线程直到构建完成）
+
+**传统线程池的问题**：默认 200 线程上限 + 每个线程 1MB 栈 → 高并发（100+ 同时构建）时线程耗尽，HTTP 502。
+
+**虚拟线程的解法**：Project Loom（JDK 21 LTS GA）让每个虚拟线程只占几 KB 栈，**M 个虚拟线程跑在 N 个 OS 线程上**（M:N 调度）。master 启动时一行配置启用，**所有阻塞 I/O 自动跑在虚拟线程上，不用改业务代码**。
+
+**配置示例**（`application.yml`）：
+
+```yaml
+spring:
+  threads:
+    virtual:
+      enabled: true   # Spring Boot 3.2+ 一行启用虚拟线程
+
+server:
+  tomcat:
+    threads:
+      # 不需要再配 max-threads,虚拟线程下 tomcat 用 VirtualThreadExecutor
+      max: 200
+```
+
+**哪些场景直接受益**：
+
+| 场景 | 传统线程池 | 虚拟线程 |
+|---|---|---|
+| 100 个并发构建触发（每个调 drone API 等几秒） | 占 100 线程 | 占 100 虚拟线程（只占几个 OS 线程） |
+| SSE 实时日志推送（每个 build 1 个长连接） | **不能**长开，线程池耗尽 | 没问题，虚拟线程数可以万级 |
+| LLM 调外部 API（每个 prompt 1-5s 阻塞） | 阻塞 OS 线程 | 阻塞虚拟线程，OS 线程继续服务其他请求 |
+| MySQL/Redis I/O | 阻塞 OS 线程 | 阻塞虚拟线程 |
+
+**虚拟线程的注意点**（V1 实施时要避免）：
+
+1. **不要在 synchronized 块里做 I/O** —— synchronized 会 pin 住 carrier 线程，synchronized 里做阻塞 I/O 等于退化成 OS 线程。建议用 `ReentrantLock` 替代。
+2. **不要池化虚拟线程** —— 虚拟线程不是稀缺资源，不要做"虚拟线程池"（即用即建即可）。
+3. **JFR + JDK Flight Recorder** —— 监控虚拟线程行为，看是不是有 carrier pinning。
+
+**对 worker 的影响**：worker 仍然是 Go 单二进制（CPU bound + k8s 客户端），不受 Java 21 虚拟线程影响。
+
+**面试亮点**："为什么用 Java 21 不用 17？" → "虚拟线程，master 全是 I/O bound，10 行配置让 100 并发构建不卡线程池"
 
 ### 3.3 部署拓扑
 
@@ -863,6 +913,7 @@ V1 收尾时由 Mavis 整理:
 | 20 | Dockerfile 存储位置 | 提交进项目仓库(走 MR) | Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见 |
 | 21 | 实时构建日志范围 | 构建中实时看(SSE)+ 构建完 master 持久化 | GitHub Actions/Jenkins/GitLab CI 标配体验;master 持久化摆脱 drone 日志 30 天保留限制 |
 | 22 | 实时日志 UI 位置 | 构建详情页(左侧元信息+右侧实时日志) | 经典 CI 体验;项目卡片预览是另一类需求, V1 不同时做 |
+| 23 | Java 版本 | **Java 21 LTS(不用 17)** | 虚拟线程(Project Loom)完美匹配 master 的 I/O bound 场景;100+ 并发构建/SSE 长连接不卡线程池;Spring Boot 3.2+ 一行配置启用 |
 
 ---
 

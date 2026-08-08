@@ -229,6 +229,7 @@
       <li><a href="#3-架构总览" class="">3. 架构总览</a></li>
       <li><a href="#31-组件总览" class="lv3">3.1 组件总览</a></li>
       <li><a href="#32-关键选型" class="lv3">3.2 关键选型</a></li>
+      <li><a href="#321-虚拟线程设计java-21" class="lv3">3.2.1 虚拟线程设计（Java 21）</a></li>
       <li><a href="#33-部署拓扑" class="lv3">3.3 部署拓扑</a></li>
       <li><a href="#4-master-内部设计" class="">4. master 内部设计</a></li>
       <li><a href="#41-核心数据模型12-张表" class="lv3">4.1 核心数据模型（12 张表）</a></li>
@@ -495,8 +496,8 @@
 <tbody>
 <tr>
 <td>master 后端</td>
-<td>Java 17 + Spring Boot 3</td>
-<td>团队技术栈、成熟生态</td>
+<td><strong>Java 21 LTS + Spring Boot 3.2+</strong>（启用虚拟线程）</td>
+<td>团队技术栈、虚拟线程完美匹配 master 的 I/O bound 场景</td>
 </tr>
 <tr>
 <td>master 前端</td>
@@ -555,6 +556,71 @@
 </tr>
 </tbody>
 </table>
+<h3 id="321-java-21">3.2.1 虚拟线程设计（Java 21）</h3>
+<p>master 的请求路径<strong>几乎全是 I/O bound</strong>：</p>
+<ul>
+<li>调 drone REST API（构建触发、状态查询、日志流）</li>
+<li>调 worker HTTP API（部署、回滚、停止）</li>
+<li>调 LLM Provider（外部 LLM 推理）</li>
+<li>调 GitLab/Gitee API（仓库读写、MR 创建、commit diff）</li>
+<li>DB 查询（MySQL + MyBatis）</li>
+<li>Redis 操作（缓存 + 分布式锁）</li>
+<li><strong>SSE 实时日志推送</strong>（长连接，每个 build 都占一个线程直到构建完成）</li>
+</ul>
+<p><strong>传统线程池的问题</strong>：默认 200 线程上限 + 每个线程 1MB 栈 → 高并发（100+ 同时构建）时线程耗尽，HTTP 502。</p>
+<p><strong>虚拟线程的解法</strong>：Project Loom（JDK 21 LTS GA）让每个虚拟线程只占几 KB 栈，<strong>M 个虚拟线程跑在 N 个 OS 线程上</strong>（M:N 调度）。master 启动时一行配置启用，<strong>所有阻塞 I/O 自动跑在虚拟线程上，不用改业务代码</strong>。</p>
+<p><strong>配置示例</strong>（<code>application.yml</code>）：</p>
+<pre><code class="language-yaml">spring:
+  threads:
+    virtual:
+      enabled: true   # Spring Boot 3.2+ 一行启用虚拟线程
+
+server:
+  tomcat:
+    threads:
+      # 不需要再配 max-threads,虚拟线程下 tomcat 用 VirtualThreadExecutor
+      max: 200
+</code></pre>
+<p><strong>哪些场景直接受益</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>传统线程池</th>
+<th>虚拟线程</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100 个并发构建触发（每个调 drone API 等几秒）</td>
+<td>占 100 线程</td>
+<td>占 100 虚拟线程（只占几个 OS 线程）</td>
+</tr>
+<tr>
+<td>SSE 实时日志推送（每个 build 1 个长连接）</td>
+<td><strong>不能</strong>长开，线程池耗尽</td>
+<td>没问题，虚拟线程数可以万级</td>
+</tr>
+<tr>
+<td>LLM 调外部 API（每个 prompt 1-5s 阻塞）</td>
+<td>阻塞 OS 线程</td>
+<td>阻塞虚拟线程，OS 线程继续服务其他请求</td>
+</tr>
+<tr>
+<td>MySQL/Redis I/O</td>
+<td>阻塞 OS 线程</td>
+<td>阻塞虚拟线程</td>
+</tr>
+</tbody>
+</table>
+<p><strong>虚拟线程的注意点</strong>（V1 实施时要避免）：</p>
+<ol>
+<li><strong>不要在 synchronized 块里做 I/O</strong> —— synchronized 会 pin 住 carrier 线程，synchronized 里做阻塞 I/O 等于退化成 OS 线程。建议用 <code>ReentrantLock</code> 替代。</li>
+<li><strong>不要池化虚拟线程</strong> —— 虚拟线程不是稀缺资源，不要做"虚拟线程池"（即用即建即可）。</li>
+<li><strong>JFR + JDK Flight Recorder</strong> —— 监控虚拟线程行为，看是不是有 carrier pinning。</li>
+</ol>
+<p><strong>对 worker 的影响</strong>：worker 仍然是 Go 单二进制（CPU bound + k8s 客户端），不受 Java 21 虚拟线程影响。</p>
+<p><strong>面试亮点</strong>："为什么用 Java 21 不用 17？" → "虚拟线程，master 全是 I/O bound，10 行配置让 100 并发构建不卡线程池"</p>
 <h3 id="33">3.3 部署拓扑</h3>
 <p><strong>V1 demo 形态</strong>（开发机器上）：</p>
 <pre><code>docker-compose up
@@ -1504,6 +1570,12 @@ sequenceDiagram
 <td>实时日志 UI 位置</td>
 <td>构建详情页(左侧元信息+右侧实时日志)</td>
 <td>经典 CI 体验;项目卡片预览是另一类需求, V1 不同时做</td>
+</tr>
+<tr>
+<td>23</td>
+<td>Java 版本</td>
+<td><strong>Java 21 LTS(不用 17)</strong></td>
+<td>虚拟线程(Project Loom)完美匹配 master 的 I/O bound 场景;100+ 并发构建/SSE 长连接不卡线程池;Spring Boot 3.2+ 一行配置启用</td>
 </tr>
 </tbody>
 </table>
