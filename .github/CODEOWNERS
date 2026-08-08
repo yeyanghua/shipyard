@@ -1,0 +1,77 @@
+# ============================================================
+# CODEOWNERS
+# ============================================================
+# This file defines who is automatically requested for review
+# when a PR modifies files in the specified paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Format: pattern    @owner
+# Last pattern matching wins (so put more specific rules last)
+# ============================================================
+
+# Default owners for everything (replace with your GitHub username)
+# This is a placeholder — update with actual maintainer handles before going public
+*    @zaige
+
+# ============================================================
+# Backend (Java)
+# ============================================================
+/master/                      @zaige
+/master/pom.xml               @zaige
+/master/src/main/java/        @zaige
+/master/src/main/resources/   @zaige
+/master/src/test/java/        @zaige
+
+# Critical security-sensitive paths require explicit review
+/master/src/main/java/com/master/crypto/    @zaige
+/master/src/main/java/com/master/build/WebhookController.java    @zaige
+/master/src/main/java/com/master/ai/        @zaige
+
+# ============================================================
+# Frontend (Vue)
+# ============================================================
+/web/                         @zaige
+/web/src/                     @zaige
+/web/package.json             @zaige
+
+# ============================================================
+# Worker (Go)
+# ============================================================
+/worker/                      @zaige
+/worker/main.go               @zaige
+/worker/internal/             @zaige
+
+# ============================================================
+# Infrastructure
+# ============================================================
+/docker-compose.yml           @zaige
+/docker-compose.demo.yml      @zaige
+/Dockerfile.master            @zaige
+/Dockerfile.worker            @zaige
+/Makefile                    @zaige
+/scripts/                     @zaige
+
+# ============================================================
+# Documentation
+# ============================================================
+/README.md                    @zaige
+/README.zh-CN.md              @zaige
+/docs/                        @zaige
+/CHANGELOG.md                 @zaige
+/CONTRIBUTING.md              @zaige
+/CODE_OF_CONDUCT.md           @zaige
+/SECURITY.md                  @zaige
+/LICENSE                      @zaige
+
+# ============================================================
+# CI/CD
+# ============================================================
+/.github/                     @zaige
+/.github/workflows/           @zaige
+
+# ============================================================
+# Security-sensitive files (always require review)
+# ============================================================
+/.gitignore                   @zaige
+/.env.example                 @zaige
+/SECURITY.md                  @zaige

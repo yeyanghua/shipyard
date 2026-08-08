@@ -1,0 +1,85 @@
+# ============================================================
+# master - 基础设施层 (M1)
+# ============================================================
+# 这个文件只起开发/测试需要的基础设施 (MySQL + Redis)
+# 完整 demo (master + drone + Harbor + k3s + worker + monitoring)
+# 见 docker-compose.demo.yml (M15)
+# ============================================================
+
+version: "3.9"
+
+services:
+  # ============================================================
+  # MySQL 8
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: master-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-master}
+      MYSQL_USER: ${MYSQL_USER:-master}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-master}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --max-connections=200
+      - --innodb-buffer-pool-size=256M
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - master-net
+
+  # ============================================================
+  # Redis 7
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: master-redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${REDIS_PASSWORD:-redispass}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - master-net
+
+volumes:
+  mysql_data:
+    name: master-mysql-data
+  redis_data:
+    name: master-redis-data
+
+networks:
+  master-net:
+    name: master-net
+    driver: bridge
