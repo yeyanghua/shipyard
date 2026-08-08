@@ -436,33 +436,33 @@
 <h2 id="3">3. 架构总览</h2>
 <h3 id="31">3.1 组件总览</h3>
 <pre><code class="language-mermaid">flowchart TB
-    subgraph Dev[开发者浏览器]
-        Browser[Web Browser]
+    subgraph Dev[&quot;开发者浏览器&quot;]
+        Browser[&quot;Web Browser&quot;]
     end
 
-    subgraph Master[master - Java Spring Boot]
-        Web[Web UI&lt;br/&gt;Vue 3 + TS + Element Plus]
-        API[REST API&lt;br/&gt;Spring Boot 3]
-        MySQL[(MySQL 8)]
-        Redis[(Redis)]
-        LLM[LLM Adapter]
-        PromExp[/actuator/prometheus]
+    subgraph Master[&quot;master - Java Spring Boot&quot;]
+        Web[&quot;Web UI&lt;br/&gt;Vue 3 + TS + Element Plus&quot;]
+        API[&quot;REST API&lt;br/&gt;Spring Boot 3&quot;]
+        MySQL[(&quot;MySQL 8&quot;)]
+        Redis[(&quot;Redis&quot;)]
+        LLM[&quot;LLM Adapter&quot;]
+        PromExp[&quot;/actuator/prometheus&quot;]
     end
 
-    subgraph External[外部服务]
-        Drone[drone CI&lt;br/&gt;独立部署]
-        Harbor[Harbor&lt;br/&gt;独立部署]
-        Tongyi[通义/DeepSeek API&lt;br/&gt;外部 LLM]
+    subgraph External[&quot;外部服务&quot;]
+        Drone[&quot;drone CI&lt;br/&gt;独立部署&quot;]
+        Harbor[&quot;Harbor&lt;br/&gt;独立部署&quot;]
+        Tongyi[&quot;通义/DeepSeek API&lt;br/&gt;外部 LLM&quot;]
     end
 
-    subgraph Cluster1[Demo 环境 / 上海 dev k8s 集群]
-        Worker1[worker&lt;br/&gt;Go 单二进制]
+    subgraph Cluster1[&quot;Demo 环境 / 上海 dev k8s 集群&quot;]
+        Worker1[&quot;worker&lt;br/&gt;Go 单二进制&quot;]
     end
 
-    subgraph Monitoring[监控]
-        Prom[Prometheus]
-        Grafana[Grafana]
-        AM[Alertmanager]
+    subgraph Monitoring[&quot;监控&quot;]
+        Prom[&quot;Prometheus&quot;]
+        Grafana[&quot;Grafana&quot;]
+        AM[&quot;Alertmanager&quot;]
     end
 
     Browser --&gt;|HTTPS| Web
@@ -738,19 +738,19 @@ AI
 </code></pre>
 <h3 id="43">4.3 内部模块依赖</h3>
 <pre><code class="language-mermaid">flowchart LR
-    Project[project]
-    Pipeline[pipeline]
-    Dockerfile[dockerfile&lt;br/&gt;模板+渲染+提交]
-    Env[env]
-    Variable[variable]
-    Repo[repo&lt;br/&gt;GitLab/Gitee adapter]
-    Build[build]
-    Deploy[deploy]
-    AI[ai&lt;br/&gt;LLM adapter]
-    Monitor[monitor&lt;br/&gt;/actuator/prometheus]
-    Notify[notification&lt;br/&gt;webhook 出站 V1.5]
-    Crypto[crypto&lt;br/&gt;AES Encrypter]
-    Worker[worker&lt;br/&gt;调度客户端]
+    Project[&quot;project&quot;]
+    Pipeline[&quot;pipeline&quot;]
+    Dockerfile[&quot;dockerfile&lt;br/&gt;模板+渲染+提交&quot;]
+    Env[&quot;env&quot;]
+    Variable[&quot;variable&quot;]
+    Repo[&quot;repo&lt;br/&gt;GitLab/Gitee adapter&quot;]
+    Build[&quot;build&quot;]
+    Deploy[&quot;deploy&quot;]
+    AI[&quot;ai&lt;br/&gt;LLM adapter&quot;]
+    Monitor[&quot;monitor&lt;br/&gt;/actuator/prometheus&quot;]
+    Notify[&quot;notification&lt;br/&gt;webhook 出站 V1.5&quot;]
+    Crypto[&quot;crypto&lt;br/&gt;AES Encrypter&quot;]
+    Worker[&quot;worker&lt;br/&gt;调度客户端&quot;]
 
     Build --&gt; Repo
     Build --&gt; Pipeline
@@ -762,13 +762,13 @@ AI
     Deploy --&gt; Build
     Deploy --&gt; Variable
     Deploy --&gt; Crypto
-    AI --&gt; LLM[(LLM Provider)]
+    AI --&gt; LLM[(&quot;LLM Provider&quot;)]
     Pipeline --&gt; AI
-    Dockerfile --&gt; Template[(dockerfile_template&lt;br/&gt;master 自带)]
+    Dockerfile --&gt; Template[(&quot;dockerfile_template&lt;br/&gt;master 自带&quot;)]
     Dockerfile --&gt; Repo
     Dockerfile --&gt; AI
-    Monitor --&gt; Metrics[(Micrometer)]
-    Notify -.V1.5.-&gt; Feishu[飞书/钉钉]
+    Monitor --&gt; Metrics[(&quot;Micrometer&quot;)]
+    Notify -.V1.5.-&gt; Feishu[&quot;飞书/钉钉&quot;]
     Variable --&gt; Crypto
 </code></pre>
 <hr />

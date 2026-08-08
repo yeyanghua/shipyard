@@ -115,33 +115,33 @@
 
 ```mermaid
 flowchart TB
-    subgraph Dev[开发者浏览器]
-        Browser[Web Browser]
+    subgraph Dev["开发者浏览器"]
+        Browser["Web Browser"]
     end
 
-    subgraph Master[master - Java Spring Boot]
-        Web[Web UI<br/>Vue 3 + TS + Element Plus]
-        API[REST API<br/>Spring Boot 3]
-        MySQL[(MySQL 8)]
-        Redis[(Redis)]
-        LLM[LLM Adapter]
-        PromExp[/actuator/prometheus]
+    subgraph Master["master - Java Spring Boot"]
+        Web["Web UI<br/>Vue 3 + TS + Element Plus"]
+        API["REST API<br/>Spring Boot 3"]
+        MySQL[("MySQL 8")]
+        Redis[("Redis")]
+        LLM["LLM Adapter"]
+        PromExp["/actuator/prometheus"]
     end
 
-    subgraph External[外部服务]
-        Drone[drone CI<br/>独立部署]
-        Harbor[Harbor<br/>独立部署]
-        Tongyi[通义/DeepSeek API<br/>外部 LLM]
+    subgraph External["外部服务"]
+        Drone["drone CI<br/>独立部署"]
+        Harbor["Harbor<br/>独立部署"]
+        Tongyi["通义/DeepSeek API<br/>外部 LLM"]
     end
 
-    subgraph Cluster1[Demo 环境 / 上海 dev k8s 集群]
-        Worker1[worker<br/>Go 单二进制]
+    subgraph Cluster1["Demo 环境 / 上海 dev k8s 集群"]
+        Worker1["worker<br/>Go 单二进制"]
     end
 
-    subgraph Monitoring[监控]
-        Prom[Prometheus]
-        Grafana[Grafana]
-        AM[Alertmanager]
+    subgraph Monitoring["监控"]
+        Prom["Prometheus"]
+        Grafana["Grafana"]
+        AM["Alertmanager"]
     end
 
     Browser -->|HTTPS| Web
@@ -317,19 +317,19 @@ AI
 
 ```mermaid
 flowchart LR
-    Project[project]
-    Pipeline[pipeline]
-    Dockerfile[dockerfile<br/>模板+渲染+提交]
-    Env[env]
-    Variable[variable]
-    Repo[repo<br/>GitLab/Gitee adapter]
-    Build[build]
-    Deploy[deploy]
-    AI[ai<br/>LLM adapter]
-    Monitor[monitor<br/>/actuator/prometheus]
-    Notify[notification<br/>webhook 出站 V1.5]
-    Crypto[crypto<br/>AES Encrypter]
-    Worker[worker<br/>调度客户端]
+    Project["project"]
+    Pipeline["pipeline"]
+    Dockerfile["dockerfile<br/>模板+渲染+提交"]
+    Env["env"]
+    Variable["variable"]
+    Repo["repo<br/>GitLab/Gitee adapter"]
+    Build["build"]
+    Deploy["deploy"]
+    AI["ai<br/>LLM adapter"]
+    Monitor["monitor<br/>/actuator/prometheus"]
+    Notify["notification<br/>webhook 出站 V1.5"]
+    Crypto["crypto<br/>AES Encrypter"]
+    Worker["worker<br/>调度客户端"]
 
     Build --> Repo
     Build --> Pipeline
@@ -341,13 +341,13 @@ flowchart LR
     Deploy --> Build
     Deploy --> Variable
     Deploy --> Crypto
-    AI --> LLM[(LLM Provider)]
+    AI --> LLM[("LLM Provider")]
     Pipeline --> AI
-    Dockerfile --> Template[(dockerfile_template<br/>master 自带)]
+    Dockerfile --> Template[("dockerfile_template<br/>master 自带")]
     Dockerfile --> Repo
     Dockerfile --> AI
-    Monitor --> Metrics[(Micrometer)]
-    Notify -.V1.5.-> Feishu[飞书/钉钉]
+    Monitor --> Metrics[("Micrometer")]
+    Notify -.V1.5.-> Feishu["飞书/钉钉"]
     Variable --> Crypto
 ```
 
