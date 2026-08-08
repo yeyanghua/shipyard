@@ -62,7 +62,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `367fbe2` | 仓库骨架(M1) + Apache 2.0 + 双语 README + 社区基础设施 |
 | `fb0b57b` | 全套改名 master → shipyard(避免 master 分支/服务名/仓库名混淆) |
 | `6fbbf6c` | docs: 加 PROGRESS.md(换设备无缝继续的接力棒) |
-| `xxxxxxx` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
+| `063970a` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
 
 ---
 
@@ -87,7 +87,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 - `scripts/rename_to_shipyard.py` (改名脚本,留作参考)
 - `AGENTS.md` (M1.5: AI agent 入口, M2 起步时补,见最新 commit)
 
-### M2 - shipyard 后端骨架 ✅ (commit `xxxxxxx`)
+### M2 - shipyard 后端骨架 ✅ (commit `063970a`)
 
 - `shipyard/pom.xml` — Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + mysql-connector-j 8.3.0 + Lombok + spring-boot-starter-web/validation/actuator/data-redis + Spotless 2.43.0 (palantir-java-format)
 - `shipyard/src/main/java/com/shipyard/Application.java` — 入口, `@MapperScan("com.shipyard.**.mapper")`
