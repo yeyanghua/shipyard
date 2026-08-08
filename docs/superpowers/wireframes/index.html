@@ -401,14 +401,14 @@
     <div class="wireframe">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/</div>
+        <div class="wf-url">shipyard.local/</div>
       </div>
       <div class="wf-app">
         <!-- Sidebar -->
         <div class="wf-sidebar">
           <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;">
             <div style="width:18px;height:18px;background:var(--primary);border-radius:4px;"></div>
-            <strong style="font-size:13px;">master</strong>
+            <strong style="font-size:13px;">shipyard</strong>
           </div>
           <div class="wf-sidebar-item active">
             <span>📊</span> Dashboard
@@ -535,7 +535,7 @@
     <div class="wireframe">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/projects/user-service</div>
+        <div class="wf-url">shipyard.local/projects/user-service</div>
       </div>
       <div class="wf-body" style="padding:0;">
         <!-- Top -->
@@ -641,12 +641,12 @@
     <div class="wireframe" style="min-height:520px;">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/projects/new</div>
+        <div class="wf-url">shipyard.local/projects/new</div>
       </div>
       <div class="wf-body" style="padding:24px;background:var(--card);">
         <div style="max-width:560px;margin:0 auto;">
           <h3 style="margin:0 0 4px 0;font-size:20px;">创建项目</h3>
-          <div class="wf-text-muted" style="font-size:12px;margin-bottom:20px;">master 会用模板自动生成 Dockerfile 并推送到仓库（§6.7 流程）</div>
+          <div class="wf-text-muted" style="font-size:12px;margin-bottom:20px;">shipyard 会用模板自动生成 Dockerfile 并推送到仓库（§6.7 流程）</div>
 
           <div style="margin-bottom:14px;">
             <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;">项目标识 <span style="color:var(--danger);">*</span></label>
@@ -703,7 +703,7 @@
     <div class="descriptions">
       <div class="desc-item">
         <strong>设计要点</strong>
-        单页表单，7 个字段。**项目类型是核心**——它决定 master 用哪个 Dockerfile 模板。
+        单页表单，7 个字段。**项目类型是核心**——它决定 shipyard 用哪个 Dockerfile 模板。
       </div>
       <div class="desc-item">
         <strong><span class="desc-num">1</span>项目类型高亮</strong>
@@ -740,7 +740,7 @@
     <div class="wireframe" style="min-height:560px;">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/projects/user-service/pipeline</div>
+        <div class="wf-url">shipyard.local/projects/user-service/pipeline</div>
       </div>
       <div class="wf-body" style="padding:0;">
         <div class="wf-topbar">
@@ -870,7 +870,7 @@
     <div class="wireframe" style="min-height:560px;">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/builds/128</div>
+        <div class="wf-url">shipyard.local/builds/128</div>
       </div>
       <div class="wf-body" style="padding:0;">
         <div class="wf-topbar">
@@ -968,7 +968,7 @@
       </div>
       <div class="desc-item">
         <strong>技术</strong>
-        EventSource 连 `/api/builds/{id}/logs/stream` · master 用 SseEmitter 调 drone stream API 转发 · 完成时落 MySQL。
+        EventSource 连 `/api/builds/{id}/logs/stream` · shipyard 用 SseEmitter 调 drone stream API 转发 · 完成时落 MySQL。
       </div>
     </div>
   </div>
@@ -989,7 +989,7 @@
     <div class="wireframe" style="min-height:480px;">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/deploys/56</div>
+        <div class="wf-url">shipyard.local/deploys/56</div>
       </div>
       <div class="wf-body" style="padding:0;">
         <div class="wf-topbar">
@@ -1110,7 +1110,7 @@
     <div class="wireframe" style="min-height:440px;">
       <div class="wf-toolbar">
         <div class="wf-dots"><span></span><span></span><span></span></div>
-        <div class="wf-url">master.local/envs/demo-env/variables</div>
+        <div class="wf-url">shipyard.local/envs/demo-env/variables</div>
       </div>
       <div class="wf-body" style="padding:0;">
         <div class="wf-topbar">
@@ -1164,7 +1164,7 @@
             </div>
             <div style="display:grid;grid-template-columns:1.5fr 2fr 80px 120px 100px 80px;padding:8px 12px;font-size:12px;border-top:1px solid var(--border);">
               <div class="mono">REDIS_HOST</div>
-              <div class="mono" style="font-size:11px;">redis-master</div>
+              <div class="mono" style="font-size:11px;">redis-shipyard</div>
               <div><span class="wf-pill pending">普通</span></div>
               <div class="wf-text-muted" style="font-size:11px;">1w ago</div>
               <div class="wf-text" style="font-size:11px;">全局</div>
@@ -1209,7 +1209,7 @@
       </div>
       <div class="desc-item">
         <strong>注入流程</strong>
-        master 触发 drone 构建时，把 env_id 下的所有变量（按项目合并）解密封装成 vars.yaml 传给 drone。**vars.yaml 不落盘**。
+        shipyard 触发 drone 构建时，把 env_id 下的所有变量（按项目合并）解密封装成 vars.yaml 传给 drone。**vars.yaml 不落盘**。
       </div>
     </div>
   </div>
@@ -1332,7 +1332,7 @@
       </div>
       <div class="desc-item">
         <strong><span class="desc-num">4</span>"采纳建议 ①"按钮</strong>
-        点了后 → master 在项目仓库创建 fix 分支 + 改代码 + 提 MR。**一键闭环**。"打开文件"是只跳 IDE 看。
+        点了后 → shipyard 在项目仓库创建 fix 分支 + 改代码 + 提 MR。**一键闭环**。"打开文件"是只跳 IDE 看。
       </div>
     </div>
   </div>

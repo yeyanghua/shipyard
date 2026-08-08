@@ -25,10 +25,10 @@
 
 <!-- Describe the tests you ran to verify your change. Include commands, screenshots, etc. -->
 
-- [ ] Unit tests pass (`make master-test`, `make worker-test`, `make web-test`)
+- [ ] Unit tests pass (`make shipyard-test`, `make worker-test`, `make web-test`)
 - [ ] Integration tests pass (if applicable)
 - [ ] Manual testing (describe what you did)
-- [ ] Coverage meets threshold (master ≥ 70%, worker ≥ 60%, web ≥ 50%)
+- [ ] Coverage meets threshold (shipyard ≥ 70%, worker ≥ 60%, web ≥ 50%)
 
 ## Screenshots / Recordings
 

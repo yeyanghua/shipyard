@@ -17,7 +17,7 @@
 复刻上家公司的内部统一发布平台。该平台用于：
 - 多语言应用的**构建**（Java / Vue / React / Python 等）
 - 多环境的**发布**（上海 dev / 上海 test / 上海正式 等）
-- 提供 master-worker 架构，worker 部署在每个环境执行实际拉镜像、部署操作
+- 提供 shipyard-worker 架构，worker 部署在每个环境执行实际拉镜像、部署操作
 - 基于 drone CI 做构建，K8s 做部署运行时
 - 制品仓库使用 Harbor
 - 监控告警走 Prometheus + Alertmanager
@@ -25,7 +25,7 @@
 
 ### 1.2 核心定位
 
-**内部 DevOps 平台**，master 是统一门面，drone / Harbor / worker 都是后端引擎，用户只看到 master。
+**内部 DevOps 平台**，shipyard 是统一门面，drone / Harbor / worker 都是后端引擎，用户只看到 shipyard。
 
 ### 1.3 关键约束
 
@@ -45,7 +45,7 @@
 ### 2.1 V1 范围（横向 demo，3-4 周主体 + 1-2 周 demo 编排）
 
 **端到端可演示链路**：
-1. master Web UI 创建项目（关联一个 Java 仓库）
+1. shipyard Web UI 创建项目（关联一个 Java 仓库）
 2. AI 改/生成流水线（mock LLM 默认开启）
 3. 触发构建 → drone 构建 → 推 Harbor
 4. 发布到"上海 dev"环境（demo 阶段用本地 k3s 集群模拟）
@@ -74,20 +74,20 @@
 - V1.5 再加"上海 dev / test / 正式"标准多环境
 
 **Dockerfile 自动生成**（V1）：
-- master 自带 4-5 套主流 Dockerfile 模板（Java/Maven、Java/Gradle、Node/pnpm、Python/poetry 等）
-- 建项目时选"项目类型" → master 根据模板 + 项目元数据生成 Dockerfile → **commit 进项目仓库**（master 用 repo 适配器写文件 + 创建分支 + 提 MR/PR）
+- shipyard 自带 4-5 套主流 Dockerfile 模板（Java/Maven、Java/Gradle、Node/pnpm、Python/poetry 等）
+- 建项目时选"项目类型" → shipyard 根据模板 + 项目元数据生成 Dockerfile → **commit 进项目仓库**（shipyard 用 repo 适配器写文件 + 创建分支 + 提 MR/PR）
 - 模板用变量占位（`${java_version}`、`${main_class}`、`${jar_name}`、`${port}` 等）
 - 用户能在 UI 上 review 生成的 Dockerfile → 接受 / 手动改 / 拒绝
 - AI 改流水线时也能触发"重新生成 Dockerfile"（用户改需求时 AI 同步调整模板变量 + 重新生成）
-- V1.5 加上"用户自维护 Dockerfile 模板"能力（fork master 自带模板改自己用）
+- V1.5 加上"用户自维护 Dockerfile 模板"能力（fork shipyard 自带模板改自己用）
 
 **实时构建日志**（V1）：
 - 构建过程中**实时**看构建日志（SSE 流式推到前端），不用等构建完
-- 构建完成后日志**持久化到 master MySQL**（按 step 分行存），以后从 master 直接看不用跳 drone
-- master Web "构建详情页"：左侧元信息（commit / trigger / 耗时 / step 列表），右侧实时日志区（自动滚到底）
+- 构建完成后日志**持久化到 shipyard MySQL**（按 step 分行存），以后从 shipyard 直接看不用跳 drone
+- shipyard Web "构建详情页"：左侧元信息（commit / trigger / 耗时 / step 列表），右侧实时日志区（自动滚到底）
 - 失败时顶部自动出现"AI 诊断"按钮（一键分析失败原因）
-- 历史日志查询：master MySQL 有就直接返回，没有则 fallback 调 drone logs API
-- drone 那边只存 30 天（drone 默认），master 这边永久保留（V1.5 加日志保留策略）
+- 历史日志查询：shipyard MySQL 有就直接返回，没有则 fallback 调 drone logs API
+- drone 那边只存 30 天（drone 默认），shipyard 这边永久保留（V1.5 加日志保留策略）
 
 ### 2.2 V1.5 范围
 
@@ -119,7 +119,7 @@ flowchart TB
         Browser["Web Browser"]
     end
 
-    subgraph Master["master - Java Spring Boot"]
+    subgraph Shipyard["shipyard - Java Spring Boot"]
         Web["Web UI<br/>Vue 3 + TS + Element Plus"]
         API["REST API<br/>Spring Boot 3"]
         MySQL[("MySQL 8")]
@@ -167,8 +167,8 @@ flowchart TB
 
 | 组件 | 选型 | 理由 |
 |---|---|---|
-| master 后端 | **Java 21 LTS + Spring Boot 3.2+**（启用虚拟线程） | 团队技术栈、虚拟线程完美匹配 master 的 I/O bound 场景 |
-| master 前端 | Vue 3 + TS + Element Plus | 国内主流、上手快 |
+| shipyard 后端 | **Java 21 LTS + Spring Boot 3.2+**（启用虚拟线程） | 团队技术栈、虚拟线程完美匹配 shipyard 的 I/O bound 场景 |
+| shipyard 前端 | Vue 3 + TS + Element Plus | 国内主流、上手快 |
 | DB | MySQL 8 | 公司默认栈 |
 | 缓存/锁 | Redis | 构建状态缓存、分布式锁防重 |
 | 消息队列 | **V1 不用** | YAGNI，同步 + Redis 锁顶住 100 并发 |
@@ -182,7 +182,7 @@ flowchart TB
 
 ### 3.2.1 虚拟线程设计（Java 21）
 
-master 的请求路径**几乎全是 I/O bound**：
+shipyard 的请求路径**几乎全是 I/O bound**：
 
 - 调 drone REST API（构建触发、状态查询、日志流）
 - 调 worker HTTP API（部署、回滚、停止）
@@ -194,7 +194,7 @@ master 的请求路径**几乎全是 I/O bound**：
 
 **传统线程池的问题**：默认 200 线程上限 + 每个线程 1MB 栈 → 高并发（100+ 同时构建）时线程耗尽，HTTP 502。
 
-**虚拟线程的解法**：Project Loom（JDK 21 LTS GA）让每个虚拟线程只占几 KB 栈，**M 个虚拟线程跑在 N 个 OS 线程上**（M:N 调度）。master 启动时一行配置启用，**所有阻塞 I/O 自动跑在虚拟线程上，不用改业务代码**。
+**虚拟线程的解法**：Project Loom（JDK 21 LTS GA）让每个虚拟线程只占几 KB 栈，**M 个虚拟线程跑在 N 个 OS 线程上**（M:N 调度）。shipyard 启动时一行配置启用，**所有阻塞 I/O 自动跑在虚拟线程上，不用改业务代码**。
 
 **配置示例**（`application.yml`）：
 
@@ -228,7 +228,7 @@ server:
 
 **对 worker 的影响**：worker 仍然是 Go 单二进制（CPU bound + k8s 客户端），不受 Java 21 虚拟线程影响。
 
-**面试亮点**："为什么用 Java 21 不用 17？" → "虚拟线程，master 全是 I/O bound，10 行配置让 100 并发构建不卡线程池"
+**面试亮点**："为什么用 Java 21 不用 17？" → "虚拟线程，shipyard 全是 I/O bound，10 行配置让 100 并发构建不卡线程池"
 
 ### 3.3 部署拓扑
 
@@ -237,7 +237,7 @@ server:
 docker-compose up
 ├── mysql
 ├── redis
-├── master (spring boot)
+├── shipyard (spring boot)
 ├── drone-server
 ├── drone-runner
 ├── harbor
@@ -251,7 +251,7 @@ git clone && make demo → 上面全部一键拉起
 
 **V1.5 生产形态**：
 ```
-master: 2 副本, MySQL 主从, Redis Sentinel
+shipyard: 2 副本, MySQL 主从, Redis Sentinel
 drone-server: 1 副本, drone-runner × N (按构建压力扩)
 Harbor: 主从, 跨可用区
 每环境: 独立 k8s 集群, worker 2 副本
@@ -260,7 +260,7 @@ Prometheus: 联邦 / Thanos
 
 ---
 
-## 4. master 内部设计
+## 4. shipyard 内部设计
 
 ### 4.1 核心数据模型（12 张表）
 
@@ -268,12 +268,12 @@ Prometheus: 联邦 / Thanos
 |---|---|---|
 | `project` | 项目元数据 | id, name UNIQUE, display_name, repo_provider ENUM(gitlab/gitee), repo_url, repo_token_enc, default_branch, project_type ENUM(java_maven/java_gradle/node_pnpm/python_poetry/other), project_meta JSON (语言版本/主类/jar 名/端口等), description, created_at, updated_at |
 | `pipeline_template` | 流水线模板 | id, project_id FK, version INT, yaml_content MEDIUMTEXT, review_status ENUM(draft/approved/rejected), is_active BOOL, created_by, ai_modified_by NULL, ai_prompt NULL, created_at |
-| `dockerfile_template` | Dockerfile 模板（master 自带） | id, name UNIQUE (如 java_maven_jdk17), display_name, language, build_tool, template_content MEDIUMTEXT (Mustache/Go template 语法含 `${var}`), variable_schema JSON (变量定义: key, type, default, description, required), version, is_builtin BOOL, created_at, updated_at |
+| `dockerfile_template` | Dockerfile 模板（shipyard 自带） | id, name UNIQUE (如 java_maven_jdk17), display_name, language, build_tool, template_content MEDIUMTEXT (Mustache/Go template 语法含 `${var}`), variable_schema JSON (变量定义: key, type, default, description, required), version, is_builtin BOOL, created_at, updated_at |
 | `project_dockerfile` | 项目 Dockerfile 实例 | id, project_id FK, dockerfile_template_id FK, rendered_content MEDIUMTEXT (渲染后), variable_values JSON, repo_branch, repo_commit_sha, commit_message, status ENUM(draft/pushed/rejected), created_at, pushed_at |
 | `env` | 环境定义 | id, name UNIQUE, display_name, cluster_type ENUM(k8s), k8s_namespace, worker_url, worker_token_enc, is_production BOOL, created_at |
 | `project_env` | 项目-环境关联 | project_id + env_id 复合主键 |
 | `env_variable` | 环境变量 | id, env_id FK, project_id FK NULL, var_key, var_value_enc TEXT, is_secret BOOL, description, updated_by, updated_at, UNIQUE(env_id, project_id, var_key) |
-| `build_record` | 构建记录 | id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url, **log_persisted BOOL** (日志是否已落 master) |
+| `build_record` | 构建记录 | id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url, **log_persisted BOOL** (日志是否已落 shipyard) |
 | `build_log` | 构建日志（按 step 存） | id, build_record_id FK, step_name, step_order INT, **log_content LONGTEXT** (完整日志), log_size_bytes BIGINT, started_at, finished_at, created_at, UNIQUE(build_record_id, step_name) |
 | `deploy_record` | 发布记录 | id, build_record_id FK, project_id FK, env_id FK, deploy_status ENUM(pending/running/success/failed/rolled_back), **snapshot_yaml MEDIUMTEXT** (回滚用), k8s_deployment_name, triggered_by, started_at, finished_at, log_url |
 | `worker` | worker 注册 | id, env_id FK UNIQUE, worker_url, worker_token_hash, last_heartbeat_at, status ENUM(online/offline/unhealthy), version |
@@ -305,7 +305,7 @@ Prometheus: 联邦 / Thanos
   POST   /api/projects/{id}/pipeline/ai-edit        AI 改入口(返回新 draft + diff)
   POST   /api/projects/{id}/pipeline/ai-edit/{id}/apply  用户确认应用(改 is_active=true)
 
-Dockerfile 模板(master 自带,只读列表)
+Dockerfile 模板(shipyard 自带,只读列表)
   GET    /api/dockerfile-templates              列表
   GET    /api/dockerfile-templates/{id}         详情(含 variable_schema)
 
@@ -321,7 +321,7 @@ Dockerfile 生成
   POST   /api/envs                       创建
   PUT    /api/envs/{id}                 更新
   GET    /api/envs/{id}/workers         worker 状态
-  POST   /api/envs/{id}/workers/heartbeat  worker 主动心跳(V1 用 master 主动 ping 也行)
+  POST   /api/envs/{id}/workers/heartbeat  worker 主动心跳(V1 用 shipyard 主动 ping 也行)
 
 变量
   GET    /api/envs/{id}/variables       列表
@@ -393,7 +393,7 @@ flowchart LR
     Deploy --> Crypto
     AI --> LLM[("LLM Provider")]
     Pipeline --> AI
-    Dockerfile --> Template[("dockerfile_template<br/>master 自带")]
+    Dockerfile --> Template[("dockerfile_template<br/>shipyard 自带")]
     Dockerfile --> Repo
     Dockerfile --> AI
     Monitor --> Metrics[("Micrometer")]
@@ -412,7 +412,7 @@ flowchart LR
 - **镜像大小**：~15MB
 - **部署**：k8s Deployment, replicas=2 (高可用 + 滚动升级)
 - **ServiceAccount**：最小权限，只对指定 namespace 有 `get/list/create/update/patch` 权限（针对 deployment, pod, replicaset）
-- **不持久化任何状态**——所有信息从 master 拿，重启无副作用
+- **不持久化任何状态**——所有信息从 shipyard 拿，重启无副作用
 
 ### 5.2 worker API 端点
 
@@ -424,7 +424,7 @@ POST /api/v1/tasks/deploy
     2. dry-run apply (kubectl apply --dry-run=server)
     3. 真 apply
     4. 轮询 deployment ready(超时 5min)
-    5. 持续 report pod 状态回 master (5s/次,直到 5min)
+    5. 持续 report pod 状态回 shipyard (5s/次,直到 5min)
   返回: { "status": "success"|"failed", "k8s_deployment_name": "...", "error": {...} }
 
 POST /api/v1/tasks/rollback
@@ -444,9 +444,9 @@ GET  /metrics        Prometheus
 
 1. **不持久化状态** — 无 DB、无文件持久化、无内存缓存业务数据
 2. **in-cluster ServiceAccount** — 不需要外部 kubeconfig
-3. **任务执行用状态机** — worker 接任务前 master 已用 deploy_record.status=pending 标记; worker 任务开始后改 running,完成改 success/failed
+3. **任务执行用状态机** — worker 接任务前 shipyard 已用 deploy_record.status=pending 标记; worker 任务开始后改 running,完成改 success/failed
 4. **失败原因结构化** — 返回 JSON `{ "code": "IMAGE_PULL_FAILED", "message": "...", "k8s_event": "..." }`,AI 故障诊断直接吃
-5. **持续状态上报** — apply 成功后 5 分钟内每 5s 报一次 pod status,master 检测 pod crashLoopBackOff 时通知用户
+5. **持续状态上报** — apply 成功后 5 分钟内每 5s 报一次 pod status,shipyard 检测 pod crashLoopBackOff 时通知用户
 
 ---
 
@@ -458,8 +458,8 @@ GET  /metrics        Prometheus
 sequenceDiagram
     autonumber
     actor User as 开发者
-    participant Web as master Web
-    participant API as master API
+    participant Web as shipyard Web
+    participant API as shipyard API
     participant Drone as drone CI
     participant Harbor as Harbor
 
@@ -508,8 +508,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 开发者
-    participant Web as master Web
-    participant API as master API
+    participant Web as shipyard Web
+    participant API as shipyard API
     participant Worker as worker
     participant K8s as k8s API
 
@@ -542,8 +542,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 开发者
-    participant Web as master Web
-    participant API as master API
+    participant Web as shipyard Web
+    participant API as shipyard API
     participant Worker as worker
     participant K8s as k8s API
 
@@ -564,8 +564,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 开发者
-    participant Web as master Web
-    participant API as master API
+    participant Web as shipyard Web
+    participant API as shipyard API
     participant LLM as LLM(Mock 默认 / 通义 真)
 
     User->>Web: 流水线页点"AI 帮我改"<br/>输入 prompt
@@ -590,28 +590,28 @@ sequenceDiagram
 ### 6.5 AI 故障诊断流
 
 ```
-1. deploy/build 失败时 master 自动触发,或用户手动 POST /api/ai/diagnosis { deploy_id }
-2. master 收集上下文:
+1. deploy/build 失败时 shipyard 自动触发,或用户手动 POST /api/ai/diagnosis { deploy_id }
+2. shipyard 收集上下文:
    - build_record 完整字段 + drone 日志 URL
    - deploy_record 完整字段 + worker 日志 + k8s event
    - 最近 5 次发布记录(找 pattern)
-3. master 拼 prompt + 调 LLM
+3. shipyard 拼 prompt + 调 LLM
 4. LLM 返回: { "root_cause": "...", "confidence": 0.7, "suggested_fixes": [...], "related_docs": [...] }
-5. master 写 ai_interaction 留痕
+5. shipyard 写 ai_interaction 留痕
 6. UI 弹窗展示(用户不采纳不影响业务)
 ```
 
 ### 6.6 AI 发布决策流
 
 ```
-1. build 成功后 master 主动触发(自动),或用户手动 POST /api/ai/decision { deploy_id }
-2. master 收集上下文:
+1. build 成功后 shipyard 主动触发(自动),或用户手动 POST /api/ai/decision { deploy_id }
+2. shipyard 收集上下文:
    - 本次 commit diff(调 GitLab API)
    - build 测试报告 / 覆盖率
    - 最近 5 次发布成功率 + 平均恢复时间
-3. master 拼 prompt + 调 LLM
+3. shipyard 拼 prompt + 调 LLM
 4. LLM 返回: { "risk_level": "low|medium|high", "risk_factors": [...], "recommendation": "可上|延后|先小流量" }
-5. master 写 ai_interaction 留痕
+5. shipyard 写 ai_interaction 留痕
 6. UI 在"发布"按钮旁展示建议(不强制,仅参考)
 ```
 
@@ -621,8 +621,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 开发者
-    participant Web as master Web
-    participant API as master API
+    participant Web as shipyard Web
+    participant API as shipyard API
     participant Repo as repo 适配器
     participant Git as GitLab/Gitee
     participant LLM as LLM(可选)
@@ -678,18 +678,18 @@ sequenceDiagram
 
 | 失败场景 | 症状 | 检测 | 恢复策略 |
 |---|---|---|---|
-| **drone 推 webhook 丢失** | build 卡 running | master 5min 没收到 drone 事件 | master 30s/60s/2min/5min 退避轮询 `drone build info` 3 次;仍超时标 `timeout` |
-| **drone server 整体挂** | 所有构建启动不了 | drone health check 失败 | master 给 5xx 提示"drone 异常,联系管理员";构建状态保持 pending,**不标 failed**(避免误判) |
+| **drone 推 webhook 丢失** | build 卡 running | shipyard 5min 没收到 drone 事件 | shipyard 30s/60s/2min/5min 退避轮询 `drone build info` 3 次;仍超时标 `timeout` |
+| **drone server 整体挂** | 所有构建启动不了 | drone health check 失败 | shipyard 给 5xx 提示"drone 异常,联系管理员";构建状态保持 pending,**不标 failed**(避免误判) |
 | **Harbor push 失败** | drone 成功但镜像没上去 | drone 日志有 Harbor push error | build_record 标 failed + 写 drone 日志 URL + UI 展示,用户手动重试 |
-| **worker 不在线** | 发布请求超时 | 调用 worker API 超时 30s | master 标 worker unhealthy;deploy_record 标 failed;提示"worker 离线,联系环境管理员" |
+| **worker 不在线** | 发布请求超时 | 调用 worker API 超时 30s | shipyard 标 worker unhealthy;deploy_record 标 failed;提示"worker 离线,联系环境管理员" |
 | **worker apply 失败** | k8s 拒绝 yaml | worker 返回结构化错误码 | deploy_record 标 failed + 错误信息;UI 弹"AI 诊断"建议 |
-| **deploy 成功后 pod 启动失败** | Deployment 卡 progressing,**原应用不受影响** | worker 持续 report 5min,master 检测 pod not ready | deploy_record 标 failed + pod reason/event;UI 展示详情 + "手动停止"按钮;用户点停止 → worker `kubectl rollout undo` 或 `scale deployment 0` |
-| **AI 改 yaml 生成垃圾** | LLM 返回非法 yaml / 危险字符串 | master 解析失败 / 危险字符串黑名单命中 | 拒收,不写 pipeline_template,提示用户重新描述;记 ai_interaction |
-| **LLM API 不可用** | AI 功能 503 | master 调 LLM 5s 超时 / 5xx | AI 按钮置灰 + 提示"AI 服务暂不可用";主链路不受影响 |
+| **deploy 成功后 pod 启动失败** | Deployment 卡 progressing,**原应用不受影响** | worker 持续 report 5min,shipyard 检测 pod not ready | deploy_record 标 failed + pod reason/event;UI 展示详情 + "手动停止"按钮;用户点停止 → worker `kubectl rollout undo` 或 `scale deployment 0` |
+| **AI 改 yaml 生成垃圾** | LLM 返回非法 yaml / 危险字符串 | shipyard 解析失败 / 危险字符串黑名单命中 | 拒收,不写 pipeline_template,提示用户重新描述;记 ai_interaction |
+| **LLM API 不可用** | AI 功能 503 | shipyard 调 LLM 5s 超时 / 5xx | AI 按钮置灰 + 提示"AI 服务暂不可用";主链路不受影响 |
 | **drone webhook 验签失败** | 收到伪造 webhook | HMAC 不匹配 | 丢弃,记 alert_log(P1);同一 IP 5/min 触发 P0 告警 |
-| **env_variable 解密失败** | master 启动失败 | 启动时按项目全量校验 | 启动失败 + 列出损坏变量;强制修复(防运行时才发现"为什么发布到一半 500") |
-| **master Redis 挂** | 分布式锁失效、缓存丢 | Redis ping 失败 | 主链路降级(不用锁,慢但能跑);P0 告警;不阻断业务 |
-| **master MySQL 挂** | 所有 API 500 | DB ping 失败 | 5xx + P0 告警;构建/发布能查历史但不能新操作 |
+| **env_variable 解密失败** | shipyard 启动失败 | 启动时按项目全量校验 | 启动失败 + 列出损坏变量;强制修复(防运行时才发现"为什么发布到一半 500") |
+| **shipyard Redis 挂** | 分布式锁失效、缓存丢 | Redis ping 失败 | 主链路降级(不用锁,慢但能跑);P0 告警;不阻断业务 |
+| **shipyard MySQL 挂** | 所有 API 500 | DB ping 失败 | 5xx + P0 告警;构建/发布能查历史但不能新操作 |
 
 ### 7.2 关键设计原则
 
@@ -702,9 +702,9 @@ sequenceDiagram
 
 | 级别 | 触发条件 | V1 行为 | V1.5 升级 |
 |---|---|---|---|
-| **P0** | master 挂、MySQL 挂、worker 全离线、Redis 挂 | alert_log + UI 红点 | + 飞书/钉钉 webhook |
+| **P0** | shipyard 挂、MySQL 挂、worker 全离线、Redis 挂 | alert_log + UI 红点 | + 飞书/钉钉 webhook |
 | **P1** | 单次 deploy 失败、构建失败、worker 离线、webhook 验签失败 | alert_log + 通知触发人 | + 飞书/钉钉 webhook |
-| **P2** | AI 失败、Redis 抖、master 慢响应 | alert_log(只 metric) | + 飞书/钉钉 webhook |
+| **P2** | AI 失败、Redis 抖、shipyard 慢响应 | alert_log(只 metric) | + 飞书/钉钉 webhook |
 
 ---
 
@@ -714,7 +714,7 @@ sequenceDiagram
 
 | 层 | 工具 | 覆盖目标 | 重点 |
 |---|---|---|---|
-| **单元测试** | JUnit 5 + Mockito(Java), testing + testify(Go) | master ≥ 70%, worker ≥ 60% | 业务逻辑:env_variable 加解密、snapshot 拼装、deploy 状态机、LLM adapter、drone 适配器、GitLab 适配器 |
+| **单元测试** | JUnit 5 + Mockito(Java), testing + testify(Go) | shipyard ≥ 70%, worker ≥ 60% | 业务逻辑:env_variable 加解密、snapshot 拼装、deploy 状态机、LLM adapter、drone 适配器、GitLab 适配器 |
 | **集成测试** | Testcontainers(MySQL/Redis/Drone/Harbor 真实容器) + Spring Boot Test | 关键 API 全覆盖 | 调真实 drone/Harbor 容器跑端到端:触发构建→等结果→发版→回滚 |
 | **组件测试** | Vue Test Utils + Vitest | 前端 ≥ 50% | 关键 UI:构建状态展示、流水线 diff、AI 改 yaml 表单、deploy 历史 |
 | **E2E 测试** | Playwright | V1 demo 周写一次 | demo 视频录制同时跑 Playwright 验证 |
@@ -725,14 +725,14 @@ sequenceDiagram
 2. **drone webhook HMAC 验签** — 伪造 + 重放 + 篡改 三个 case 必测
 3. **AI 改 yaml 安全兜底** — LLM 返回必走 schema 校验 + 危险操作字符串黑名单(`rm -rf`, `curl | sh`, `chmod 777` 等)
 4. **并发发布** — 同一项目同一环境连续两次发布,验证后一次不会覆盖前一次的 snapshot
-5. **worker 故障恢复** — worker 部署中突然杀进程,master 标 failed + deploy_record 状态机正确
-6. **加密/解密往返** — env_variable 加密存、解密用,改 master 启动密钥后老数据要能解密(envelope encryption 设计)
+5. **worker 故障恢复** — worker 部署中突然杀进程,shipyard 标 failed + deploy_record 状态机正确
+6. **加密/解密往返** — env_variable 加密存、解密用,改 shipyard 启动密钥后老数据要能解密(envelope encryption 设计)
 
 ### 8.3 CI / 代码质量门
 
 - **GitHub Actions**(开源项目标配)
 - 每次 PR 跑:单元测试 + 集成测试 + 前端 lint + 后端 lint(checkstyle/spotless) + Dockerfile 验证(hadolint)
-- **覆盖率门槛**(PR 合入要求):master 后端 line coverage ≥ 70%,worker ≥ 60%,前端 ≥ 50%
+- **覆盖率门槛**(PR 合入要求):shipyard 后端 line coverage ≥ 70%,worker ≥ 60%,前端 ≥ 50%
 - **Conventional Commits** + commit-msg 校验(commitlint)
 - **pre-commit hook**: spotless(Java) / prettier(前端) / hadolint(Dockerfile)
 - **Dependabot**: 依赖自动更新 PR
@@ -771,7 +771,7 @@ V1 期间不铺开,只 snapshot 拼装一个模块用 PBT。
 ### 9.2 README 必含内容
 
 1. 顶部 badges:build 状态、coverage、license、release、docker pulls、stars
-2. 一句中文 + 一句英文价值主张:"统一构建发布平台,master-worker 架构,多环境、多仓库、AI 增强"
+2. 一句中文 + 一句英文价值主张:"统一构建发布平台,shipyard-worker 架构,多环境、多仓库、AI 增强"
 3. 架构图(Mermaid,见 §9.3)
 4. 核心特性(6-8 个 bullet,对应原始 11 条需求 + AI 三能力)
 5. Quick Start:`git clone && make demo`
@@ -786,7 +786,7 @@ V1 期间不铺开,只 snapshot 拼装一个模块用 PBT。
 全部用 Mermaid(写 markdown 里、GitHub 原生渲染、diff 友好):
 
 - `docs/architecture.md` 总览图(§3.1 那个)
-- master 内部模块依赖图(§4.3 那个)
+- shipyard 内部模块依赖图(§4.3 那个)
 - 4 个核心场景 sequence diagram(§6.1~6.4)
 - 部署拓扑图(§3.3)
 
@@ -796,9 +796,9 @@ V1 全部 Mermaid;V1.5 看是否需要 plantuml 画更花哨的。
 
 V1 收尾的 demo 周产出:
 
-- **5 分钟 demo 视频**: master Web UI 全流程(建项目 → 配流水线 → 构建 → 看镜像 → 发布到 demo-env → 失败诊断 → 回滚)
+- **5 分钟 demo 视频**: shipyard Web UI 全流程(建项目 → 配流水线 → 构建 → 看镜像 → 发布到 demo-env → 失败诊断 → 回滚)
 - **上传位置**: GitHub repo `docs/demo/` 缩略图 + B 站 / YouTube 完整视频
-- **关键截图** 5-6 张:master dashboard、构建日志、流水线 diff、AI 改 yaml、发布状态、回滚历史
+- **关键截图** 5-6 张:shipyard dashboard、构建日志、流水线 diff、AI 改 yaml、发布状态、回滚历史
 - **README 直接放视频缩略图 + 链接**
 
 ### 9.5 提交规范
@@ -820,8 +820,8 @@ V1 收尾的 demo 周产出:
 
 V1 收尾时由 Mavis 整理:
 
-- **5 分钟讲稿**: 项目背景 → 架构总览 → 3 个核心亮点(master-worker 跨环境隔离 / drone webhook 集成 / snapshot 回滚 + AI 增强)→ 演示视频播放 → 量化数据
-- **20 个高频面试 Q&A 准备**: 为什么 master-worker?怎么保证 worker 拉镜像安全?AI 改 yaml 怎么防 LLM 抽风?K8s 启动失败为什么不用自动回滚?怎么设计 snapshot?PBT 为什么加在 snapshot 拼装?
+- **5 分钟讲稿**: 项目背景 → 架构总览 → 3 个核心亮点(shipyard-worker 跨环境隔离 / drone webhook 集成 / snapshot 回滚 + AI 增强)→ 演示视频播放 → 量化数据
+- **20 个高频面试 Q&A 准备**: 为什么 shipyard-worker?怎么保证 worker 拉镜像安全?AI 改 yaml 怎么防 LLM 抽风?K8s 启动失败为什么不用自动回滚?怎么设计 snapshot?PBT 为什么加在 snapshot 拼装?
 - **3 个"踩坑故事"**: 从本文档决策记录提炼(HMAC webhook 验签、PBT 抓到的 yaml 边界 case、AI 改 yaml 字符串黑名单)
 
 ---
@@ -832,14 +832,14 @@ V1 收尾时由 Mavis 整理:
 
 **基础设施容器化**:
 - docker-compose 起 MySQL、Redis、drone、Harbor、Prometheus、Grafana
-- 主体开发时 master 跑本地 main,worker 用 kubectl apply 临时部署到本地 k3s
+- 主体开发时 shipyard 跑本地 main,worker 用 kubectl apply 临时部署到本地 k3s
 
-**master 后端骨架**:
+**shipyard 后端骨架**:
 - Spring Boot 3 + MyBatis Plus + MySQL
 - 10 张表 schema + 基础 CRUD
 - JWT 鉴权(白名单模式)
 
-**master Web 骨架**:
+**shipyard Web 骨架**:
 - Vue 3 + TS + Element Plus + Pinia + Vue Router
 - 基础页面骨架(项目列表、流水线编辑、构建历史、发布历史)
 
@@ -892,13 +892,13 @@ V1 收尾时由 Mavis 整理:
 | # | 决策点 | 选择 | 理由 |
 |---|---|---|---|
 | 1 | AI 落地方向 | A+B+C 全做(流水线生成 + 故障诊断 + 发布决策) | 用户要"AI 相关功能"亮点,三项一起做,靠真实使用迭代 |
-| 2 | drone 集成方式 | master 调 drone API(drone UI 隐藏) | master 统一门面,可联动 drone 事件,以后换 Tekton 不影响用户 |
+| 2 | drone 集成方式 | shipyard 调 drone API(drone UI 隐藏) | shipyard 统一门面,可联动 drone 事件,以后换 Tekton 不影响用户 |
 | 3 | 多环境拓扑 | 每个环境独立 k8s 集群 | 物理隔离、权限独立、故障不传染 |
-| 4 | 环境变量管理 | master 自存(敏感字段加密) | 单一数据源、master 能审计;走 ConfigMap 会让 master 看不到具体值 |
+| 4 | 环境变量管理 | shipyard 自存(敏感字段加密) | 单一数据源、shipyard 能审计;走 ConfigMap 会让 shipyard 看不到具体值 |
 | 5 | 代码仓库平台 | 多平台(GitLab 适配器 V1 实现,Gitee stub) | 用户明确要求支持多个;V1 只实现一个降低工作量 |
-| 6 | 流水线配置入口 | master 自存模板,AI 改完用户 review 生效 | 比 drone 原生推代码 + AI 提 PR 简单;用户 review 兜底 |
+| 6 | 流水线配置入口 | shipyard 自存模板,AI 改完用户 review 生效 | 比 drone 原生推代码 + AI 提 PR 简单;用户 review 兜底 |
 | 7 | 构建 vs 发布衔接 | 显式两步(先 build,再 deploy) | 跟用户原话"构建和发布是两部分"最贴;镜像可复用 |
-| 8 | 发布回滚 | master 记 deployment snapshot | 比"只回镜像版本"精准,能回任意历史完整状态 |
+| 8 | 发布回滚 | shipyard 记 deployment snapshot | 比"只回镜像版本"精准,能回任意历史完整状态 |
 | 9 | AI 集成方式 | 调外部 LLM API(通义/DeepSeek) | 零运维、马上能用、成本低 |
 | 10 | 监控告警 | Prometheus + Alertmanager(告警先 log 后 webhook) | 工业标准、复用生态;V1 简化先 log |
 | 11 | V1 范围 | 横向 demo 优先(Java 端到端) | 快速拿资源 + 验证设计;V1.5 扩多环境 |
@@ -909,11 +909,11 @@ V1 收尾时由 Mavis 整理:
 | 16 | README 语言 | 中英双语 | 双语 star 数涨 |
 | 17 | 架构图工具 | Mermaid(全用) | GitHub 原生渲染、diff 友好、零配置 |
 | 18 | interview-prep.md | V1 收尾 Mavis 整理 | 反向影响开发优先级(亮点先做) |
-| 19 | Dockerfile 模板来源 | master 自带 4-5 套主流模板(java_maven/java_gradle/node_pnpm/python_poetry) | 降低 V1 工作量;V1.5 加用户自维护能力 |
-| 20 | Dockerfile 存储位置 | 提交进项目仓库(走 MR) | Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见 |
-| 21 | 实时构建日志范围 | 构建中实时看(SSE)+ 构建完 master 持久化 | GitHub Actions/Jenkins/GitLab CI 标配体验;master 持久化摆脱 drone 日志 30 天保留限制 |
+| 19 | Dockerfile 模板来源 | shipyard 自带 4-5 套主流模板(java_maven/java_gradle/node_pnpm/python_poetry) | 降低 V1 工作量;V1.5 加用户自维护能力 |
+| 20 | Dockerfile 存储位置 | 提交进项目仓库(走 MR) | Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;shipyard 集中存储会让仓库不可见 |
+| 21 | 实时构建日志范围 | 构建中实时看(SSE)+ 构建完 shipyard 持久化 | GitHub Actions/Jenkins/GitLab CI 标配体验;shipyard 持久化摆脱 drone 日志 30 天保留限制 |
 | 22 | 实时日志 UI 位置 | 构建详情页(左侧元信息+右侧实时日志) | 经典 CI 体验;项目卡片预览是另一类需求, V1 不同时做 |
-| 23 | Java 版本 | **Java 21 LTS(不用 17)** | 虚拟线程(Project Loom)完美匹配 master 的 I/O bound 场景;100+ 并发构建/SSE 长连接不卡线程池;Spring Boot 3.2+ 一行配置启用 |
+| 23 | Java 版本 | **Java 21 LTS(不用 17)** | 虚拟线程(Project Loom)完美匹配 shipyard 的 I/O bound 场景;100+ 并发构建/SSE 长连接不卡线程池;Spring Boot 3.2+ 一行配置启用 |
 
 ---
 
@@ -921,7 +921,7 @@ V1 收尾时由 Mavis 整理:
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
-| **drone CI 维护活跃度下降** | 长期可持续性 | V1 用 1.x 最新版;V1.5 评估 Tekton / Argo 替换路径;master 调 drone 走 CLI 不绑 API,迁移成本可控 |
+| **drone CI 维护活跃度下降** | 长期可持续性 | V1 用 1.x 最新版;V1.5 评估 Tekton / Argo 替换路径;shipyard 调 drone 走 CLI 不绑 API,迁移成本可控 |
 | **外部 LLM API 限流/服务降级** | AI 功能不可用 | 默认 mock 兜底;真 LLM 失败自动降级 mock + 提示用户 |
 | **PBT 学习曲线超预期** | snapshot 拼装延期 | 限定只这一个模块用 PBT;其他用普通 unit test;PBT 失败 fallback 到密集 example-based |
 | **demo 周延期** | V1 收不了口 | spec 里 demo 周硬性写 1-2 周;主体阶段每周一 review 进度 |
@@ -937,7 +937,7 @@ V1 收尾时由 Mavis 整理:
 
 | 术语 | 含义 |
 |---|---|
-| **master** | 平台主服务,统一门面,跟用户交互 |
+| **shipyard** | 平台主服务,统一门面,跟用户交互 |
 | **worker** | 部署在每个 k8s 集群的轻量服务,执行拉镜像 + 部署 |
 | **snapshot** | 完整 deployment yaml 快照,含镜像+envvars+replicas+probes,用于回滚 |
 | **drone CI** | 开源 CI 引擎,本平台构建引擎 |
@@ -946,7 +946,7 @@ V1 收尾时由 Mavis 整理:
 | **PBT** | Property-based Testing,只描述属性让框架自动生成大量输入验证 |
 | **HMAC** | Hash-based Message Authentication Code,webhook 验签用 |
 | **envelope encryption** | 数据加密密钥(DEK)被密钥加密密钥(KEK)加密,KMS 替换 KEK 即可 |
-| **drone webhook** | drone 主动推送构建状态到 master 的 HTTP 回调 |
+| **drone webhook** | drone 主动推送构建状态到 shipyard 的 HTTP 回调 |
 
 ### 13.2 关键文件位置
 
@@ -959,7 +959,7 @@ workspace/
 │   ├── architecture.md                        ← V1 收尾写
 │   ├── demo/                                  ← V1 收尾写(视频/截图)
 │   └── interview-prep.md                      ← V1 收尾写(Mavis 帮整理)
-├── master/                                    ← Spring Boot 后端
+├── shipyard/                                    ← Spring Boot 后端
 ├── web/                                       ← Vue 3 前端
 ├── worker/                                    ← Go worker
 ├── demo/                                      ← V1 收尾写(docker-compose)

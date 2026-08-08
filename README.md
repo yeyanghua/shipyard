@@ -1,16 +1,16 @@
-# master — Unified Build & Deploy Platform
+# shipyard — Unified Build & Deploy Platform
 
 <p align="center">
-  <strong>统一构建发布平台</strong> · master-worker architecture · multi-environment · multi-repository · AI-augmented
+  <strong>统一构建发布平台</strong> · shipyard-worker architecture · multi-environment · multi-repository · AI-augmented
 </p>
 
 <p align="center">
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick--start-make%20demo-blue?style=flat-square" alt="Quick Start"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="License"></a>
-  <a href="https://github.com/yourname/master/releases"><img src="https://img.shields.io/github/v/release/yourname/master?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/yourname/shipyard/releases"><img src="https://img.shields.io/github/v/release/yourname/shipyard?style=flat-square" alt="Release"></a>
   <a href=".github/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?style=flat-square" alt="CI"></a>
   <a href="#testing"><img src="https://img.shields.io/badge/coverage-70%25-blue?style=flat-square" alt="Coverage"></a>
-  <a href="https://github.com/yourname/master/pkgs/container/master"><img src="https://img.shields.io/badge/docker-ghcr-blue?style=flat-square" alt="Docker"></a>
+  <a href="https://github.com/yourname/shipyard/pkgs/container/shipyard"><img src="https://img.shields.io/badge/docker-ghcr-blue?style=flat-square" alt="Docker"></a>
 </p>
 
 <p align="center">
@@ -22,13 +22,13 @@
 
 ---
 
-> **One-line pitch**: A unified build & deploy platform with master-worker architecture, supporting Java/Vue/React/Python applications across multiple environments, with built-in AI assistance (pipeline generation, failure diagnosis, release decisions).
+> **One-line pitch**: A unified build & deploy platform with shipyard-worker architecture, supporting Java/Vue/React/Python applications across multiple environments, with built-in AI assistance (pipeline generation, failure diagnosis, release decisions).
 
 ---
 
 ## 📑 Table of Contents
 
-- [🎯 Why master?](#-why-master)
+- [🎯 Why shipyard?](#-why-shipyard)
 - [✨ Features](#-features)
 - [🏗️ Architecture](#%EF%B8%8F-architecture)
 - [🚀 Quick Start](#-quick-start)
@@ -41,7 +41,7 @@
 
 ---
 
-## 🎯 Why master?
+## 🎯 Why shipyard?
 
 **Problem**: Teams running multiple projects across multiple environments (dev/test/prod, multiple regions) waste hours per week on repetitive build & deploy tasks. Existing tools either:
 
@@ -49,12 +49,12 @@
 - Have no AI assistance for routine tasks (writing Dockerfiles, diagnosing failures)
 - Require deep YAML knowledge to customize pipelines
 
-**Solution**: master is a **single-pane-of-glass** platform where:
+**Solution**: shipyard is a **single-pane-of-glass** platform where:
 
 - **One URL** for all your projects, environments, builds, and deploys
 - **AI assistance** at three pressure points: writing pipelines, diagnosing failures, advising on release risk
 - **Template-based Dockerfile generation** so projects don't need to maintain a Dockerfile from scratch
-- **Master-worker architecture** with per-environment isolation (each env is its own k8s cluster)
+- **Shipyard-worker architecture** with per-environment isolation (each env is its own k8s cluster)
 - **Real-time build logs** via SSE (no more jumping to drone and refreshing)
 - **Snapshot-based rollback** to any historical version (not just the previous one)
 - **Open source** (Apache 2.0) and self-hostable
@@ -65,13 +65,13 @@
 
 ### 🎛️ Core Platform
 - **Unified UI** for projects, environments, builds, deploys, alerts, and monitoring
-- **Master-worker architecture** — master is the single API, worker runs in each environment cluster
+- **Shipyard-worker architecture** — shipyard is the single API, worker runs in each environment cluster
 - **Multi-environment** (dev/test/prod, multi-region) with per-env worker isolation
 - **Multi-repository** — GitLab (V1) + Gitee (V1.5, open for community contribution)
 - **Drone CI integration** with HMAC-verified webhooks
 
 ### 🐳 Build & Deploy
-- **Customizable pipelines** stored in master, with version control and AI-assisted editing
+- **Customizable pipelines** stored in shipyard, with version control and AI-assisted editing
 - **Template-based Dockerfile generation** — pick "Java/Maven", get a working Dockerfile in your repo (via MR)
 - **Encrypted environment variables** (AES-256, envelope encryption designed for KMS upgrade)
 - **Snapshot-based deployment** — every deploy records a full yaml snapshot, rollback to any version
@@ -83,13 +83,13 @@
 - **AI release decisions** — AI analyzes change scope and suggests risk levels for releases
 
 ### 🛡️ Reliability
-- **Prometheus metrics** on master, worker, and drone
+- **Prometheus metrics** on shipyard, worker, and drone
 - **Structured alert logging** (P0/P1/P2) with UI display
 - **Worker health check** via heartbeat (auto-mark unhealthy after 2 min silence)
 - **Property-based testing** on critical snapshot assembly (jqwik)
 
 ### 🎬 Demo Ready
-- **`make demo`** — one command to spin up master + MySQL + Redis + drone + Harbor + k3s + worker + Prometheus + Grafana
+- **`make demo`** — one command to spin up shipyard + MySQL + Redis + drone + Harbor + k3s + worker + Prometheus + Grafana
 - **5-minute demo video** showing the full build → publish → rollback flow
 - **8 wireframe pages** documented in `docs/superpowers/wireframes/`
 
@@ -101,7 +101,7 @@
 ┌──────────────────────────────────────────────────────┐
 │  Developer Browser                                    │
 │         ↓ HTTPS                                      │
-│  master (Java 21 + Spring Boot 3.2+, virtual threads)│
+│  shipyard (Java 21 + Spring Boot 3.2+, virtual threads)│
 │   ├─ Web UI (Vue 3 + TS + Element Plus)              │
 │   ├─ MySQL 8 (12 tables)                              │
 │   ├─ Redis (cache + distributed lock)                 │
@@ -132,8 +132,8 @@
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourname/master.git
-cd master
+git clone https://github.com/yourname/shipyard.git
+cd shipyard
 
 # 2. (Optional) Set LLM API key for real AI features; default uses mock
 export TONGYI_API_KEY="sk-xxxxx"
@@ -146,7 +146,7 @@ open http://localhost:8080
 ```
 
 The demo will start:
-- master (port 8080) — main UI + API
+- shipyard (port 8080) — main UI + API
 - MySQL (port 3306), Redis (port 6379)
 - drone CI (port 8081) — build engine
 - Harbor (port 8082) — image registry
@@ -159,7 +159,7 @@ The demo will start:
 For step-by-step development (without the full demo):
 ```bash
 make infra          # start MySQL + Redis only
-make master-dev     # run master from your IDE or `mvn spring-boot:run`
+make shipyard-dev     # run shipyard from your IDE or `mvn spring-boot:run`
 make worker-dev     # run worker locally with kubectl pointing at k3s
 ```
 
@@ -182,7 +182,7 @@ make worker-dev     # run worker locally with kubectl pointing at k3s
 ## 🗺️ Roadmap
 
 ### V1 (current, ~5-6 weeks) — Horizontal demo
-- [x] Master-worker architecture
+- [x] Shipyard-worker architecture
 - [x] GitLab + Gitee repo abstraction (GitLab V1, Gitee stub)
 - [x] Drone CI integration with HMAC webhook
 - [x] Customizable pipelines with version control
@@ -232,7 +232,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Commit message conventions (Conventional Commits)
 
 **Good first issues** (great for new contributors):
-- [ ] Implement `GiteeAdapter` (interface already defined in `master/src/main/java/com/master/repo/`)
+- [ ] Implement `GiteeAdapter` (interface already defined in `shipyard/src/main/java/com/shipyard/repo/`)
 - [ ] Add more Dockerfile templates (Python/Flask, Go/Gin, Vue/Vite)
 - [ ] Add Vue/React/Python E2E tests
 
@@ -248,7 +248,7 @@ Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY
 
 ## 📄 License
 
-Copyright 2026 The master Platform Authors
+Copyright 2026 The shipyard Platform Authors
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
@@ -258,7 +258,7 @@ You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-
 
 ## 🌟 Star History
 
-If you find master useful, consider giving it a star on GitHub — it helps others discover the project.
+If you find shipyard useful, consider giving it a star on GitHub — it helps others discover the project.
 
 ---
 

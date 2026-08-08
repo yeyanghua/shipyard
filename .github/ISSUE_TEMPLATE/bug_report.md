@@ -30,10 +30,10 @@ assignees: []
 - **OS**: [e.g., macOS 14.2, Ubuntu 22.04, Windows 11]
 - **Docker version**: [e.g., 24.0.7]
 - **Docker Compose version**: [e.g., 2.23.0]
-- **Java version** (if running master locally): [e.g., 21.0.1]
+- **Java version** (if running shipyard locally): [e.g., 21.0.1]
 - **Node.js version** (if running web locally): [e.g., 20.10.0]
 - **Go version** (if running worker locally): [e.g., 1.22.0]
-- **master version/commit**: [e.g., v0.1.0 or git SHA]
+- **shipyard version/commit**: [e.g., v0.1.0 or git SHA]
 - **Deployment mode**: [e.g., `make infra`, `make demo`, production]
 
 ## Logs / Screenshots

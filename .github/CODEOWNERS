@@ -16,16 +16,16 @@
 # ============================================================
 # Backend (Java)
 # ============================================================
-/master/                      @zaige
-/master/pom.xml               @zaige
-/master/src/main/java/        @zaige
-/master/src/main/resources/   @zaige
-/master/src/test/java/        @zaige
+/shipyard/                      @zaige
+/shipyard/pom.xml               @zaige
+/shipyard/src/main/java/        @zaige
+/shipyard/src/main/resources/   @zaige
+/shipyard/src/test/java/        @zaige
 
 # Critical security-sensitive paths require explicit review
-/master/src/main/java/com/master/crypto/    @zaige
-/master/src/main/java/com/master/build/WebhookController.java    @zaige
-/master/src/main/java/com/master/ai/        @zaige
+/shipyard/src/main/java/com/shipyard/crypto/    @zaige
+/shipyard/src/main/java/com/shipyard/build/WebhookController.java    @zaige
+/shipyard/src/main/java/com/shipyard/ai/        @zaige
 
 # ============================================================
 # Frontend (Vue)
@@ -46,7 +46,7 @@
 # ============================================================
 /docker-compose.yml           @zaige
 /docker-compose.demo.yml      @zaige
-/Dockerfile.master            @zaige
+/Dockerfile.shipyard            @zaige
 /Dockerfile.worker            @zaige
 /Makefile                    @zaige
 /scripts/                     @zaige

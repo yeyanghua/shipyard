@@ -1,8 +1,8 @@
 # ============================================================
-# master - 基础设施层 (M1)
+# shipyard - 基础设施层 (M1)
 # ============================================================
 # 这个文件只起开发/测试需要的基础设施 (MySQL + Redis)
-# 完整 demo (master + drone + Harbor + k3s + worker + monitoring)
+# 完整 demo (shipyard + drone + Harbor + k3s + worker + monitoring)
 # 见 docker-compose.demo.yml (M15)
 # ============================================================
 
@@ -14,13 +14,13 @@ services:
   # ============================================================
   mysql:
     image: mysql:8.0
-    container_name: master-mysql
+    container_name: shipyard-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-master}
-      MYSQL_USER: ${MYSQL_USER:-master}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-master}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-shipyard}
+      MYSQL_USER: ${MYSQL_USER:-shipyard}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-shipyard}
       TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
@@ -40,14 +40,14 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - master-net
+      - shipyard-net
 
   # ============================================================
   # Redis 7
   # ============================================================
   redis:
     image: redis:7-alpine
-    container_name: master-redis
+    container_name: shipyard-redis
     restart: unless-stopped
     environment:
       TZ: Asia/Shanghai
@@ -71,15 +71,15 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - master-net
+      - shipyard-net
 
 volumes:
   mysql_data:
-    name: master-mysql-data
+    name: shipyard-mysql-data
   redis_data:
-    name: master-redis-data
+    name: shipyard-redis-data
 
 networks:
-  master-net:
-    name: master-net
+  shipyard-net:
+    name: shipyard-net
     driver: bridge

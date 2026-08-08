@@ -1,6 +1,6 @@
-# Contributing to master
+# Contributing to shipyard
 
-First off, thank you for considering contributing to master! 🎉
+First off, thank you for considering contributing to shipyard! 🎉
 
 This document is a guide to help you contribute effectively. Following these guidelines helps communicate that you respect the time of the developers managing and developing this open source project.
 
@@ -63,7 +63,7 @@ Documentation improvements are always welcome! Whether it's fixing typos, adding
 
 New to the project? Look for issues labeled [`good first issue`](../../issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Some classics:
 
-- **Implement `GiteeAdapter`** — interface is already defined in `master/src/main/java/com/master/repo/`
+- **Implement `GiteeAdapter`** — interface is already defined in `shipyard/src/main/java/com/shipyard/repo/`
 - **Add more Dockerfile templates** — Python/Flask, Go/Gin, Vue/Vite
 - **Add Vue/React/Python E2E tests**
 - **Translate documentation** to other languages
@@ -76,7 +76,7 @@ New to the project? Look for issues labeled [`good first issue`](../../issues?q=
 
 | Tool | Version | Notes |
 |---|---|---|
-| **JDK** | 21 LTS | Required for master (virtual threads) |
+| **JDK** | 21 LTS | Required for shipyard (virtual threads) |
 | **Go** | 1.22+ | For worker |
 | **Node.js** | 20 LTS | For Web UI |
 | **Maven** | 3.9+ | Java dependency management |
@@ -90,17 +90,17 @@ New to the project? Look for issues labeled [`good first issue`](../../issues?q=
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/yourname/master.git
-cd master
+git clone https://github.com/yourname/shipyard.git
+cd shipyard
 
 # 2. Start infrastructure (MySQL + Redis)
 make infra
 
-# 3. Run master backend (in another terminal)
-make master-dev
-# or: cd master && mvn spring-boot:run
+# 3. Run shipyard backend (in another terminal)
+make shipyard-dev
+# or: cd shipyard && mvn spring-boot:run
 
-# 4. Run master Web (in another terminal)
+# 4. Run shipyard Web (in another terminal)
 make web-dev
 # or: cd web && pnpm install && pnpm dev
 
@@ -109,14 +109,14 @@ make worker-dev
 ```
 
 The application will be at:
-- master Web: http://localhost:5173
-- master API: http://localhost:8080
-- MySQL: localhost:3306 (user: master, pass: master)
+- shipyard Web: http://localhost:5173
+- shipyard API: http://localhost:8080
+- MySQL: localhost:3306 (user: shipyard, pass: shipyard)
 - Redis: localhost:6379
 
 ### Running the Full Demo
 
-If you want to spin up everything (master + drone + Harbor + k3s + worker + monitoring):
+If you want to spin up everything (shipyard + drone + Harbor + k3s + worker + monitoring):
 
 ```bash
 make demo
@@ -162,7 +162,7 @@ Before marking your PR as ready for review, ensure:
 - [ ] All tests pass (`make test`)
 - [ ] Code is formatted (`make format`)
 - [ ] Linter passes (`make lint`)
-- [ ] Coverage meets the threshold (master ≥ 70%, worker ≥ 60%, web ≥ 50%)
+- [ ] Coverage meets the threshold (shipyard ≥ 70%, worker ≥ 60%, web ≥ 50%)
 - [ ] New code has tests
 - [ ] New public APIs are documented
 - [ ] Commits follow Conventional Commits format
@@ -173,7 +173,7 @@ Before marking your PR as ready for review, ensure:
 
 ## Coding Standards
 
-### Java (master backend)
+### Java (shipyard backend)
 
 - **Style**: Google Java Style (enforced by spotless)
 - **Java version**: 21 LTS (we use virtual threads!)
@@ -188,7 +188,7 @@ Key conventions:
 - All public APIs have Javadoc
 - Methods > 30 lines should be refactored
 
-### Vue 3 + TypeScript (master Web)
+### Vue 3 + TypeScript (shipyard Web)
 
 - **Style**: ESLint + Prettier
 - **Vue version**: 3.4+
@@ -222,9 +222,9 @@ Key conventions:
 
 | Component | Minimum line coverage |
 |---|---|
-| master backend | 70% |
+| shipyard backend | 70% |
 | worker (Go) | 60% |
-| master Web (Vue) | 50% |
+| shipyard Web (Vue) | 50% |
 
 Coverage is checked in CI; PRs that drop coverage below the threshold will be blocked.
 
@@ -275,7 +275,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). This enable
 feat(build): add Dockerfile template generation
 fix(deploy): rollback fails when snapshot_yaml is empty
 docs(spec): clarify k8s start failure handling
-test(master): add PBT for snapshot builder
+test(shipyard): add PBT for snapshot builder
 ci: enable Dependabot for Maven dependencies
 ```
 
@@ -315,10 +315,10 @@ Using them helps us understand and reproduce your issue faster.
 ## Questions?
 
 - 💬 Open a [GitHub Discussion](../../discussions)
-- 📧 Email: maintainers@master-platform.dev (placeholder, real email in v0.1.0 release)
+- 📧 Email: maintainers@shipyard.dev (placeholder, real email in v0.1.0 release)
 
 ---
 
 ## License
 
-By contributing to master, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+By contributing to shipyard, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).

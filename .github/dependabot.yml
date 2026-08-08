@@ -13,11 +13,11 @@ version: 2
 # ============================================================
 
 # ============================================================
-# Java / Maven (master backend)
+# Java / Maven (shipyard backend)
 # ============================================================
 updates:
   - package-ecosystem: "maven"
-    directory: "/master"
+    directory: "/shipyard"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -61,7 +61,7 @@ updates:
         update-types: ["version-update:semver-major"]
 
 # ============================================================
-# Node.js / pnpm (master Web)
+# Node.js / pnpm (shipyard Web)
 # ============================================================
   - package-ecosystem: "npm"
     directory: "/web"
@@ -124,7 +124,7 @@ updates:
 # Docker base images
 # ============================================================
   - package-ecosystem: "docker"
-    directory: "/master"
+    directory: "/shipyard"
     schedule:
       interval: "weekly"
       day: "monday"

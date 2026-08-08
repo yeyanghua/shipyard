@@ -18,7 +18,7 @@ fix_jpeg_to_png.py
 split_player_sprite.py
 
 # ============================================================
-# 1. Java / Maven (master 后端)
+# 1. Java / Maven (shipyard 后端)
 # ============================================================
 *.class
 *.log
@@ -42,7 +42,7 @@ target/
 *.original
 
 # ============================================================
-# 2. Vue / Node / Vite (master Web)
+# 2. Vue / Node / Vite (shipyard Web)
 # ============================================================
 node_modules/
 dist/
@@ -98,8 +98,8 @@ worker/coverage/
 secrets/
 credentials/
 
-# 加密 master key(用 KMS/Vault 之前临时放本地)
-master.key
+# 加密 shipyard key(用 KMS/Vault 之前临时放本地)
+shipyard.key
 
 # ============================================================
 # 5. IDE + 编辑器
@@ -181,7 +181,7 @@ coverage/
 # 10. 临时数据(数据库 dump 等)
 # ============================================================
 *.sql
-!master/src/main/resources/db/migration/*.sql
+!shipyard/src/main/resources/db/migration/*.sql
 !scripts/init-data/*.sql
 
 # ============================================================

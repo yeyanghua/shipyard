@@ -1,5 +1,5 @@
 # ============================================================
-# master - Unified Build & Deploy Platform
+# shipyard - Unified Build & Deploy Platform
 # Makefile - Cross-platform (Linux/Mac/WSL/Git Bash)
 # Windows users without make: see scripts/Makefile.ps1
 # ============================================================
@@ -14,7 +14,7 @@ else
 endif
 
 # Project metadata
-PROJECT_NAME := master
+PROJECT_NAME := shipyard
 VERSION ?= 0.1.0
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -31,7 +31,7 @@ DOCKER_REGISTRY ?= ghcr.io/yourname
 
 .PHONY: help
 help: ## Show this help message
-	@echo "master - Unified Build & Deploy Platform"
+	@echo "shipyard - Unified Build & Deploy Platform"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
@@ -64,7 +64,7 @@ infra: ## Start MySQL + Redis only (lightweight, for development)
 	@echo "Starting infrastructure (MySQL + Redis)..."
 	@$(COMPOSE) up -d mysql redis
 	@echo "[OK] MySQL on :3306, Redis on :6379"
-	@echo "Run 'make master-dev' or 'make web-dev' next"
+	@echo "Run 'make shipyard-dev' or 'make web-dev' next"
 
 .PHONY: infra-stop
 infra-stop: ## Stop MySQL + Redis
@@ -75,17 +75,17 @@ infra-logs: ## Tail MySQL + Redis logs
 	@$(COMPOSE) logs -f mysql redis
 
 # ============================================================
-# Full demo (M15: master + drone + Harbor + k3s + worker + monitoring)
+# Full demo (M15: shipyard + drone + Harbor + k3s + worker + monitoring)
 # ============================================================
 .PHONY: demo
-demo: ## Start the full demo (master + drone + Harbor + k3s + worker + monitoring)
+demo: ## Start the full demo (shipyard + drone + Harbor + k3s + worker + monitoring)
 	@echo "Starting full demo..."
 	@echo "This will take ~3 minutes on first run (downloading images)..."
 	@$(COMPOSE) -f docker-compose.demo.yml up -d
 	@echo ""
 	@echo "[OK] Demo is up!"
-	@echo "  master Web:   http://localhost:8080"
-	@echo "  master API:   http://localhost:8080/api"
+	@echo "  shipyard Web:   http://localhost:8080"
+	@echo "  shipyard API:   http://localhost:8080/api"
 	@echo "  drone CI:     http://localhost:8081"
 	@echo "  Harbor:       http://localhost:8082"
 	@echo "  Prometheus:   http://localhost:9090"
@@ -104,44 +104,44 @@ demo-logs: ## Tail all demo logs
 	@$(COMPOSE) -f docker-compose.demo.yml logs -f
 
 # ============================================================
-# Development - master backend (M2)
+# Development - shipyard backend (M2)
 # ============================================================
-.PHONY: master-dev
-master-dev: ## Run master backend (requires infra)
-	@echo "Starting master backend..."
-	@cd master && mvn spring-boot:run
+.PHONY: shipyard-dev
+shipyard-dev: ## Run shipyard backend (requires infra)
+	@echo "Starting shipyard backend..."
+	@cd shipyard && mvn spring-boot:run
 
-.PHONY: master-build
-master-build: ## Build master backend jar
-	@cd master && mvn clean package -DskipTests
+.PHONY: shipyard-build
+shipyard-build: ## Build shipyard backend jar
+	@cd shipyard && mvn clean package -DskipTests
 
-.PHONY: master-test
-master-test: ## Run master backend tests
-	@cd master && mvn test
+.PHONY: shipyard-test
+shipyard-test: ## Run shipyard backend tests
+	@cd shipyard && mvn test
 
-.PHONY: master-coverage
-master-coverage: ## Run master backend tests with coverage
-	@cd master && mvn test jacoco:report
-	@echo "[OK] Coverage report: master/target/site/jacoco/index.html"
+.PHONY: shipyard-coverage
+shipyard-coverage: ## Run shipyard backend tests with coverage
+	@cd shipyard && mvn test jacoco:report
+	@echo "[OK] Coverage report: shipyard/target/site/jacoco/index.html"
 
 # ============================================================
-# Development - master Web (M3)
+# Development - shipyard Web (M3)
 # ============================================================
 .PHONY: web-dev
-web-dev: ## Run master Web UI (requires infra + master-dev)
-	@echo "Starting master Web..."
+web-dev: ## Run shipyard Web UI (requires infra + shipyard-dev)
+	@echo "Starting shipyard Web..."
 	@cd web && pnpm install && pnpm dev
 
 .PHONY: web-build
-web-build: ## Build master Web for production
+web-build: ## Build shipyard Web for production
 	@cd web && pnpm install && pnpm build
 
 .PHONY: web-test
-web-test: ## Run master Web tests
+web-test: ## Run shipyard Web tests
 	@cd web && pnpm test
 
 .PHONY: web-coverage
-web-coverage: ## Run master Web tests with coverage
+web-coverage: ## Run shipyard Web tests with coverage
 	@cd web && pnpm test:coverage
 
 # ============================================================
@@ -169,18 +169,18 @@ worker-coverage: ## Run worker tests with coverage
 # All tests + coverage
 # ============================================================
 .PHONY: test
-test: master-test worker-test web-test ## Run all tests
+test: shipyard-test worker-test web-test ## Run all tests
 
 .PHONY: coverage
-coverage: master-coverage worker-coverage web-coverage ## Generate all coverage reports
+coverage: shipyard-coverage worker-coverage web-coverage ## Generate all coverage reports
 
 # ============================================================
 # Code quality
 # ============================================================
 .PHONY: lint
 lint: ## Run all linters
-	@echo "Linting master backend..."
-	@cd master && mvn spotless:check
+	@echo "Linting shipyard backend..."
+	@cd shipyard && mvn spotless:check
 	@echo "Linting worker..."
 	@cd worker && go vet ./... && golangci-lint run 2>/dev/null || true
 	@echo "Linting web..."
@@ -189,8 +189,8 @@ lint: ## Run all linters
 
 .PHONY: format
 format: ## Auto-format all code
-	@echo "Formatting master backend..."
-	@cd master && mvn spotless:apply
+	@echo "Formatting shipyard backend..."
+	@cd shipyard && mvn spotless:apply
 	@echo "Formatting worker..."
 	@cd worker && gofmt -w .
 	@echo "Formatting web..."
@@ -201,14 +201,14 @@ format: ## Auto-format all code
 # Build Docker images
 # ============================================================
 .PHONY: docker-build
-docker-build: docker-build-master docker-build-worker ## Build all Docker images
+docker-build: docker-build-shipyard docker-build-worker ## Build all Docker images
 
-.PHONY: docker-build-master
-docker-build-master:
-	@echo "Building master image..."
-	@cd master && mvn clean package -DskipTests
-	@docker build -t $(DOCKER_REGISTRY)/$(PROJECT_NAME)-master:$(VERSION) -f Dockerfile.master master/
-	@docker tag $(DOCKER_REGISTRY)/$(PROJECT_NAME)-master:$(VERSION) $(DOCKER_REGISTRY)/$(PROJECT_NAME)-master:latest
+.PHONY: docker-build-shipyard
+docker-build-shipyard:
+	@echo "Building shipyard image..."
+	@cd shipyard && mvn clean package -DskipTests
+	@docker build -t $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION) -f Dockerfile.shipyard shipyard/
+	@docker tag $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION) $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:latest
 
 .PHONY: docker-build-worker
 docker-build-worker:
@@ -219,8 +219,8 @@ docker-build-worker:
 
 .PHONY: docker-push
 docker-push: docker-build ## Build and push all images to registry
-	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-master:$(VERSION)
-	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-master:latest
+	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION)
+	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:latest
 	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:$(VERSION)
 	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:latest
 	@echo "[OK] Images pushed to $(DOCKER_REGISTRY)"
@@ -230,7 +230,7 @@ docker-push: docker-build ## Build and push all images to registry
 # ============================================================
 .PHONY: clean
 clean: ## Remove build artifacts
-	@cd master && mvn clean 2>/dev/null
+	@cd shipyard && mvn clean 2>/dev/null
 	@cd web && pnpm clean 2>/dev/null
 	@cd worker && $(RM) bin coverage.out
 	@echo "[OK] Cleaned"
@@ -248,7 +248,7 @@ status: ## Show status of all services
 	@$(COMPOSE) ps
 	@echo ""
 	@echo "=== Health check ==="
-	@curl -s -o /dev/null -w "master: %{http_code}\n" http://localhost:8080/actuator/health 2>/dev/null || echo "master: not reachable"
+	@curl -s -o /dev/null -w "shipyard: %{http_code}\n" http://localhost:8080/actuator/health 2>/dev/null || echo "shipyard: not reachable"
 
 .PHONY: version
 version: ## Show version info

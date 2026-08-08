@@ -11,7 +11,7 @@ We release security updates for the following versions:
 
 ## Reporting a Vulnerability
 
-The master team takes security bugs seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+The shipyard team takes security bugs seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
 ### How to Report
 
@@ -20,7 +20,7 @@ The master team takes security bugs seriously. We appreciate your efforts to res
 Instead, please report them via one of the following methods:
 
 1. **GitHub Security Advisories** (preferred): [Create a private security advisory](../../security/advisories/new)
-2. **Email**: security@master-platform.dev (placeholder; real email set in v0.1.0 release)
+2. **Email**: security@shipyard.dev (placeholder; real email set in v0.1.0 release)
 
 Please include the following information in your report:
 
@@ -67,8 +67,8 @@ When we receive a security report, we will:
 
 The following are **in scope** for security reports:
 
-- master backend (`master/` directory)
-- master Web frontend (`web/` directory)
+- shipyard backend (`shipyard/` directory)
+- shipyard Web frontend (`web/` directory)
 - worker (`worker/` directory)
 - Documentation that leads to misconfiguration
 
@@ -90,30 +90,30 @@ We appreciate security researchers who follow responsible disclosure. With your 
 
 ## Security Best Practices for Self-Hosters
 
-If you're running master in your own environment:
+If you're running shipyard in your own environment:
 
-1. **Use HTTPS** for all master-to-drone and master-to-worker communication
-2. **Rotate secrets regularly**: master encryption key, drone tokens, repo tokens, worker tokens
+1. **Use HTTPS** for all shipyard-to-drone and shipyard-to-worker communication
+2. **Rotate secrets regularly**: shipyard encryption key, drone tokens, repo tokens, worker tokens
 3. **Keep dependencies up to date**: enable Dependabot (already configured)
 4. **Use a dedicated database user** with limited privileges (not root)
 5. **Enable audit logging** for sensitive operations
 6. **Network isolation**: workers should be in private subnets, not exposed to the internet
-7. **Backup regularly**: master DB + Harbor + GitLab/Gitee are stateful
-8. **Monitor**: enable Prometheus alerts on master, worker, drone metrics
+7. **Backup regularly**: shipyard DB + Harbor + GitLab/Gitee are stateful
+8. **Monitor**: enable Prometheus alerts on shipyard, worker, drone metrics
 
 ## Security Architecture Notes
 
-For reviewers and security researchers, here are the key security mechanisms in master:
+For reviewers and security researchers, here are the key security mechanisms in shipyard:
 
 ### Authentication
 - JWT-based auth (white-listed users in V1, RBAC in V2)
 - HMAC-SHA256 for drone webhooks
-- Token-based auth for master-to-worker
+- Token-based auth for shipyard-to-worker
 
 ### Encryption
 - AES-256-GCM for sensitive data at rest (env vars, repo tokens, webhook URLs)
 - TLS for all network communication
-- Envelope encryption designed (V1 with master key, V1.5+ with KMS/HashiCorp Vault)
+- Envelope encryption designed (V1 with shipyard key, V1.5+ with KMS/HashiCorp Vault)
 
 ### Input Validation
 - All API inputs validated via Spring Boot Validation

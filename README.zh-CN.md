@@ -1,16 +1,16 @@
-# master — 统一构建发布平台
+# shipyard — 统一构建发布平台
 
 <p align="center">
-  <strong>统一构建发布平台</strong> · master-worker 架构 · 多环境 · 多仓库 · AI 增强
+  <strong>统一构建发布平台</strong> · shipyard-worker 架构 · 多环境 · 多仓库 · AI 增强
 </p>
 
 <p align="center">
   <a href="#快速开始"><img src="https://img.shields.io/badge/快速开始-make%20demo-blue?style=flat-square" alt="快速开始"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="License"></a>
-  <a href="https://github.com/yourname/master/releases"><img src="https://img.shields.io/github/v/release/yourname/master?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/yourname/shipyard/releases"><img src="https://img.shields.io/github/v/release/yourname/shipyard?style=flat-square" alt="Release"></a>
   <a href=".github/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?style=flat-square" alt="CI"></a>
   <a href="#测试"><img src="https://img.shields.io/badge/coverage-70%25-blue?style=flat-square" alt="Coverage"></a>
-  <a href="https://github.com/yourname/master/pkgs/container/master"><img src="https://img.shields.io/badge/docker-ghcr-blue?style=flat-square" alt="Docker"></a>
+  <a href="https://github.com/yourname/shipyard/pkgs/container/shipyard"><img src="https://img.shields.io/badge/docker-ghcr-blue?style=flat-square" alt="Docker"></a>
 </p>
 
 <p align="center">
@@ -22,13 +22,13 @@
 
 ---
 
-> **一句话简介**：统一构建发布平台，master-worker 架构，支持 Java/Vue/React/Python 应用跨多环境发布，内置 AI 辅助（流水线生成、故障诊断、发布决策）。
+> **一句话简介**：统一构建发布平台，shipyard-worker 架构，支持 Java/Vue/React/Python 应用跨多环境发布，内置 AI 辅助（流水线生成、故障诊断、发布决策）。
 
 ---
 
 ## 📑 目录
 
-- [🎯 为什么做 master？](#-为什么做-master)
+- [🎯 为什么做 shipyard？](#-为什么做-shipyard)
 - [✨ 核心特性](#-核心特性)
 - [🏗️ 架构](#%EF%B8%8F-架构)
 - [🚀 快速开始](#-快速开始)
@@ -41,7 +41,7 @@
 
 ---
 
-## 🎯 为什么做 master？
+## 🎯 为什么做 shipyard？
 
 **痛点**：团队在多个项目 × 多个环境（dev/test/正式、多个地域）下，每周浪费大量时间在重复的构建/发布操作上。现有工具的不足：
 
@@ -49,12 +49,12 @@
 - 没有 AI 辅助写流水线、诊断失败、调优发布
 - 改流水线要懂 drone YAML 语法,学习成本高
 
-**解法**：master 是**一站式**发布平台:
+**解法**：shipyard 是**一站式**发布平台:
 
 - **一个 URL** 管理所有项目、环境、构建、发布
 - **AI 辅助**三个最痛的点: 写流水线 / 诊断失败 / 评估发布风险
 - **模板化 Dockerfile 生成**,项目不需要自己维护 Dockerfile
-- **Master-worker 架构** + 每个环境独立 k8s 集群(物理隔离)
+- **Shipyard-worker 架构** + 每个环境独立 k8s 集群(物理隔离)
 - **实时构建日志** SSE 推送(不用跳 drone 刷新)
 - **Snapshot 回滚** 到任意历史版本(不只上一个)
 - **开源** (Apache 2.0) + 可自部署
@@ -65,13 +65,13 @@
 
 ### 🎛️ 平台核心
 - **统一 UI** 管理项目、环境、构建、发布、告警、监控
-- **Master-worker 架构** — master 是单一 API 门面,worker 部署在每个环境集群
+- **Shipyard-worker 架构** — shipyard 是单一 API 门面,worker 部署在每个环境集群
 - **多环境** (dev/test/正式,多地域) + 每个环境 worker 隔离
 - **多仓库** — GitLab (V1) + Gitee (V1.5, 社区 PR 友好)
 - **Drone CI 集成** + HMAC webhook 验签
 
 ### 🐳 构建 & 发布
-- **可定制流水线** 存在 master,带版本控制和 AI 辅助编辑
+- **可定制流水线** 存在 shipyard,带版本控制和 AI 辅助编辑
 - **模板化 Dockerfile 生成** — 选"Java/Maven"自动生成可用的 Dockerfile 推到仓库(走 MR)
 - **环境变量加密** (AES-256,envelope encryption 设计方便升级 KMS)
 - **Snapshot 部署** — 每次发布记完整 yaml 快照,回滚到任意版本
@@ -83,13 +83,13 @@
 - **AI 发布决策** — AI 分析变更范围给发布风险等级
 
 ### 🛡️ 可靠性
-- **Prometheus 指标** master / worker / drone 全覆盖
+- **Prometheus 指标** shipyard / worker / drone 全覆盖
 - **结构化告警** (P0/P1/P2) + UI 展示
 - **Worker 心跳** (2 分钟无响应自动标 unhealthy)
 - **Property-based testing** 在关键 snapshot 拼装(jqwik)
 
 ### 🎬 Demo 友好
-- **`make demo`** 一键起 master + MySQL + Redis + drone + Harbor + k3s + worker + Prometheus + Grafana
+- **`make demo`** 一键起 shipyard + MySQL + Redis + drone + Harbor + k3s + worker + Prometheus + Grafana
 - **5 分钟 demo 视频** 展示 build → publish → rollback 全流程
 - **8 个核心页面 wireframes** 文档在 `docs/superpowers/wireframes/`
 
@@ -101,7 +101,7 @@
 ┌──────────────────────────────────────────────────────┐
 │  开发者浏览器                                          │
 │         ↓ HTTPS                                      │
-│  master (Java 21 + Spring Boot 3.2+, 虚拟线程)        │
+│  shipyard (Java 21 + Spring Boot 3.2+, 虚拟线程)        │
 │   ├─ Web UI (Vue 3 + TS + Element Plus)              │
 │   ├─ MySQL 8 (12 张表)                                │
 │   ├─ Redis (缓存 + 分布式锁)                          │
@@ -133,8 +133,8 @@
 
 ```bash
 # 1. 克隆
-git clone https://github.com/yourname/master.git
-cd master
+git clone https://github.com/yourname/shipyard.git
+cd shipyard
 
 # 2. (可选) 配置 LLM API key 启用真 AI;默认用 mock
 export TONGYI_API_KEY="sk-xxxxx"
@@ -147,7 +147,7 @@ open http://localhost:8080
 ```
 
 demo 会起:
-- master (端口 8080) — 主 UI + API
+- shipyard (端口 8080) — 主 UI + API
 - MySQL (3306), Redis (6379)
 - drone CI (8081) — 构建引擎
 - Harbor (8082) — 镜像仓库
@@ -160,7 +160,7 @@ demo 会起:
 只起基础设施 (开发时用):
 ```bash
 make infra          # 只起 MySQL + Redis
-make master-dev     # 跑 master (IDE 或 mvn spring-boot:run)
+make shipyard-dev     # 跑 shipyard (IDE 或 mvn spring-boot:run)
 make worker-dev     # 跑 worker (kubectl 指 k3s)
 ```
 
@@ -183,7 +183,7 @@ make worker-dev     # 跑 worker (kubectl 指 k3s)
 ## 🗺️ 路线图
 
 ### V1 (当前, 5-6 周) — 横向 demo
-- [x] Master-worker 架构
+- [x] Shipyard-worker 架构
 - [x] GitLab + Gitee 仓库抽象 (GitLab V1, Gitee stub)
 - [x] Drone CI 集成 + HMAC webhook
 - [x] 可定制流水线 + 版本控制
@@ -233,7 +233,7 @@ make worker-dev     # 跑 worker (kubectl 指 k3s)
 - 提交信息规范 (Conventional Commits)
 
 **好的 first issue** (新贡献者友好):
-- [ ] 实现 `GiteeAdapter` (interface 已在 `master/src/main/java/com/master/repo/` 定义)
+- [ ] 实现 `GiteeAdapter` (interface 已在 `shipyard/src/main/java/com/shipyard/repo/` 定义)
 - [ ] 加更多 Dockerfile 模板 (Python/Flask, Go/Gin, Vue/Vite)
 - [ ] 加 Vue/React/Python E2E 测试
 
@@ -249,7 +249,7 @@ make worker-dev     # 跑 worker (kubectl 指 k3s)
 
 ## 📄 许可
 
-Copyright 2026 The master Platform Authors
+Copyright 2026 The shipyard Platform Authors
 
 Licensed under the Apache License, Version 2.0. 见 [LICENSE](LICENSE) 完整文本。
 
@@ -259,7 +259,7 @@ Licensed under the Apache License, Version 2.0. 见 [LICENSE](LICENSE) 完整文
 
 ## 🌟 Star History
 
-如果 master 对你有帮助,考虑在 GitHub 上点个 star — 帮助其他人发现这个项目。
+如果 shipyard 对你有帮助,考虑在 GitHub 上点个 star — 帮助其他人发现这个项目。
 
 ---
 

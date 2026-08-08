@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned for v0.1.0
 - M1: Repository skeleton (this release)
-- M2: master backend skeleton (Spring Boot 3.2 + Java 21)
-- M3: master Web skeleton (Vue 3 + Element Plus)
+- M2: shipyard backend skeleton (Spring Boot 3.2 + Java 21)
+- M3: shipyard Web skeleton (Vue 3 + Element Plus)
 - M4-M16: See [implementation plan](docs/superpowers/plans/2026-08-08-platform-implementation.md)
 
 ---
@@ -50,5 +50,5 @@ The sections below are placeholders. Future releases will be added by release-pl
 
 ---
 
-[Unreleased]: https://github.com/yourname/master/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/yourname/master/releases/tag/v0.1.0
+[Unreleased]: https://github.com/yourname/shipyard/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/yourname/shipyard/releases/tag/v0.1.0

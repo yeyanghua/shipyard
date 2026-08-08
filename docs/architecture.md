@@ -1,4 +1,4 @@
-# master — Architecture
+# shipyard — Architecture
 
 > **这是 stub 版本。** 完整架构细节见 [Design Spec §3](superpowers/specs/2026-08-08-platform-design.md#3-架构总览)。M1 完成后随每个 milestone 更新。
 
@@ -6,14 +6,14 @@
 
 ## 30-Second Overview
 
-master is a **master-worker** architecture for unified build & deploy:
+shipyard is a **shipyard-worker** architecture for unified build & deploy:
 
 ```
-Browser → master (Java + Spring Boot) → drone CI / Harbor → worker (Go) → k8s
+Browser → shipyard (Java + Spring Boot) → drone CI / Harbor → worker (Go) → k8s
 ```
 
-- **master**: single pane of glass. Web UI, REST API, AI assistance, business logic.
-- **drone CI**: build engine (called by master via REST).
+- **shipyard**: single pane of glass. Web UI, REST API, AI assistance, business logic.
+- **drone CI**: build engine (called by shipyard via REST).
 - **Harbor**: image registry (drone pushes here, worker pulls from here).
 - **worker**: per-environment deployment agent (Go binary, in-cluster).
 - **k8s**: deployment target (one cluster per environment).
@@ -25,7 +25,7 @@ Browser → master (Java + Spring Boot) → drone CI / Harbor → worker (Go) �
 | Layer | Component | Responsibility |
 |---|---|---|
 | 1. **Presentation** | Vue 3 + Element Plus | Web UI |
-| 2. **Application** | Java 21 + Spring Boot 3.2 (master) | Business logic, API, AI orchestration |
+| 2. **Application** | Java 21 + Spring Boot 3.2 (shipyard) | Business logic, API, AI orchestration |
 | 3. **Data** | MySQL 8 + Redis | Persistent state + cache + locks |
 | 4. **Build Engine** | drone CI | Build, test, image push |
 | 5. **Deploy Engine** | Go worker (in-cluster) | Pull image, apply deployment |
@@ -40,11 +40,11 @@ Cross-cutting:
 
 The full design spec has 23 decisions documented. Highlights:
 
-1. **Master-worker with per-environment isolation** — each environment is its own k8s cluster, worker runs in-cluster
-2. **drone CI as build engine** — master calls drone via REST, drone UI hidden
+1. **Shipyard-worker with per-environment isolation** — each environment is its own k8s cluster, worker runs in-cluster
+2. **drone CI as build engine** — shipyard calls drone via REST, drone UI hidden
 3. **Snapshot-based deployment** — every deploy records full yaml, rollback to any version
 4. **AI assistance at 3 pressure points** — pipeline generation, failure diagnosis, release decision
-5. **Java 21 + virtual threads** — perfect for I/O-bound master (drone/worker/LLM/SSE)
+5. **Java 21 + virtual threads** — perfect for I/O-bound shipyard (drone/worker/LLM/SSE)
 6. **Repository abstraction** — interface defined, GitLab V1, Gitee stub (first issue)
 7. **Property-based testing on snapshot assembly** — handles special characters in envvars
 
@@ -60,7 +60,7 @@ flowchart TB
         Browser["Web Browser"]
     end
 
-    subgraph Master["master - Java Spring Boot"]
+    subgraph Shipyard["shipyard - Java Spring Boot"]
         Web["Web UI<br/>Vue 3 + TS + Element Plus"]
         API["REST API<br/>Spring Boot 3"]
         MySQL[("MySQL 8")]
@@ -109,24 +109,24 @@ flowchart TB
 ## Data Flow (Build)
 
 1. User triggers build via Web UI
-2. master calls `drone build create` with vars.yaml (env vars decrypted)
+2. shipyard calls `drone build create` with vars.yaml (env vars decrypted)
 3. drone clones repo, runs pipeline (build → test → docker build → push to Harbor)
-4. drone webhooks master on success/failure
-5. master persists build record + image tag
+4. drone webhooks shipyard on success/failure
+5. shipyard persists build record + image tag
 
-For real-time logs, master opens SSE stream to drone, forwards to Web UI via EventSource. Logs persisted to MySQL on completion.
+For real-time logs, shipyard opens SSE stream to drone, forwards to Web UI via EventSource. Logs persisted to MySQL on completion.
 
 ---
 
 ## Data Flow (Deploy)
 
 1. User clicks "Deploy to demo-env" on a successful build
-2. master composes full deployment snapshot yaml (image + envvars + replicas + probes)
-3. master writes `deploy_record(snapshot_yaml=完整 yaml)`
-4. master calls worker via HTTPS (token-authenticated)
+2. shipyard composes full deployment snapshot yaml (image + envvars + replicas + probes)
+3. shipyard writes `deploy_record(snapshot_yaml=完整 yaml)`
+4. shipyard calls worker via HTTPS (token-authenticated)
 5. worker `kubectl apply` the snapshot in-cluster
 6. worker reports pod status every 5s for 5 minutes (deploy succeed check)
-7. master updates `deploy_record.status` + sends alert
+7. shipyard updates `deploy_record.status` + sends alert
 
 Rollback is the same flow but with a historical `deploy_record.snapshot_yaml`.
 
@@ -136,8 +136,8 @@ Rollback is the same flow but with a historical `deploy_record.snapshot_yaml`.
 
 | Layer | Tech |
 |---|---|
-| master backend | Java 21 LTS + Spring Boot 3.2+ (virtual threads) |
-| master frontend | Vue 3.4+ + TypeScript + Element Plus + Pinia |
+| shipyard backend | Java 21 LTS + Spring Boot 3.2+ (virtual threads) |
+| shipyard frontend | Vue 3.4+ + TypeScript + Element Plus + Pinia |
 | DB | MySQL 8 |
 | Cache/Lock | Redis 7 |
 | Build engine | drone CI 1.x |
@@ -159,4 +159,4 @@ Rollback is the same flow but with a historical `deploy_record.snapshot_yaml`.
 ---
 
 > **Last updated**: M1 (Repository skeleton)
-> **Next update**: M2 (Master backend skeleton) will add Spring Boot project structure
+> **Next update**: M2 (Shipyard backend skeleton) will add Spring Boot project structure
