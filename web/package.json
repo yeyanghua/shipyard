@@ -1,0 +1,50 @@
+{
+  "name": "shipyard-web",
+  "version": "0.1.0",
+  "description": "Unified build & deploy platform — frontend (Vue 3 + TS + Vite)",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --port 5173",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --max-warnings 0",
+    "lint:check": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.7.4",
+    "dayjs": "^1.11.13",
+    "pinia": "^2.2.2",
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "@vitest/coverage-v8": "^2.0.5",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "@vue/test-utils": "^2.4.11",
+    "@vue/tsconfig": "^0.5.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.27.0",
+    "happy-dom": "^15.7.4",
+    "prettier": "^3.3.3",
+    "typescript": "~5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5",
+    "vue-tsc": "^2.1.6"
+  }
+}

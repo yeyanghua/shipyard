@@ -6,8 +6,8 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 milestone | **M2 已完成**(M3 准备开始) |
-| 总 commit | 12 |
+| 当前 milestone | **M3 已完成**(M4 准备开始) |
+| 总 commit | 14 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排) |
 | 上次更新 | 2026-08-08 |
 
@@ -24,7 +24,7 @@
 - 改名 master → shipyard(480 处替换, 0 残留)
 - 分支 master → main
 - 推 GitHub 成功(SSH 认证走 `yeyanghua`)
-- **M2 shipyard 后端骨架 ✅** (Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + MySQL 8 + Lombok + JUnit 5)
+- **M2 shipyard 后端骨架 ✅** (commit `063970a`) (Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + MySQL 8 + Lombok + JUnit 5)
   - 13 张表 Flyway V1 migration 落库(spec 标的 12 是 typo,实际 13)
   - `AesEncrypter` (AES-256-GCM,带 12 字节随机 IV + 16 字节认证标签) + Encrypter interface
   - 9 个加解密单元测试全过 (往返/Unicode/随机 IV/篡改检测/截断/错误密钥/边界)
@@ -33,8 +33,18 @@
   - `application.yml` (本地 MySQL/Redis 配, prod profile 强制 env var 注入,不留密码到 git)
   - **验收**: `mvn spring-boot:run` 1.3s 起服, `/actuator/health` 返回 UP, Flyway 自动迁移成功
   - **根因修复 1 个**: Flyway 默认 `${var}` placeholder 解析跟 dockerfile_template 字段注释里的 Mustache 占位符冲突,关 `placeholder-replacement: false` 解决
+- **M3 shipyard Web 前端骨架 ✅** (commit `xxxxxxx`) (Vue 3.4 + TypeScript 5.5 + Vite 5.4 + pnpm 11.20 + Pinia 2.2 + Vue Router 4 + Axios 1.7 + Vitest 2.0)
+  - 8 个核心页面占位 (Dashboard / ProjectList / CreateProject / ProjectDetail / PipelineEdit / BuildDetail / DeployDetail / EnvList / EnvVars / AiDiagnosis + 404) 对应 `docs/superpowers/wireframes/index.html` 8 个 anchor
+  - Vite dev proxy `/api` → `http://localhost:8080` (prod 通过 VITE_SHIPYARD_API_URL 注入)
+  - Axios 客户端: 拦截器归一化响应 `{code, message, data}`, 业务错误抛 `ApiError`
+  - TypeScript strict + Vue 3 SFC + ESLint + Prettier + Vitest 全配置
+  - 6 个测试通过 (PagePlaceholder 4 + projectsApi 2)
+  - **验收**: `pnpm build` 351ms 全部 chunk 输出 (vue-vendor 88KB / 34KB gzip), `pnpm test` 6/6 通过, `pnpm dev` Vite 5.4.2 123ms 起服 (本地端口 5173/5174 已被其它项目占, fallback 5175)
+  - **根因修复 2 个**:
+    - pnpm 11 默认 ignore build scripts,esbuild native binary 装不上 → `pnpm-workspace.yaml` 加 `onlyBuiltDependencies: [esbuild, vue-demi]`
+    - tsconfig 缺 `@types/node`, vite.config.ts 用了 `process` 和 `node:url` 编译失败 → 加 `@types/node` + types `["node", ...]`
 
-⏳ **下一步**: M3 shipyard Web 前端骨架 (Vue 3 + TS + Vite + pnpm, 8 个核心页面 wireframes 实现)
+⏳ **下一步**: M4 项目/环境 CRUD (前后端贯通, shipyard API + Vue UI)
 
 ---
 
@@ -111,47 +121,43 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 
 ---
 
-## 4. 下一步: M3 - shipyard Web 前端骨架
+## 4. 下一步: M4 - 项目/环境 CRUD (前后端贯通)
 
-**目标**: Vue 3 + TS + Vite + pnpm 前端能起,8 个核心页面 wireframes 实现,Axios 调 shipyard API (M4 才接).
+**目标**: shipyard 后端实现 Project / Env 实体的 CRUD API, Vue 端 ProjectList / ProjectDetail / EnvList 三个页面接通, 真数据流转起来.
 
-**涉及目录**:
+**涉及目录 (新增)**:
 ```
-web/
-├── package.json                              # pnpm 工程,Vue 3.4+ + Vite 5+ + TS 5+
-├── pnpm-lock.yaml                            # 锁文件
-├── vite.config.ts                            # Vite 配置 (dev proxy → shipyard :8080)
-├── tsconfig.json                             # strict: true
-├── index.html
-├── src/
-│   ├── main.ts                               # Vue 入口
-│   ├── App.vue
-│   ├── router/                               # Vue Router 4
-│   ├── stores/                               # Pinia (状态管理)
-│   ├── api/                                  # Axios 封装 (后续 milestone 接)
-│   ├── views/                                # 8 个核心页面
-│   │   ├── Dashboard.vue                      # 首页:项目/环境/构建状态总览
-│   │   ├── ProjectList.vue                   # 项目列表
-│   │   ├── ProjectDetail.vue                 # 项目详情 (含 pipeline/Dockerfile/envs)
-│   │   ├── PipelineEdit.vue                  # 流水线编辑 (M6 接 AI)
-│   │   ├── BuildList.vue                     # 构建历史
-│   │   ├── BuildDetail.vue                   # 构建详情 (M11 接实时日志)
-│   │   ├── EnvList.vue                       # 环境列表
-│   │   └── DeployHistory.vue                 # 发布历史 (M14 接回滚)
-│   └── components/                           # 共享组件
-└── tests/                                    # Vitest (覆盖 70% 同 shipyard/worker)
+shipyard/src/main/java/com/shipyard/
+├── project/                                  # M4 新增
+│   ├── entity/Project.java                   # 实体
+│   ├── mapper/ProjectMapper.java             # MyBatis-Plus BaseMapper
+│   ├── service/ProjectService.java           # 业务逻辑
+│   ├── controller/ProjectController.java     # REST API (spec §4.2)
+│   └── dto/{Create,Update,Response}.java
+└── env/                                      # M4 新增 (同结构)
+    ├── entity/Env.java
+    ├── mapper/EnvMapper.java
+    ├── service/EnvService.java
+    └── controller/EnvController.java
 ```
 
-**8 个核心页面**: 见 `docs/superpowers/wireframes/` (8 个 HTML)
+**新增 shipyard/src/test/java/com/shipyard/project/ProjectServiceTest.java**: 单元测试 (CRUD + 唯一名校验 + 逻辑删除)
+
+**前端**:
+- `web/src/views/ProjectList.vue` 接 projectsApi.list, 列表渲染
+- `web/src/views/ProjectDetail.vue` 接 projectsApi.get
+- `web/src/views/CreateProject.vue` 接 projectsApi.create, 表单
+- `web/src/views/EnvList.vue` 接 envsApi.list (待 M4 加)
+- Pinia store 调通 (loading/error/data 三态)
 
 **验收**:
-- [ ] `pnpm dev` 起 Vite dev server,默认 5173 端口
-- [ ] 8 个页面路由可访问
-- [ ] API 层用 Axios + Vite proxy 转发到 `http://localhost:8080/api`
-- [ ] ESLint + Prettier 配置就绪
-- [ ] 至少 1 个组件测试 (Vitest) 跑通
+- [ ] `mvn test` 通过 (含新 ProjectServiceTest)
+- [ ] `curl -X POST /api/projects` 能创建, 返回 JSON
+- [ ] `curl -X GET /api/projects` 列表返回
+- [ ] 浏览器打开 http://localhost:5173/projects 看到列表
+- [ ] 创建项目后数据库 row 落表 + repo_token 加密
 
-**工时**: 1-2 天
+**工时**: 2-3 天
 
 ---
 

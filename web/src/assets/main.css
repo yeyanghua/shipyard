@@ -1,0 +1,55 @@
+/* ============================================================
+ * shipyard Web 全局样式 (M3 stub,后续 milestone 改)
+ * ============================================================ */
+:root {
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --text-soft: #9ca3af;
+  --primary: #3b82f6;
+  --primary-soft: #dbeafe;
+  --success: #10b981;
+  --success-soft: #d1fae5;
+  --warn: #f59e0b;
+  --warn-soft: #fef3c7;
+  --danger: #ef4444;
+  --danger-soft: #fee2e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+code,
+pre {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+}
