@@ -6,8 +6,8 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 milestone | **M2 准备开始**(M1 已完成) |
-| 总 commit | 11 |
+| 当前 milestone | **M2 已完成**(M3 准备开始) |
+| 总 commit | 12 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排) |
 | 上次更新 | 2026-08-08 |
 
@@ -24,8 +24,17 @@
 - 改名 master → shipyard(480 处替换, 0 残留)
 - 分支 master → main
 - 推 GitHub 成功(SSH 认证走 `yeyanghua`)
+- **M2 shipyard 后端骨架 ✅** (Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + MySQL 8 + Lombok + JUnit 5)
+  - 13 张表 Flyway V1 migration 落库(spec 标的 12 是 typo,实际 13)
+  - `AesEncrypter` (AES-256-GCM,带 12 字节随机 IV + 16 字节认证标签) + Encrypter interface
+  - 9 个加解密单元测试全过 (往返/Unicode/随机 IV/篡改检测/截断/错误密钥/边界)
+  - `VirtualThreadConfig` (Tomcat / MVC 异步 / @Async / 命名线程池 4 处启用虚拟线程)
+  - `DataSourceConfig` (MyBatis-Plus 分页 + 乐观锁拦截器)
+  - `application.yml` (本地 MySQL/Redis 配, prod profile 强制 env var 注入,不留密码到 git)
+  - **验收**: `mvn spring-boot:run` 1.3s 起服, `/actuator/health` 返回 UP, Flyway 自动迁移成功
+  - **根因修复 1 个**: Flyway 默认 `${var}` placeholder 解析跟 dockerfile_template 字段注释里的 Mustache 占位符冲突,关 `placeholder-replacement: false` 解决
 
-⏳ **下一步**: M2 master 后端骨架(Spring Boot 3.2 + Java 21 + 11 张表 Flyway migration + Encrypter + 虚拟线程)
+⏳ **下一步**: M3 shipyard Web 前端骨架 (Vue 3 + TS + Vite + pnpm, 8 个核心页面 wireframes 实现)
 
 ---
 
@@ -52,7 +61,8 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `067c427` | 加 V1 实现计划(16 个 milestone, 5-6 周) |
 | `367fbe2` | 仓库骨架(M1) + Apache 2.0 + 双语 README + 社区基础设施 |
 | `fb0b57b` | 全套改名 master → shipyard(避免 master 分支/服务名/仓库名混淆) |
-| 见下 | M2: master 后端骨架 (待开始) |
+| `6fbbf6c` | docs: 加 PROGRESS.md(换设备无缝继续的接力棒) |
+| `xxxxxxx` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
 
 ---
 
@@ -75,49 +85,73 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 - `.github/dependabot.yml` (5 个 ecosystem 分组)
 - `.github/CODEOWNERS` (按目录 owner)
 - `scripts/rename_to_shipyard.py` (改名脚本,留作参考)
+- `AGENTS.md` (M1.5: AI agent 入口, M2 起步时补,见最新 commit)
+
+### M2 - shipyard 后端骨架 ✅ (commit `xxxxxxx`)
+
+- `shipyard/pom.xml` — Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + mysql-connector-j 8.3.0 + Lombok + spring-boot-starter-web/validation/actuator/data-redis + Spotless 2.43.0 (palantir-java-format)
+- `shipyard/src/main/java/com/shipyard/Application.java` — 入口, `@MapperScan("com.shipyard.**.mapper")`
+- `shipyard/src/main/resources/application.yml` — 本地 MySQL/Redis 配 + 虚拟线程开关 + dev/prod profile 切换 (prod 强制 env var 注入,不留密码)
+- `shipyard/src/main/resources/db/migration/V1__init.sql` — 13 张表 schema:
+  - `project` / `pipeline_template` / `dockerfile_template` / `project_dockerfile`
+  - `env` / `project_env` / `env_variable`
+  - `build_record` / `build_log` (LONGTEXT) / `deploy_record` (snapshot_yaml MEDIUMTEXT)
+  - `worker` (心跳 + 状态) / `ai_interaction` (留痕) / `alert_log` (P0/P1/P2)
+  - 全部带 `deleted` 逻辑删除字段 + `created_at`/`updated_at` 时间戳
+- `shipyard/src/main/java/com/shipyard/config/VirtualThreadConfig.java` — 4 处虚拟线程: Tomcat protocol handler / MVC async / @Async default / 命名 `virtualThreadTaskExecutor` bean
+- `shipyard/src/main/java/com/shipyard/config/DataSourceConfig.java` — MyBatis-Plus 分页 (max 500) + 乐观锁拦截器
+- `shipyard/src/main/java/com/shipyard/crypto/Encrypter.java` — 加密接口 (V1.5 接 KMS 时换实现)
+- `shipyard/src/main/java/com/shipyard/crypto/CryptoException.java` — 加解密异常
+- `shipyard/src/main/java/com/shipyard/crypto/AesEncrypter.java` — AES-256-GCM 实现: 12 字节随机 IV + 16 字节认证标签,输出 Base64 (IV+密文+tag 拼接)
+- `shipyard/src/test/java/com/shipyard/crypto/AesEncrypterTest.java` — 9 个测试: 简单往返 / Unicode-JSON-长字符串往返 / 100 次同明文密文全不同(随机 IV) / 篡改/截断检测 / 错误密钥 / 边界 null 空 / 无效 base64 / 错误密钥长度
+- **M3 准备 (Web 前端骨架)**:
+  - 待建 `web/` 目录 (Vue 3 + TS + Vite + pnpm)
+  - 待建 8 个核心页面 wireframes 实现
+  - 待装 pnpm 8+ (`brew install pnpm` 或 `npm install -g pnpm`)
 
 ---
 
-## 4. 下一步: M2 - master 后端骨架
+## 4. 下一步: M3 - shipyard Web 前端骨架
 
-**目标**: Spring Boot 3.2 + Java 21 后端能起,11 张表 schema 落库,基础 CRUD 可用
+**目标**: Vue 3 + TS + Vite + pnpm 前端能起,8 个核心页面 wireframes 实现,Axios 调 shipyard API (M4 才接).
 
 **涉及目录**:
 ```
-master/
-├── pom.xml                                  # Maven 配置
-├── src/main/java/com/shipyard/
-│   ├── Application.java                     # Spring Boot 入口
-│   ├── config/
-│   │   ├── VirtualThreadConfig.java         # 虚拟线程启用
-│   │   ├── SecurityConfig.java              # JWT 白名单
-│   │   └── DataSourceConfig.java            # MySQL + MyBatis
-│   ├── crypto/
-│   │   ├── Encrypter.java                   # interface
-│   │   └── AesEncrypter.java                # AES-256-GCM 实现
-│   ├── variable/                            # 占位
-│   ├── build/                               # 占位
-│   └── deploy/                              # 占位
-├── src/main/resources/
-│   ├── application.yml                      # 配置
-│   └── db/migration/
-│       └── V1__init.sql                     # 11 张表 schema (Flyway)
-├── src/test/java/com/shipyard/crypto/
-│   └── AesEncrypterTest.java                # 加解密往返测试
-└── Dockerfile.master                        # (M15 加, M2 stub)
+web/
+├── package.json                              # pnpm 工程,Vue 3.4+ + Vite 5+ + TS 5+
+├── pnpm-lock.yaml                            # 锁文件
+├── vite.config.ts                            # Vite 配置 (dev proxy → shipyard :8080)
+├── tsconfig.json                             # strict: true
+├── index.html
+├── src/
+│   ├── main.ts                               # Vue 入口
+│   ├── App.vue
+│   ├── router/                               # Vue Router 4
+│   ├── stores/                               # Pinia (状态管理)
+│   ├── api/                                  # Axios 封装 (后续 milestone 接)
+│   ├── views/                                # 8 个核心页面
+│   │   ├── Dashboard.vue                      # 首页:项目/环境/构建状态总览
+│   │   ├── ProjectList.vue                   # 项目列表
+│   │   ├── ProjectDetail.vue                 # 项目详情 (含 pipeline/Dockerfile/envs)
+│   │   ├── PipelineEdit.vue                  # 流水线编辑 (M6 接 AI)
+│   │   ├── BuildList.vue                     # 构建历史
+│   │   ├── BuildDetail.vue                   # 构建详情 (M11 接实时日志)
+│   │   ├── EnvList.vue                       # 环境列表
+│   │   └── DeployHistory.vue                 # 发布历史 (M14 接回滚)
+│   └── components/                           # 共享组件
+└── tests/                                    # Vitest (覆盖 70% 同 shipyard/worker)
 ```
 
-**11 张表 schema**: 见 spec §4.1
+**8 个核心页面**: 见 `docs/superpowers/wireframes/` (8 个 HTML)
 
 **验收**:
-- [ ] `mvn spring-boot:run` 能起
-- [ ] `/actuator/health` 返回 UP
-- [ ] 11 张表用 Flyway 迁移落库
-- [ ] 虚拟线程配置生效
-- [ ] AesEncrypter 加解密往返测试通过
-- [ ] 启动时全量校验变量完整性(M7 用, M2 先建表)
+- [ ] `pnpm dev` 起 Vite dev server,默认 5173 端口
+- [ ] 8 个页面路由可访问
+- [ ] API 层用 Axios + Vite proxy 转发到 `http://localhost:8080/api`
+- [ ] ESLint + Prettier 配置就绪
+- [ ] 至少 1 个组件测试 (Vitest) 跑通
 
-**工时**: 2-3 天
+**工时**: 1-2 天
 
 ---
 

@@ -1,0 +1,125 @@
+# ============================================================
+# shipyard backend — application.yml (M2 骨架版)
+# ============================================================
+# 真实部署请用 ${ENV_VAR:default} 形式覆盖敏感值.
+# 本地开发:直接连本机 MySQL 8 + Redis (无密码,见 /Users/hardy/brew 配置).
+# ============================================================
+
+spring:
+  application:
+    name: shipyard
+
+  # ---- MySQL (本机) ----
+  # dev 启动前请先 export MYSQL_PASSWORD=xxx (密码不入 git, 也不写默认值).
+  # 留空时 application.yml 不会启动,会等到 env var 设上.
+  datasource:
+    url: jdbc:mysql://localhost:3306/shipyard?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ---- Redis (本机,无密码) ----
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 1
+
+  # ---- Flyway (启动自动迁移) ----
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    # 关闭 placeholder 替换: V1__init.sql 注释里有 ${var} (Dockerfile 模板占位符示例),
+    # Flyway 默认会把 ${...} 当 placeholder 解析,关掉它就只是普通 SQL.
+    placeholder-replacement: false
+
+  # ---- 虚拟线程 (Java 21 + Project Loom) ----
+  threads:
+    virtual:
+      enabled: true   # Spring Boot 3.2 启用虚拟线程 (TaskDecorator / Async executor)
+
+  # ---- Jackson ----
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    default-property-inclusion: non_null
+
+# ---- MyBatis-Plus ----
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.shipyard.**.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # dev 环境看 SQL,生产改 SLF4J
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID   # 雪花算法
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ---- 服务端口 ----
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# ---- Actuator (M2 只暴露 health; M13 暴露 prometheus) ----
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+# ---- 加密密钥 (M2 stub, M7 接 envelope encryption) ----
+# 16/24/32 字节,base64 编码. 真实部署从 KMS/Vault 拉.
+shipyard:
+  crypto:
+    # 注意:这是 dev 默认值,生产必须覆盖. 文件 shipyard.key 在 .gitignore 里.
+    key: ${SHIPYARD_CRYPTO_KEY:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
+
+# ---- 日志 ----
+logging:
+  level:
+    root: INFO
+    com.shipyard: DEBUG
+    org.springframework.web: INFO
+    com.baomidou.mybatisplus: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+# ---- Profile: prod ----
+# 真实部署用 SPRING_PROFILES_ACTIVE=prod 激活. 密码从 env 注入.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    password: ${MYSQL_PASSWORD}    # prod 必须显式传,没有默认值
+  data:
+    redis:
+      password: ${REDIS_PASSWORD}  # prod 必须显式传
