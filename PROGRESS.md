@@ -33,7 +33,7 @@
   - `application.yml` (本地 MySQL/Redis 配, prod profile 强制 env var 注入,不留密码到 git)
   - **验收**: `mvn spring-boot:run` 1.3s 起服, `/actuator/health` 返回 UP, Flyway 自动迁移成功
   - **根因修复 1 个**: Flyway 默认 `${var}` placeholder 解析跟 dockerfile_template 字段注释里的 Mustache 占位符冲突,关 `placeholder-replacement: false` 解决
-- **M3 shipyard Web 前端骨架 ✅** (commit `xxxxxxx`) (Vue 3.4 + TypeScript 5.5 + Vite 5.4 + pnpm 11.20 + Pinia 2.2 + Vue Router 4 + Axios 1.7 + Vitest 2.0)
+- **M3 shipyard Web 前端骨架 ✅** (commit `5851894`) (Vue 3.4 + TypeScript 5.5 + Vite 5.4 + pnpm 11.20 + Pinia 2.2 + Vue Router 4 + Axios 1.7 + Vitest 2.0)
   - 8 个核心页面占位 (Dashboard / ProjectList / CreateProject / ProjectDetail / PipelineEdit / BuildDetail / DeployDetail / EnvList / EnvVars / AiDiagnosis + 404) 对应 `docs/superpowers/wireframes/index.html` 8 个 anchor
   - Vite dev proxy `/api` → `http://localhost:8080` (prod 通过 VITE_SHIPYARD_API_URL 注入)
   - Axios 客户端: 拦截器归一化响应 `{code, message, data}`, 业务错误抛 `ApiError`
@@ -73,6 +73,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `fb0b57b` | 全套改名 master → shipyard(避免 master 分支/服务名/仓库名混淆) |
 | `6fbbf6c` | docs: 加 PROGRESS.md(换设备无缝继续的接力棒) |
 | `063970a` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
+| `5851894` | M3: shipyard Web 前端骨架 (Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试) |
 
 ---
 
