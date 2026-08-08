@@ -231,7 +231,7 @@
       <li><a href="#32-关键选型" class="lv3">3.2 关键选型</a></li>
       <li><a href="#33-部署拓扑" class="lv3">3.3 部署拓扑</a></li>
       <li><a href="#4-master-内部设计" class="">4. master 内部设计</a></li>
-      <li><a href="#41-核心数据模型10-张表" class="lv3">4.1 核心数据模型（10 张表）</a></li>
+      <li><a href="#41-核心数据模型11-张表" class="lv3">4.1 核心数据模型（11 张表）</a></li>
       <li><a href="#42-关键-rest-api" class="lv3">4.2 关键 REST API</a></li>
       <li><a href="#43-内部模块依赖" class="lv3">4.3 内部模块依赖</a></li>
       <li><a href="#5-worker-设计" class="">5. worker 设计</a></li>
@@ -245,6 +245,7 @@
       <li><a href="#64-ai-改流水线流" class="lv3">6.4 AI 改流水线流</a></li>
       <li><a href="#65-ai-故障诊断流" class="lv3">6.5 AI 故障诊断流</a></li>
       <li><a href="#66-ai-发布决策流" class="lv3">6.6 AI 发布决策流</a></li>
+      <li><a href="#67-dockerfile-生成流" class="lv3">6.7 Dockerfile 生成流</a></li>
       <li><a href="#7-错误处理" class="">7. 错误处理</a></li>
       <li><a href="#71-失败场景表" class="lv3">7.1 失败场景表</a></li>
       <li><a href="#72-关键设计原则" class="lv3">7.2 关键设计原则</a></li>
@@ -399,6 +400,13 @@
 <p><strong>环境</strong>（V1 demo 阶段）：<br />
 - 1 个环境（demo 阶段叫"demo-env"，用本地 k3s 集群）<br />
 - V1.5 再加"上海 dev / test / 正式"标准多环境</p>
+<p><strong>Dockerfile 自动生成</strong>（V1）：<br />
+- master 自带 4-5 套主流 Dockerfile 模板（Java/Maven、Java/Gradle、Node/pnpm、Python/poetry 等）<br />
+- 建项目时选"项目类型" → master 根据模板 + 项目元数据生成 Dockerfile → <strong>commit 进项目仓库</strong>（master 用 repo 适配器写文件 + 创建分支 + 提 MR/PR）<br />
+- 模板用变量占位（<code>${java_version}</code>、<code>${main_class}</code>、<code>${jar_name}</code>、<code>${port}</code> 等）<br />
+- 用户能在 UI 上 review 生成的 Dockerfile → 接受 / 手动改 / 拒绝<br />
+- AI 改流水线时也能触发"重新生成 Dockerfile"（用户改需求时 AI 同步调整模板变量 + 重新生成）<br />
+- V1.5 加上"用户自维护 Dockerfile 模板"能力（fork master 自带模板改自己用）</p>
 <h3 id="22-v15">2.2 V1.5 范围</h3>
 <ul>
 <li>多环境（上海 dev / test / 正式，独立 k8s 集群）</li>
@@ -407,6 +415,7 @@
 <li>流水线 webhook 自动触发</li>
 <li>Vue/React/Python 端到端 E2E 测试</li>
 <li>手动停止部署按钮</li>
+<li>用户自维护 Dockerfile 模板（fork + 改 + 用）</li>
 </ul>
 <h3 id="23-v2">2.3 V2 范围</h3>
 <ul>
@@ -564,7 +573,7 @@ Prometheus: 联邦 / Thanos
 </code></pre>
 <hr />
 <h2 id="4-master">4. master 内部设计</h2>
-<h3 id="41-10">4.1 核心数据模型（10 张表）</h3>
+<h3 id="41-11">4.1 核心数据模型（11 张表）</h3>
 <table>
 <thead>
 <tr>
@@ -577,12 +586,22 @@ Prometheus: 联邦 / Thanos
 <tr>
 <td><code>project</code></td>
 <td>项目元数据</td>
-<td>id, name UNIQUE, display_name, repo_provider ENUM(gitlab/gitee), repo_url, repo_token_enc, default_branch, description, created_at, updated_at</td>
+<td>id, name UNIQUE, display_name, repo_provider ENUM(gitlab/gitee), repo_url, repo_token_enc, default_branch, project_type ENUM(java_maven/java_gradle/node_pnpm/python_poetry/other), project_meta JSON (语言版本/主类/jar 名/端口等), description, created_at, updated_at</td>
 </tr>
 <tr>
 <td><code>pipeline_template</code></td>
 <td>流水线模板</td>
 <td>id, project_id FK, version INT, yaml_content MEDIUMTEXT, review_status ENUM(draft/approved/rejected), is_active BOOL, created_by, ai_modified_by NULL, ai_prompt NULL, created_at</td>
+</tr>
+<tr>
+<td><code>dockerfile_template</code></td>
+<td>Dockerfile 模板（master 自带）</td>
+<td>id, name UNIQUE (如 java_maven_jdk17), display_name, language, build_tool, template_content MEDIUMTEXT (Mustache/Go template 语法含 <code>${var}</code>), variable_schema JSON (变量定义: key, type, default, description, required), version, is_builtin BOOL, created_at, updated_at</td>
+</tr>
+<tr>
+<td><code>project_dockerfile</code></td>
+<td>项目 Dockerfile 实例</td>
+<td>id, project_id FK, dockerfile_template_id FK, rendered_content MEDIUMTEXT (渲染后), variable_values JSON, repo_branch, repo_commit_sha, commit_message, status ENUM(draft/pushed/rejected), created_at, pushed_at</td>
 </tr>
 <tr>
 <td><code>env</code></td>
@@ -648,6 +667,17 @@ Prometheus: 联邦 / Thanos
   POST   /api/projects/{id}/pipeline/ai-edit        AI 改入口(返回新 draft + diff)
   POST   /api/projects/{id}/pipeline/ai-edit/{id}/apply  用户确认应用(改 is_active=true)
 
+Dockerfile 模板(master 自带,只读列表)
+  GET    /api/dockerfile-templates              列表
+  GET    /api/dockerfile-templates/{id}         详情(含 variable_schema)
+
+Dockerfile 生成
+  POST   /api/projects/{id}/dockerfile/generate        body: { template_id, variable_values } 返回渲染后 Dockerfile
+  POST   /api/projects/{id}/dockerfile/push-to-repo    body: { rendered_content, branch, commit_message } 提交进项目仓库
+  GET    /api/projects/{id}/dockerfile                 当前生效 Dockerfile
+  GET    /api/projects/{id}/dockerfile/history         历史版本
+  POST   /api/projects/{id}/dockerfile/ai-regenerate   AI 重新生成(body: prompt, current_variable_values) → 返回新变量值 + 渲染后 Dockerfile
+
 环境
   GET    /api/envs                       列表
   POST   /api/envs                       创建
@@ -691,6 +721,7 @@ AI
 <pre><code class="language-mermaid">flowchart LR
     Project[project]
     Pipeline[pipeline]
+    Dockerfile[dockerfile&lt;br/&gt;模板+渲染+提交]
     Env[env]
     Variable[variable]
     Repo[repo&lt;br/&gt;GitLab/Gitee adapter]
@@ -714,6 +745,9 @@ AI
     Deploy --&gt; Crypto
     AI --&gt; LLM[(LLM Provider)]
     Pipeline --&gt; AI
+    Dockerfile --&gt; Template[(dockerfile_template&lt;br/&gt;master 自带)]
+    Dockerfile --&gt; Repo
+    Dockerfile --&gt; AI
     Monitor --&gt; Metrics[(Micrometer)]
     Notify -.V1.5.-&gt; Feishu[飞书/钉钉]
     Variable --&gt; Crypto
@@ -888,6 +922,58 @@ GET  /metrics        Prometheus
 5. master 写 ai_interaction 留痕
 6. UI 在&quot;发布&quot;按钮旁展示建议(不强制,仅参考)
 </code></pre>
+<h3 id="67-dockerfile">6.7 Dockerfile 生成流</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    autonumber
+    actor User as 开发者
+    participant Web as master Web
+    participant API as master API
+    participant Repo as repo 适配器
+    participant Git as GitLab/Gitee
+    participant LLM as LLM(可选)
+
+    User-&gt;&gt;Web: 创建项目,选&quot;项目类型&quot;&lt;br/&gt;(Java/Maven)
+    Web-&gt;&gt;API: POST /api/projects
+    API-&gt;&gt;API: 写 project(project_type=java_maven)
+    Web-&gt;&gt;User: 引导&quot;生成 Dockerfile&quot;页
+
+    User-&gt;&gt;Web: 点&quot;用模板生成&quot;
+    Web-&gt;&gt;API: GET /api/dockerfile-templates
+    API--&gt;&gt;Web: 模板列表(java_maven_jdk17 等)
+    User-&gt;&gt;Web: 选模板 + 填变量&lt;br/&gt;(java_version=17, main_class=com.x.App, jar_name=app.jar, port=8080)
+    Web-&gt;&gt;API: POST /api/projects/{id}/dockerfile/generate
+    API-&gt;&gt;API: 渲染模板(变量替换)
+    API-&gt;&gt;API: 写 project_dockerfile(status=draft, rendered_content)
+    API--&gt;&gt;Web: 渲染后 Dockerfile 内容
+    Web-&gt;&gt;User: 展示 + 预览
+
+    opt AI 重新生成变量
+        User-&gt;&gt;Web: 点&quot;AI 帮我填变量&quot;&lt;br/&gt;输入&quot;项目用 jdk 21,监听 9090&quot;
+        Web-&gt;&gt;API: POST /api/projects/{id}/dockerfile/ai-regenerate
+        API-&gt;&gt;LLM: prompt(模板 + 当前变量 + 用户需求)
+        LLM--&gt;&gt;API: 新变量值 JSON
+        API-&gt;&gt;API: 用新变量重渲染
+        API--&gt;&gt;Web: 新 Dockerfile
+    end
+
+    User-&gt;&gt;Web: 接受,点&quot;提交到仓库&quot;
+    Web-&gt;&gt;API: POST /api/projects/{id}/dockerfile/push-to-repo
+    API-&gt;&gt;Repo: create branch + commit Dockerfile + create MR
+    Repo-&gt;&gt;Git: GitLab API
+    Git--&gt;&gt;Repo: branch + commit + MR URL
+    Repo--&gt;&gt;API: 成功
+    API-&gt;&gt;API: 写 project_dockerfile(status=pushed, branch, commit_sha, commit_message)
+    API--&gt;&gt;Web: 成功 + MR URL
+    Web-&gt;&gt;User: 跳到 GitLab/Gitee 让用户 review + merge MR
+</code></pre>
+<p><strong>关键设计点</strong>：</p>
+<ul>
+<li><strong>走 MR 而不是直接推 main</strong> —— Dockerfile 是项目代码一部分,走 MR 让团队 review,跟正常代码一样</li>
+<li><strong>template 渲染用 Mustache 或 Go template</strong> —— 标准语法,变量用 <code>${var}</code> 或 <code>{{var}}</code> 占位</li>
+<li><strong>变量 schema 定义在 <code>dockerfile_template.variable_schema</code></strong> —— 模板自带变量定义(type/default/required/description),前端按 schema 动态生成表单</li>
+<li><strong>AI 改变量不直接改文件</strong> —— AI 改的是 <code>variable_values</code>,然后重新渲染模板。文件本身是确定性的(模板+变量=文件),AI 介入点是变量</li>
+<li><strong>失败兜底</strong> —— push-to-repo 失败(GitLab 5xx / token 失效)→ 写 alert_log(P1),用户手动重试</li>
+</ul>
 <hr />
 <h2 id="7">7. 错误处理</h2>
 <h3 id="71">7.1 失败场景表</h3>
@@ -1353,6 +1439,18 @@ GET  /metrics        Prometheus
 <td>interview-prep.md</td>
 <td>V1 收尾 Mavis 整理</td>
 <td>反向影响开发优先级(亮点先做)</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Dockerfile 模板来源</td>
+<td>master 自带 4-5 套主流模板(java_maven/java_gradle/node_pnpm/python_poetry)</td>
+<td>降低 V1 工作量;V1.5 加用户自维护能力</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Dockerfile 存储位置</td>
+<td>提交进项目仓库(走 MR)</td>
+<td>Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见</td>
 </tr>
 </tbody>
 </table>

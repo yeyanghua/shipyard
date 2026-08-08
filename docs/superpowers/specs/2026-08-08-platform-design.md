@@ -73,6 +73,14 @@
 - 1 个环境（demo 阶段叫"demo-env"，用本地 k3s 集群）
 - V1.5 再加"上海 dev / test / 正式"标准多环境
 
+**Dockerfile 自动生成**（V1）：
+- master 自带 4-5 套主流 Dockerfile 模板（Java/Maven、Java/Gradle、Node/pnpm、Python/poetry 等）
+- 建项目时选"项目类型" → master 根据模板 + 项目元数据生成 Dockerfile → **commit 进项目仓库**（master 用 repo 适配器写文件 + 创建分支 + 提 MR/PR）
+- 模板用变量占位（`${java_version}`、`${main_class}`、`${jar_name}`、`${port}` 等）
+- 用户能在 UI 上 review 生成的 Dockerfile → 接受 / 手动改 / 拒绝
+- AI 改流水线时也能触发"重新生成 Dockerfile"（用户改需求时 AI 同步调整模板变量 + 重新生成）
+- V1.5 加上"用户自维护 Dockerfile 模板"能力（fork master 自带模板改自己用）
+
 ### 2.2 V1.5 范围
 
 - 多环境（上海 dev / test / 正式，独立 k8s 集群）
@@ -81,6 +89,7 @@
 - 流水线 webhook 自动触发
 - Vue/React/Python 端到端 E2E 测试
 - 手动停止部署按钮
+- 用户自维护 Dockerfile 模板（fork + 改 + 用）
 
 ### 2.3 V2 范围
 
@@ -195,12 +204,14 @@ Prometheus: 联邦 / Thanos
 
 ## 4. master 内部设计
 
-### 4.1 核心数据模型（10 张表）
+### 4.1 核心数据模型（11 张表）
 
 | 表 | 作用 | 关键字段 |
 |---|---|---|
-| `project` | 项目元数据 | id, name UNIQUE, display_name, repo_provider ENUM(gitlab/gitee), repo_url, repo_token_enc, default_branch, description, created_at, updated_at |
+| `project` | 项目元数据 | id, name UNIQUE, display_name, repo_provider ENUM(gitlab/gitee), repo_url, repo_token_enc, default_branch, project_type ENUM(java_maven/java_gradle/node_pnpm/python_poetry/other), project_meta JSON (语言版本/主类/jar 名/端口等), description, created_at, updated_at |
 | `pipeline_template` | 流水线模板 | id, project_id FK, version INT, yaml_content MEDIUMTEXT, review_status ENUM(draft/approved/rejected), is_active BOOL, created_by, ai_modified_by NULL, ai_prompt NULL, created_at |
+| `dockerfile_template` | Dockerfile 模板（master 自带） | id, name UNIQUE (如 java_maven_jdk17), display_name, language, build_tool, template_content MEDIUMTEXT (Mustache/Go template 语法含 `${var}`), variable_schema JSON (变量定义: key, type, default, description, required), version, is_builtin BOOL, created_at, updated_at |
+| `project_dockerfile` | 项目 Dockerfile 实例 | id, project_id FK, dockerfile_template_id FK, rendered_content MEDIUMTEXT (渲染后), variable_values JSON, repo_branch, repo_commit_sha, commit_message, status ENUM(draft/pushed/rejected), created_at, pushed_at |
 | `env` | 环境定义 | id, name UNIQUE, display_name, cluster_type ENUM(k8s), k8s_namespace, worker_url, worker_token_enc, is_production BOOL, created_at |
 | `project_env` | 项目-环境关联 | project_id + env_id 复合主键 |
 | `env_variable` | 环境变量 | id, env_id FK, project_id FK NULL, var_key, var_value_enc TEXT, is_secret BOOL, description, updated_by, updated_at, UNIQUE(env_id, project_id, var_key) |
@@ -234,6 +245,17 @@ Prometheus: 联邦 / Thanos
   POST   /api/projects/{id}/pipeline/{ver}/approve  审核(改 review_status=approved)
   POST   /api/projects/{id}/pipeline/ai-edit        AI 改入口(返回新 draft + diff)
   POST   /api/projects/{id}/pipeline/ai-edit/{id}/apply  用户确认应用(改 is_active=true)
+
+Dockerfile 模板(master 自带,只读列表)
+  GET    /api/dockerfile-templates              列表
+  GET    /api/dockerfile-templates/{id}         详情(含 variable_schema)
+
+Dockerfile 生成
+  POST   /api/projects/{id}/dockerfile/generate        body: { template_id, variable_values } 返回渲染后 Dockerfile
+  POST   /api/projects/{id}/dockerfile/push-to-repo    body: { rendered_content, branch, commit_message } 提交进项目仓库
+  GET    /api/projects/{id}/dockerfile                 当前生效 Dockerfile
+  GET    /api/projects/{id}/dockerfile/history         历史版本
+  POST   /api/projects/{id}/dockerfile/ai-regenerate   AI 重新生成(body: prompt, current_variable_values) → 返回新变量值 + 渲染后 Dockerfile
 
 环境
   GET    /api/envs                       列表
@@ -281,6 +303,7 @@ AI
 flowchart LR
     Project[project]
     Pipeline[pipeline]
+    Dockerfile[dockerfile<br/>模板+渲染+提交]
     Env[env]
     Variable[variable]
     Repo[repo<br/>GitLab/Gitee adapter]
@@ -304,6 +327,9 @@ flowchart LR
     Deploy --> Crypto
     AI --> LLM[(LLM Provider)]
     Pipeline --> AI
+    Dockerfile --> Template[(dockerfile_template<br/>master 自带)]
+    Dockerfile --> Repo
+    Dockerfile --> AI
     Monitor --> Metrics[(Micrometer)]
     Notify -.V1.5.-> Feishu[飞书/钉钉]
     Variable --> Crypto
@@ -503,6 +529,61 @@ sequenceDiagram
 5. master 写 ai_interaction 留痕
 6. UI 在"发布"按钮旁展示建议(不强制,仅参考)
 ```
+
+### 6.7 Dockerfile 生成流
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 开发者
+    participant Web as master Web
+    participant API as master API
+    participant Repo as repo 适配器
+    participant Git as GitLab/Gitee
+    participant LLM as LLM(可选)
+
+    User->>Web: 创建项目,选"项目类型"<br/>(Java/Maven)
+    Web->>API: POST /api/projects
+    API->>API: 写 project(project_type=java_maven)
+    Web->>User: 引导"生成 Dockerfile"页
+
+    User->>Web: 点"用模板生成"
+    Web->>API: GET /api/dockerfile-templates
+    API-->>Web: 模板列表(java_maven_jdk17 等)
+    User->>Web: 选模板 + 填变量<br/>(java_version=17, main_class=com.x.App, jar_name=app.jar, port=8080)
+    Web->>API: POST /api/projects/{id}/dockerfile/generate
+    API->>API: 渲染模板(变量替换)
+    API->>API: 写 project_dockerfile(status=draft, rendered_content)
+    API-->>Web: 渲染后 Dockerfile 内容
+    Web->>User: 展示 + 预览
+
+    opt AI 重新生成变量
+        User->>Web: 点"AI 帮我填变量"<br/>输入"项目用 jdk 21,监听 9090"
+        Web->>API: POST /api/projects/{id}/dockerfile/ai-regenerate
+        API->>LLM: prompt(模板 + 当前变量 + 用户需求)
+        LLM-->>API: 新变量值 JSON
+        API->>API: 用新变量重渲染
+        API-->>Web: 新 Dockerfile
+    end
+
+    User->>Web: 接受,点"提交到仓库"
+    Web->>API: POST /api/projects/{id}/dockerfile/push-to-repo
+    API->>Repo: create branch + commit Dockerfile + create MR
+    Repo->>Git: GitLab API
+    Git-->>Repo: branch + commit + MR URL
+    Repo-->>API: 成功
+    API->>API: 写 project_dockerfile(status=pushed, branch, commit_sha, commit_message)
+    API-->>Web: 成功 + MR URL
+    Web->>User: 跳到 GitLab/Gitee 让用户 review + merge MR
+```
+
+**关键设计点**：
+
+- **走 MR 而不是直接推 main** —— Dockerfile 是项目代码一部分,走 MR 让团队 review,跟正常代码一样
+- **template 渲染用 Mustache 或 Go template** —— 标准语法,变量用 `${var}` 或 `{{var}}` 占位
+- **变量 schema 定义在 `dockerfile_template.variable_schema`** —— 模板自带变量定义(type/default/required/description),前端按 schema 动态生成表单
+- **AI 改变量不直接改文件** —— AI 改的是 `variable_values`,然后重新渲染模板。文件本身是确定性的(模板+变量=文件),AI 介入点是变量
+- **失败兜底** —— push-to-repo 失败(GitLab 5xx / token 失效)→ 写 alert_log(P1),用户手动重试
 
 ---
 
@@ -743,6 +824,8 @@ V1 收尾时由 Mavis 整理:
 | 16 | README 语言 | 中英双语 | 双语 star 数涨 |
 | 17 | 架构图工具 | Mermaid(全用) | GitHub 原生渲染、diff 友好、零配置 |
 | 18 | interview-prep.md | V1 收尾 Mavis 整理 | 反向影响开发优先级(亮点先做) |
+| 19 | Dockerfile 模板来源 | master 自带 4-5 套主流模板(java_maven/java_gradle/node_pnpm/python_poetry) | 降低 V1 工作量;V1.5 加用户自维护能力 |
+| 20 | Dockerfile 存储位置 | 提交进项目仓库(走 MR) | Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见 |
 
 ---
 
