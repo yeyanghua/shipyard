@@ -231,7 +231,7 @@
       <li><a href="#32-关键选型" class="lv3">3.2 关键选型</a></li>
       <li><a href="#33-部署拓扑" class="lv3">3.3 部署拓扑</a></li>
       <li><a href="#4-master-内部设计" class="">4. master 内部设计</a></li>
-      <li><a href="#41-核心数据模型11-张表" class="lv3">4.1 核心数据模型（11 张表）</a></li>
+      <li><a href="#41-核心数据模型12-张表" class="lv3">4.1 核心数据模型（12 张表）</a></li>
       <li><a href="#42-关键-rest-api" class="lv3">4.2 关键 REST API</a></li>
       <li><a href="#43-内部模块依赖" class="lv3">4.3 内部模块依赖</a></li>
       <li><a href="#5-worker-设计" class="">5. worker 设计</a></li>
@@ -407,6 +407,13 @@
 - 用户能在 UI 上 review 生成的 Dockerfile → 接受 / 手动改 / 拒绝<br />
 - AI 改流水线时也能触发"重新生成 Dockerfile"（用户改需求时 AI 同步调整模板变量 + 重新生成）<br />
 - V1.5 加上"用户自维护 Dockerfile 模板"能力（fork master 自带模板改自己用）</p>
+<p><strong>实时构建日志</strong>（V1）：<br />
+- 构建过程中<strong>实时</strong>看构建日志（SSE 流式推到前端），不用等构建完<br />
+- 构建完成后日志<strong>持久化到 master MySQL</strong>（按 step 分行存），以后从 master 直接看不用跳 drone<br />
+- master Web "构建详情页"：左侧元信息（commit / trigger / 耗时 / step 列表），右侧实时日志区（自动滚到底）<br />
+- 失败时顶部自动出现"AI 诊断"按钮（一键分析失败原因）<br />
+- 历史日志查询：master MySQL 有就直接返回，没有则 fallback 调 drone logs API<br />
+- drone 那边只存 30 天（drone 默认），master 这边永久保留（V1.5 加日志保留策略）</p>
 <h3 id="22-v15">2.2 V1.5 范围</h3>
 <ul>
 <li>多环境（上海 dev / test / 正式，独立 k8s 集群）</li>
@@ -573,7 +580,7 @@ Prometheus: 联邦 / Thanos
 </code></pre>
 <hr />
 <h2 id="4-master">4. master 内部设计</h2>
-<h3 id="41-11">4.1 核心数据模型（11 张表）</h3>
+<h3 id="41-12">4.1 核心数据模型（12 张表）</h3>
 <table>
 <thead>
 <tr>
@@ -621,7 +628,12 @@ Prometheus: 联邦 / Thanos
 <tr>
 <td><code>build_record</code></td>
 <td>构建记录</td>
-<td>id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url</td>
+<td>id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url, <strong>log_persisted BOOL</strong> (日志是否已落 master)</td>
+</tr>
+<tr>
+<td><code>build_log</code></td>
+<td>构建日志（按 step 存）</td>
+<td>id, build_record_id FK, step_name, step_order INT, <strong>log_content LONGTEXT</strong> (完整日志), log_size_bytes BIGINT, started_at, finished_at, created_at, UNIQUE(build_record_id, step_name)</td>
 </tr>
 <tr>
 <td><code>deploy_record</code></td>
@@ -696,6 +708,13 @@ Dockerfile 生成
   GET    /api/projects/{id}/builds      构建历史
   GET    /api/builds/{id}               构建详情
   POST   /api/builds/{id}/cancel        取消
+
+构建日志(实时 + 持久化)
+  GET    /api/builds/{id}/logs/stream   SSE 实时流(构建中调,前端用 EventSource)
+  GET    /api/builds/{id}/logs          完整日志(已持久化用,按 step 返回)
+  GET    /api/builds/{id}/logs/steps    step 列表(step 名/顺序/状态/开始时间)
+  GET    /api/builds/{id}/logs/steps/{step_id}  单 step 完整日志
+  POST   /api/builds/{id}/logs/persist  手动触发持久化(正常情况 webhook 自动触发,失败时可手动)
 
 发布
   POST   /api/builds/{id}/deploy        发布(body: env_id)
@@ -811,21 +830,43 @@ GET  /metrics        Prometheus
     API-&gt;&gt;API: 拼 vars.yaml(项目+环境变量,解密)
     API-&gt;&gt;Drone: drone build create {repo} {sha} --params=vars.yaml
     Drone--&gt;&gt;API: build_id
-    API-&gt;&gt;API: 写 build_record(status=running, drone_build_id)
+    API-&gt;&gt;API: 写 build_record(status=running, drone_build_id, log_persisted=false)
     API--&gt;&gt;Web: 202 Accepted(build_id)
 
-    loop 后续
-        Drone-&gt;&gt;API: Webhook(BuildSuccess/BuildFailed)
-        API-&gt;&gt;API: 更新 build_record
-        API-&gt;&gt;API: 写 alert_log(失败时)
+    par 实时日志流(构建中)
+        User-&gt;&gt;Web: 打开&quot;构建详情页&quot;
+        Web-&gt;&gt;API: GET /api/builds/{id}/logs/stream (EventSource)
+        API-&gt;&gt;Drone: GET /api/repos/{owner}/{name}/builds/{build}/logs/{step}/stream
+        loop 构建中每个 step
+            Drone--&gt;&gt;API: 日志 chunk
+            API--&gt;&gt;Web: SSE event(log chunk)
+            Web-&gt;&gt;User: 实时日志自动滚动
+        end
+    and 构建主流程
+        Drone-&gt;&gt;Harbor: docker push (内置步骤)
+        Drone-&gt;&gt;API: Webhook(BuildSuccess + image tag)
+        API-&gt;&gt;API: 触发持久化: 调 drone logs API 拿完整日志
+        API-&gt;&gt;API: 写 build_log(每个 step 一行, log_content=LONGTEXT)
+        API-&gt;&gt;API: 写 build_record(log_persisted=true, image_tag, harbor_image_url, status=success)
     end
 
-    Drone-&gt;&gt;Harbor: docker push (内置步骤)
-    Drone--&gt;&gt;API: Webhook(BuildSuccess + image tag)
-    API-&gt;&gt;API: 写 build_record.image_tag + harbor_image_url
+    opt 构建失败
+        Web-&gt;&gt;User: 顶部弹&quot;AI 诊断&quot;按钮
+        User-&gt;&gt;Web: 点&quot;AI 诊断&quot;
+        Web-&gt;&gt;API: POST /api/ai/diagnosis { build_id }
+        API-&gt;&gt;API: 读 build_log.content + build_record + drone 日志 URL
+        API-&gt;&gt;LLM: 拼 prompt + 调 LLM
+        LLM--&gt;&gt;API: 诊断结果
+        API--&gt;&gt;Web: 弹窗展示根因 + 修复建议
+    end
 </code></pre>
-<h3 id="62">6.2 发布流</h3>
-<pre><code class="language-mermaid">sequenceDiagram
+<pre><code>API-&gt;&gt;API: 写 build_record.image_tag + harbor_image_url
+</code></pre>
+<pre><code>
+### 6.2 发布流
+
+```mermaid
+sequenceDiagram
     autonumber
     actor User as 开发者
     participant Web as master Web
@@ -1452,6 +1493,18 @@ GET  /metrics        Prometheus
 <td>提交进项目仓库(走 MR)</td>
 <td>Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见</td>
 </tr>
+<tr>
+<td>21</td>
+<td>实时构建日志范围</td>
+<td>构建中实时看(SSE)+ 构建完 master 持久化</td>
+<td>GitHub Actions/Jenkins/GitLab CI 标配体验;master 持久化摆脱 drone 日志 30 天保留限制</td>
+</tr>
+<tr>
+<td>22</td>
+<td>实时日志 UI 位置</td>
+<td>构建详情页(左侧元信息+右侧实时日志)</td>
+<td>经典 CI 体验;项目卡片预览是另一类需求, V1 不同时做</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -1592,14 +1645,30 @@ GET  /metrics        Prometheus
 <p><strong>下一步</strong>: 用户 review 通过后,调用 writing-plans skill 拆分实现计划</p>
   </main>
 </div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({
-    startOnLoad: true,
-    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
-    securityLevel: 'loose',
-    flowchart: { useMaxWidth: true, htmlLabels: true },
-    sequence: { useMaxWidth: true, showSequenceNumbers: true },
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  // 等 DOM + mermaid 都加载完再初始化
+  window.addEventListener('load', function() {
+    if (typeof mermaid === 'undefined') {
+      console.error('mermaid CDN 加载失败, 请检查网络');
+      return;
+    }
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true },
+      sequence: { useMaxWidth: true, showSequenceNumbers: true },
+    });
+    // 手动 run,把页面上所有 <pre><code class="language-mermaid"> 替换成图
+    document.querySelectorAll('pre code.language-mermaid').forEach(function(block, idx) {
+      var pre = block.parentNode;
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = block.textContent;
+      pre.parentNode.replaceChild(div, pre);
+    });
+    mermaid.run();
   });
 </script>
 </body>

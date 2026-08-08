@@ -81,6 +81,14 @@
 - AI 改流水线时也能触发"重新生成 Dockerfile"（用户改需求时 AI 同步调整模板变量 + 重新生成）
 - V1.5 加上"用户自维护 Dockerfile 模板"能力（fork master 自带模板改自己用）
 
+**实时构建日志**（V1）：
+- 构建过程中**实时**看构建日志（SSE 流式推到前端），不用等构建完
+- 构建完成后日志**持久化到 master MySQL**（按 step 分行存），以后从 master 直接看不用跳 drone
+- master Web "构建详情页"：左侧元信息（commit / trigger / 耗时 / step 列表），右侧实时日志区（自动滚到底）
+- 失败时顶部自动出现"AI 诊断"按钮（一键分析失败原因）
+- 历史日志查询：master MySQL 有就直接返回，没有则 fallback 调 drone logs API
+- drone 那边只存 30 天（drone 默认），master 这边永久保留（V1.5 加日志保留策略）
+
 ### 2.2 V1.5 范围
 
 - 多环境（上海 dev / test / 正式，独立 k8s 集群）
@@ -204,7 +212,7 @@ Prometheus: 联邦 / Thanos
 
 ## 4. master 内部设计
 
-### 4.1 核心数据模型（11 张表）
+### 4.1 核心数据模型（12 张表）
 
 | 表 | 作用 | 关键字段 |
 |---|---|---|
@@ -215,7 +223,8 @@ Prometheus: 联邦 / Thanos
 | `env` | 环境定义 | id, name UNIQUE, display_name, cluster_type ENUM(k8s), k8s_namespace, worker_url, worker_token_enc, is_production BOOL, created_at |
 | `project_env` | 项目-环境关联 | project_id + env_id 复合主键 |
 | `env_variable` | 环境变量 | id, env_id FK, project_id FK NULL, var_key, var_value_enc TEXT, is_secret BOOL, description, updated_by, updated_at, UNIQUE(env_id, project_id, var_key) |
-| `build_record` | 构建记录 | id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url |
+| `build_record` | 构建记录 | id, project_id FK, pipeline_template_id FK, commit_sha, commit_message, triggered_by, trigger_type ENUM(manual/webhook/api), drone_build_id, status ENUM(pending/running/success/failed/timeout/canceled), image_tag, harbor_image_url, started_at, finished_at, log_url, **log_persisted BOOL** (日志是否已落 master) |
+| `build_log` | 构建日志（按 step 存） | id, build_record_id FK, step_name, step_order INT, **log_content LONGTEXT** (完整日志), log_size_bytes BIGINT, started_at, finished_at, created_at, UNIQUE(build_record_id, step_name) |
 | `deploy_record` | 发布记录 | id, build_record_id FK, project_id FK, env_id FK, deploy_status ENUM(pending/running/success/failed/rolled_back), **snapshot_yaml MEDIUMTEXT** (回滚用), k8s_deployment_name, triggered_by, started_at, finished_at, log_url |
 | `worker` | worker 注册 | id, env_id FK UNIQUE, worker_url, worker_token_hash, last_heartbeat_at, status ENUM(online/offline/unhealthy), version |
 | `ai_interaction` | AI 对话留痕 | id, user_id, capability ENUM(pipeline_gen/diagnosis/decision), input_prompt TEXT, llm_provider, llm_model, llm_request JSON, llm_response JSON, output_action TEXT, created_at |
@@ -275,6 +284,13 @@ Dockerfile 生成
   GET    /api/projects/{id}/builds      构建历史
   GET    /api/builds/{id}               构建详情
   POST   /api/builds/{id}/cancel        取消
+
+构建日志(实时 + 持久化)
+  GET    /api/builds/{id}/logs/stream   SSE 实时流(构建中调,前端用 EventSource)
+  GET    /api/builds/{id}/logs          完整日志(已持久化用,按 step 返回)
+  GET    /api/builds/{id}/logs/steps    step 列表(step 名/顺序/状态/开始时间)
+  GET    /api/builds/{id}/logs/steps/{step_id}  单 step 完整日志
+  POST   /api/builds/{id}/logs/persist  手动触发持久化(正常情况 webhook 自动触发,失败时可手动)
 
 发布
   POST   /api/builds/{id}/deploy        发布(body: env_id)
@@ -403,17 +419,36 @@ sequenceDiagram
     API->>API: 拼 vars.yaml(项目+环境变量,解密)
     API->>Drone: drone build create {repo} {sha} --params=vars.yaml
     Drone-->>API: build_id
-    API->>API: 写 build_record(status=running, drone_build_id)
+    API->>API: 写 build_record(status=running, drone_build_id, log_persisted=false)
     API-->>Web: 202 Accepted(build_id)
 
-    loop 后续
-        Drone->>API: Webhook(BuildSuccess/BuildFailed)
-        API->>API: 更新 build_record
-        API->>API: 写 alert_log(失败时)
+    par 实时日志流(构建中)
+        User->>Web: 打开"构建详情页"
+        Web->>API: GET /api/builds/{id}/logs/stream (EventSource)
+        API->>Drone: GET /api/repos/{owner}/{name}/builds/{build}/logs/{step}/stream
+        loop 构建中每个 step
+            Drone-->>API: 日志 chunk
+            API-->>Web: SSE event(log chunk)
+            Web->>User: 实时日志自动滚动
+        end
+    and 构建主流程
+        Drone->>Harbor: docker push (内置步骤)
+        Drone->>API: Webhook(BuildSuccess + image tag)
+        API->>API: 触发持久化: 调 drone logs API 拿完整日志
+        API->>API: 写 build_log(每个 step 一行, log_content=LONGTEXT)
+        API->>API: 写 build_record(log_persisted=true, image_tag, harbor_image_url, status=success)
     end
 
-    Drone->>Harbor: docker push (内置步骤)
-    Drone-->>API: Webhook(BuildSuccess + image tag)
+    opt 构建失败
+        Web->>User: 顶部弹"AI 诊断"按钮
+        User->>Web: 点"AI 诊断"
+        Web->>API: POST /api/ai/diagnosis { build_id }
+        API->>API: 读 build_log.content + build_record + drone 日志 URL
+        API->>LLM: 拼 prompt + 调 LLM
+        LLM-->>API: 诊断结果
+        API-->>Web: 弹窗展示根因 + 修复建议
+    end
+```
     API->>API: 写 build_record.image_tag + harbor_image_url
 ```
 
@@ -826,6 +861,8 @@ V1 收尾时由 Mavis 整理:
 | 18 | interview-prep.md | V1 收尾 Mavis 整理 | 反向影响开发优先级(亮点先做) |
 | 19 | Dockerfile 模板来源 | master 自带 4-5 套主流模板(java_maven/java_gradle/node_pnpm/python_poetry) | 降低 V1 工作量;V1.5 加用户自维护能力 |
 | 20 | Dockerfile 存储位置 | 提交进项目仓库(走 MR) | Dockerfile 是项目代码一部分,走 git diff/MR 跟正常代码一样 review;master 集中存储会让仓库不可见 |
+| 21 | 实时构建日志范围 | 构建中实时看(SSE)+ 构建完 master 持久化 | GitHub Actions/Jenkins/GitLab CI 标配体验;master 持久化摆脱 drone 日志 30 天保留限制 |
+| 22 | 实时日志 UI 位置 | 构建详情页(左侧元信息+右侧实时日志) | 经典 CI 体验;项目卡片预览是另一类需求, V1 不同时做 |
 
 ---
 

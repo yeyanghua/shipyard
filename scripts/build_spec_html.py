@@ -252,14 +252,30 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 {content}
   </main>
 </div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({{
-    startOnLoad: true,
-    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
-    securityLevel: 'loose',
-    flowchart: {{ useMaxWidth: true, htmlLabels: true }},
-    sequence: {{ useMaxWidth: true, showSequenceNumbers: true }},
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  // 等 DOM + mermaid 都加载完再初始化
+  window.addEventListener('load', function() {{
+    if (typeof mermaid === 'undefined') {{
+      console.error('mermaid CDN 加载失败, 请检查网络');
+      return;
+    }}
+    mermaid.initialize({{
+      startOnLoad: true,
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+      securityLevel: 'loose',
+      flowchart: {{ useMaxWidth: true, htmlLabels: true }},
+      sequence: {{ useMaxWidth: true, showSequenceNumbers: true }},
+    }});
+    // 手动 run,把页面上所有 <pre><code class="language-mermaid"> 替换成图
+    document.querySelectorAll('pre code.language-mermaid').forEach(function(block, idx) {{
+      var pre = block.parentNode;
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = block.textContent;
+      pre.parentNode.replaceChild(div, pre);
+    }});
+    mermaid.run();
   }});
 </script>
 </body>
