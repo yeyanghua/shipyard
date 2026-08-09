@@ -14,6 +14,7 @@ import { onMounted, ref } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import CommandPalette from '@/components/CommandPalette.vue';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -129,6 +130,7 @@ onMounted(async () => {
                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </RouterLink>
+          <ThemeSwitcher />
           <div class="status-pill" :class="auth.tokenInfo ? 'ok' : 'warn'">
             <span class="status-dot" :class="auth.tokenInfo ? 'success' : 'warning'"></span>
             <span v-if="auth.tokenInfo">已登录 · {{ auth.tokenInfo.userId }}</span>

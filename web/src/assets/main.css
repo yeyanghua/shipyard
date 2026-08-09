@@ -2,7 +2,15 @@
  * shipyard — global design system
  *
  * <p>风格: Industrial Precision (Linear + Vercel + Drone CI).
- * <p>暗色主题为默认, 配色克制, 字体个性化 (Manrope + JetBrains Mono + Noto Sans SC).
+ * <p>支持明暗双主题, 切换通过 <html class="dark"> 控制.
+ * <p>配色克制, 字体个性化 (Manrope + JetBrains Mono + Noto Sans SC).
+ *
+ * <h2>主题策略</h2>
+ * <ul>
+ *   <li>:root — light theme (默认, 适合日间办公)</li>
+ *   <li>:root.dark — dark theme (深色护眼, 默认)</li>
+ *   <li>所有颜色 / 阴影 / 滚动条都按主题双写</li>
+ * </ul>
  *
  * <h2>CSS 变量分类</h2>
  * <ul>
@@ -13,40 +21,43 @@
  * </ul>
  * ========================================================================== */
 
+/* ==========================================================================
+ * Light Theme (默认, 适用 :root)
+ * ========================================================================== */
 :root {
-  /* ---- 颜色: 背景层 (从深到浅) ---- */
-  --color-bg-base: #0a0e1a;       /* 主背景 — 深蓝黑 */
-  --color-bg-surface: #131825;    /* 卡片表面 */
-  --color-bg-elevated: #1a2030;   /* 悬浮元素 / modal / hover row */
-  --color-bg-overlay: rgba(10, 14, 26, 0.72); /* modal-mask */
+  /* ---- 背景层 ---- */
+  --color-bg-base: #ffffff;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f9fafb;
+  --color-bg-overlay: rgba(15, 23, 42, 0.5);
 
-  /* ---- 颜色: 边框 / 分隔 ---- */
-  --color-border: #1f2937;        /* 默认边框 */
-  --color-border-strong: #2d3748; /* 表头分隔 / 强分隔 */
-  --color-divider: rgba(255, 255, 255, 0.06);
+  /* ---- 边框 / 分隔 ---- */
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-divider: rgba(0, 0, 0, 0.05);
 
-  /* ---- 颜色: 文字 ---- */
-  --color-text-primary: #f5f6fa;    /* 主文字 */
-  --color-text-secondary: #9ca3af;  /* 次要 / 描述 */
-  --color-text-muted: #6b7280;      /* muted / 提示 */
-  --color-text-inverse: #0a0e1a;    /* 暗底反白 (浅色按钮上) */
-  --color-text-link: #06b6d4;       /* 链接 */
+  /* ---- 文字 ---- */
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #ffffff;
+  --color-text-link: #0891b2;
 
-  /* ---- 颜色: 品牌 + 强调 ---- */
-  --color-accent: #06b6d4;          /* 主品牌色 — 青色 */
+  /* ---- 品牌 + 强调 (青色跟暗色版一致, 只是 hover 略调) ---- */
+  --color-accent: #06b6d4;
   --color-accent-hover: #0891b2;
-  --color-accent-soft: rgba(6, 182, 212, 0.12); /* 12% alpha — hover row / tag bg */
-  --color-accent-strong: #22d3ee;   /* hover/active 上的更亮 */
+  --color-accent-soft: rgba(6, 182, 212, 0.10);
+  --color-accent-strong: #0e7490;
 
-  /* ---- 颜色: 状态 ---- */
-  --color-success: #10b981;
-  --color-success-soft: rgba(16, 185, 129, 0.14);
-  --color-warning: #f59e0b;
-  --color-warning-soft: rgba(245, 158, 11, 0.14);
-  --color-danger: #ef4444;
-  --color-danger-soft: rgba(239, 68, 68, 0.14);
-  --color-info: #3b82f6;
-  --color-info-soft: rgba(59, 130, 246, 0.14);
+  /* ---- 状态 ---- */
+  --color-success: #059669;
+  --color-success-soft: rgba(5, 150, 105, 0.10);
+  --color-warning: #d97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.10);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.10);
+  --color-info: #2563eb;
+  --color-info-soft: rgba(37, 99, 235, 0.10);
 
   /* ---- 字体 ---- */
   --font-display: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
@@ -59,9 +70,9 @@
 
   /* ---- 尺寸 ---- */
   --radius-sm: 3px;
-  --radius-md: 5px;          /* 卡片/按钮/输入框 — 企业感 4-6px */
-  --radius-lg: 8px;          /* 弹窗 / 大区块 */
-  --radius-pill: 9999px;     /* 状态徽章 */
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 9999px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -75,17 +86,61 @@
 
   /* ---- 高度 ---- */
   --height-topbar: 56px;
-  --height-sidebar: 64px;     /* 折叠态宽度 */
-  --height-sidebar-expanded: 240px; /* 展开态宽度 */
+  --height-sidebar: 64px;
+  --height-sidebar-expanded: 240px;
 
-  /* ---- 阴影: 微妙, 不超过 2px blur ---- */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.24);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.32);  /* 弹窗 */
+  /* ---- 阴影 (light theme 较浅) ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 
   /* ---- 过渡 ---- */
   --transition-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+ * Dark Theme (在 :root.dark 下覆盖)
+ * ========================================================================== */
+:root.dark {
+  /* ---- 背景层 ---- */
+  --color-bg-base: #0a0e1a;
+  --color-bg-surface: #131825;
+  --color-bg-elevated: #1a2030;
+  --color-bg-overlay: rgba(10, 14, 26, 0.72);
+
+  /* ---- 边框 / 分隔 ---- */
+  --color-border: #1f2937;
+  --color-border-strong: #2d3748;
+  --color-divider: rgba(255, 255, 255, 0.06);
+
+  /* ---- 文字 ---- */
+  --color-text-primary: #f5f6fa;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #0a0e1a;
+  --color-text-link: #06b6d4;
+
+  /* ---- 品牌 + 强调 ---- */
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+  --color-accent-soft: rgba(6, 182, 212, 0.12);
+  --color-accent-strong: #22d3ee;
+
+  /* ---- 状态 (暗色版用更亮的色调, 在深底上更易识别) ---- */
+  --color-success: #10b981;
+  --color-success-soft: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.14);
+  --color-info: #3b82f6;
+  --color-info-soft: rgba(59, 130, 246, 0.14);
+
+  /* ---- 阴影 (dark theme 较深) ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.32);
 }
 
 /* ==========================================================================
@@ -104,20 +159,19 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'cv11', 'ss01'; /* Manrope 风格细节 */
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 body {
   background: var(--color-bg-base);
   min-height: 100vh;
   color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums; /* 数字等宽 — 工程感 */
+  font-variant-numeric: tabular-nums;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* 选区高亮 */
 ::selection { background: var(--color-accent); color: #fff; }
 
-/* 滚动条: 暗色主题定制 (Webkit) */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--color-bg-base); }
 ::-webkit-scrollbar-thumb {
@@ -127,11 +181,9 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 
-/* 链接 */
 a { color: var(--color-text-link); text-decoration: none; transition: color var(--transition-fast); }
 a:hover { color: var(--color-accent-strong); }
 
-/* 标题 — 用 display 字体 */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -145,20 +197,19 @@ h2 { font-size: 20px; }
 h3 { font-size: 16px; }
 h4 { font-size: 14px; color: var(--color-text-secondary); font-weight: 500; }
 
-/* 代码 / mono */
 code, pre, kbd, samp {
   font-family: var(--font-mono);
   font-size: 0.92em;
 }
 code {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-bg-elevated);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   color: var(--color-accent-strong);
 }
 pre {
-  background: #0d1421;
-  color: #e2e8f0;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
   padding: var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
@@ -168,7 +219,7 @@ pre {
 pre code { background: transparent; padding: 0; color: inherit; }
 
 /* ==========================================================================
- * Form 控件 (统一暗色风格)
+ * Form 控件
  * ========================================================================== */
 
 input, textarea, select {
@@ -193,7 +244,6 @@ input:disabled, textarea:disabled, select:disabled { opacity: 0.5; cursor: not-a
 
 label { font-size: 13px; color: var(--color-text-secondary); }
 
-/* checkbox / radio — 用 accent 色 */
 input[type='checkbox'], input[type='radio'] {
   accent-color: var(--color-accent);
   width: 16px;
@@ -205,7 +255,6 @@ input[type='checkbox'], input[type='radio'] {
  * 通用组件基类
  * ========================================================================== */
 
-/* 按钮: 主色 + 次色 + ghost + danger */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -262,7 +311,6 @@ input[type='checkbox'], input[type='radio'] {
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 .btn-lg { padding: 10px 20px; font-size: 15px; }
 
-/* 链接式按钮 (用于行内操作) */
 .link {
   background: none;
   border: 0;
@@ -277,7 +325,6 @@ input[type='checkbox'], input[type='radio'] {
 .link.danger:hover { color: #f87171; }
 .link.muted { color: var(--color-text-muted); }
 
-/* 卡片 */
 .card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
@@ -288,7 +335,6 @@ input[type='checkbox'], input[type='radio'] {
 .card:hover { border-color: var(--color-border-strong); }
 .card h2 { margin: 0 0 var(--space-4); font-size: 15px; font-weight: 600; }
 
-/* 状态徽章 (小圆角 pill) */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -315,7 +361,6 @@ input[type='checkbox'], input[type='radio'] {
 .badge-neutral { color: var(--color-text-secondary); background: var(--color-bg-elevated); }
 .badge-accent  { color: var(--color-accent);  background: var(--color-accent-soft);  }
 
-/* 状态圆点 (8x8, 用于 table inline 状态) */
 .status-dot {
   display: inline-block;
   width: 8px;
@@ -330,7 +375,6 @@ input[type='checkbox'], input[type='radio'] {
 .status-dot.muted   { background: var(--color-text-muted); }
 .status-dot.accent  { background: var(--color-accent); box-shadow: 0 0 8px var(--color-accent); }
 
-/* 通用 table 样式 */
 .data-table {
   width: 100%;
   border-collapse: separate;
@@ -364,7 +408,6 @@ input[type='checkbox'], input[type='radio'] {
 .data-table tbody tr:hover { background: var(--color-accent-soft); }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 
-/* 空状态 */
 .empty {
   display: flex;
   flex-direction: column;
@@ -374,14 +417,10 @@ input[type='checkbox'], input[type='radio'] {
   color: var(--color-text-muted);
   gap: var(--space-3);
 }
-.empty-icon {
-  font-size: 32px;
-  opacity: 0.5;
-}
+.empty-icon { font-size: 32px; opacity: 0.5; }
 .empty-title { font-size: 14px; color: var(--color-text-secondary); font-weight: 500; }
 .empty-desc  { font-size: 12px; color: var(--color-text-muted); max-width: 360px; text-align: center; }
 
-/* Skeleton loading */
 .skeleton {
   background: linear-gradient(90deg,
     var(--color-bg-elevated) 0%,
@@ -396,10 +435,6 @@ input[type='checkbox'], input[type='radio'] {
   100% { background-position: -200% 0; }
 }
 
-/* ==========================================================================
- * 入场动画
- * ========================================================================== */
-
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
@@ -409,20 +444,19 @@ input[type='checkbox'], input[type='radio'] {
 .fade-in { animation: fadeIn 0.2s ease-out; }
 .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 
-/* Vue Router 过渡: 简单淡入 */
 .route-fade-enter-active { transition: opacity 0.18s ease-out; }
 .route-fade-leave-active { transition: opacity 0.12s ease-in; }
 .route-fade-enter-from { opacity: 0; }
 .route-fade-leave-to   { opacity: 0; }
 
 /* ==========================================================================
- * Element Plus 主题覆盖 (暗色 + 青色 accent + Manrope + sharp 边角)
+ * Element Plus 主题覆盖
  *
- * <p>Element Plus 自带 dark mode 变量, 我们只覆盖关键 token + 字体/圆角.
- * <p>基础色板/中性色/状态色都从 --color-* 推导.
+ * <p>两套: 默认 (light) + :root.dark (dark).
+ * <p>所有 Element Plus 变量都映射到我们的 --color-* token, 保证一致.
  * ========================================================================== */
 
-html.dark {
+:root {
   /* 主题色 (青色) */
   --el-color-primary: #06b6d4;
   --el-color-primary-light-3: #22d3ee;
@@ -432,26 +466,81 @@ html.dark {
   --el-color-primary-light-9: #ecfeff;
   --el-color-primary-dark-2: #0891b2;
 
-  /* 状态色 (对齐设计系统) */
+  /* 状态色 */
+  --el-color-success: #059669;
+  --el-color-warning: #d97706;
+  --el-color-danger: #dc2626;
+  --el-color-info: #2563eb;
+  --el-color-error: #dc2626;
+
+  /* 背景层 (light) */
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f9fafb;
+  --el-bg-color-overlay: #ffffff;
+
+  /* 文字 (light) */
+  --el-text-color-primary: #111827;
+  --el-text-color-regular: #374151;
+  --el-text-color-secondary: #4b5563;
+  --el-text-color-placeholder: #9ca3af;
+  --el-text-color-disabled: #d1d5db;
+
+  /* 边框 (light) */
+  --el-border-color: #e5e7eb;
+  --el-border-color-light: #e5e7eb;
+  --el-border-color-lighter: #f3f4f6;
+  --el-border-color-extra-light: #f9fafb;
+  --el-border-color-darker: #d1d5db;
+  --el-border-color-dark: #d1d5db;
+
+  /* 填充 (light) */
+  --el-fill-color: #f3f4f6;
+  --el-fill-color-light: #f9fafb;
+  --el-fill-color-lighter: #ffffff;
+  --el-fill-color-extra-light: #ffffff;
+  --el-fill-color-blank: #ffffff;
+  --el-fill-color-dark: #e5e7eb;
+  --el-fill-color-darker: #d1d5db;
+
+  /* 字体 */
+  --el-font-family: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-font-family-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', monospace;
+  --el-font-size-base: 13px;
+
+  /* 圆角 */
+  --el-border-radius-base: 5px;
+  --el-border-radius-small: 3px;
+  --el-border-radius-round: 9999px;
+
+  /* 阴影 (light) */
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --el-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --el-box-shadow-dark: 0 4px 12px rgba(0, 0, 0, 0.12);
+
+  /* mask (light) */
+  --el-mask-color: rgba(15, 23, 42, 0.4);
+  --el-overlay-color: rgba(0, 0, 0, 0.3);
+}
+
+/* dark 主题覆盖 Element Plus */
+:root.dark {
   --el-color-success: #10b981;
   --el-color-warning: #f59e0b;
   --el-color-danger: #ef4444;
   --el-color-info: #3b82f6;
   --el-color-error: #ef4444;
 
-  /* 背景层 */
   --el-bg-color: #131825;
   --el-bg-color-page: #0a0e1a;
   --el-bg-color-overlay: #1a2030;
 
-  /* 文字 */
   --el-text-color-primary: #f5f6fa;
   --el-text-color-regular: #d1d5db;
   --el-text-color-secondary: #9ca3af;
   --el-text-color-placeholder: #6b7280;
   --el-text-color-disabled: #4b5563;
 
-  /* 边框 */
   --el-border-color: #1f2937;
   --el-border-color-light: #1f2937;
   --el-border-color-lighter: rgba(255, 255, 255, 0.06);
@@ -459,7 +548,6 @@ html.dark {
   --el-border-color-darker: #2d3748;
   --el-border-color-dark: #1f2937;
 
-  /* 填充 (input/select 背景) */
   --el-fill-color: #1a2030;
   --el-fill-color-light: rgba(255, 255, 255, 0.04);
   --el-fill-color-lighter: rgba(255, 255, 255, 0.02);
@@ -468,41 +556,28 @@ html.dark {
   --el-fill-color-dark: #0a0e1a;
   --el-fill-color-darker: #060a14;
 
-  /* 字体 (全局) */
-  --el-font-family: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
-    'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --el-font-family-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', monospace;
-  --el-font-size-base: 13px;
-
-  /* 圆角 (sharp 企业感) */
-  --el-border-radius-base: 5px;
-  --el-border-radius-small: 3px;
-  --el-border-radius-round: 9999px;
-
-  /* 阴影 */
   --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.3);
   --el-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   --el-box-shadow-dark: 0 4px 12px rgba(0, 0, 0, 0.4);
 
-  /* mask 背景 (modal / drawer) */
   --el-mask-color: rgba(10, 14, 26, 0.72);
   --el-overlay-color: rgba(0, 0, 0, 0.5);
 }
 
-/* Element Plus 组件细节微调 */
-html.dark .el-button {
+/* Element Plus 组件细节微调 (两套主题通用) */
+.el-button {
   font-weight: 500;
   letter-spacing: 0.01em;
 }
-html.dark .el-card {
+.el-card {
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
 }
-html.dark .el-card__header {
+.el-card__header {
   border-bottom: 1px solid var(--el-border-color-lighter);
   font-weight: 600;
 }
-html.dark .el-table {
+.el-table {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
   --el-table-row-hover-bg-color: var(--color-accent-soft);
@@ -512,7 +587,7 @@ html.dark .el-table {
   --el-table-header-text-align: left;
   font-size: 13px;
 }
-html.dark .el-table th.el-table__cell {
+.el-table th.el-table__cell {
   background: var(--color-bg-elevated);
   font-weight: 500;
   font-size: 11px;
@@ -521,23 +596,23 @@ html.dark .el-table th.el-table__cell {
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-strong);
 }
-html.dark .el-table td.el-table__cell {
+.el-table td.el-table__cell {
   border-bottom: 1px solid var(--color-divider);
 }
-html.dark .el-table .el-table__row:hover > td.el-table__cell {
+.el-table .el-table__row:hover > td.el-table__cell {
   background: var(--color-accent-soft) !important;
 }
-html.dark .el-tabs__item {
+.el-tabs__item {
   font-weight: 500;
   color: var(--color-text-secondary);
 }
-html.dark .el-tabs__item.is-active { color: var(--color-accent); }
-html.dark .el-tabs__active-bar { background-color: var(--color-accent); }
-html.dark .el-drawer {
+.el-tabs__item.is-active { color: var(--color-accent); }
+.el-tabs__active-bar { background-color: var(--color-accent); }
+.el-drawer {
   background: var(--color-bg-surface);
   border-left: 1px solid var(--color-border);
 }
-html.dark .el-drawer__header {
+.el-drawer__header {
   margin-bottom: 0;
   padding: 20px 24px;
   border-bottom: 1px solid var(--color-border);
@@ -545,8 +620,8 @@ html.dark .el-drawer__header {
   font-weight: 600;
   font-size: 16px;
 }
-html.dark .el-drawer__body { padding: 20px 24px; }
-html.dark .el-tag {
+.el-drawer__body { padding: 20px 24px; }
+.el-tag {
   border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 500;
@@ -554,28 +629,28 @@ html.dark .el-tag {
   text-transform: uppercase;
   border: 0;
 }
-html.dark .el-input__wrapper,
-html.dark .el-textarea__inner,
-html.dark .el-select__wrapper {
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
   background: var(--color-bg-base);
   box-shadow: 0 0 0 1px var(--color-border) !important;
 }
-html.dark .el-input__wrapper:hover,
-html.dark .el-textarea__inner:hover,
-html.dark .el-select__wrapper:hover {
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
   box-shadow: 0 0 0 1px var(--color-border-strong) !important;
 }
-html.dark .el-input__wrapper.is-focus,
-html.dark .el-textarea__inner:focus,
-html.dark .el-select__wrapper.is-focused {
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
   box-shadow: 0 0 0 1px var(--color-accent) !important;
 }
-html.dark .el-empty__description p { color: var(--color-text-muted); }
-html.dark .el-pagination .el-pager li { background: transparent; }
-html.dark .el-pagination .el-pager li.is-active { color: var(--color-accent); }
-html.dark .el-tooltip__popper { font-size: 12px; }
+.el-empty__description p { color: var(--color-text-muted); }
+.el-pagination .el-pager li { background: transparent; }
+.el-pagination .el-pager li.is-active { color: var(--color-accent); }
+.el-tooltip__popper { font-size: 12px; }
 
-/* 工具类 — 在 vue 模板里直接用 */
+/* 工具类 */
 .flex { display: flex; }
 .flex-col { display: flex; flex-direction: column; }
 .items-center { align-items: center; }
