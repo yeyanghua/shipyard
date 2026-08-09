@@ -21,7 +21,7 @@ const route = useRoute();
 const router = useRouter();
 const store = useBuildStore();
 
-const buildId = computed(() => Number(route.params.id));
+const buildId = computed(() => String(route.params.id));
 const selectedStep = ref<string | null>(null);
 const logEl = ref<HTMLElement | null>(null);
 const loading = ref(true);

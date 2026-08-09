@@ -4,9 +4,9 @@
 import { http } from './client';
 
 export interface EnvVariable {
-  id: number;
-  envId: number;
-  projectId: number | null;   // null = 全局, 非空 = 项目级
+  id: string;
+  envId: string;
+  projectId: string | null;   // null = 全局, 非空 = 项目级
   key: string;
   value: string;               // secret 时是 "***", 非 secret 时是明文
   isSecret: number;            // 1=隐藏, 0=明文
@@ -23,35 +23,31 @@ export interface EnvVariableUpsertItem {
 }
 
 export const envVariablesApi = {
-  list: (envId: number, projectId?: number) =>
+  list: (envId: string, projectId?: string) =>
     http
       .get<EnvVariable[]>(`/envs/${envId}/variables`, {
         params: projectId ? { projectId } : {},
-      })
-      .then((r) => r.data),
+      }),
 
   batchUpsert: (
-    envId: number,
+    envId: string,
     items: EnvVariableUpsertItem[],
-    projectId?: number,
+    projectId?: string,
   ) =>
     http
       .put<EnvVariable[]>(`/envs/${envId}/variables`, { items }, {
         params: projectId ? { projectId } : {},
-      })
-      .then((r) => r.data),
+      }),
 
-  getDecrypted: (envId: number, key: string, projectId?: number) =>
+  getDecrypted: (envId: string, key: string, projectId?: string) =>
     http
       .get<{ value: string }>(`/envs/${envId}/variables/${key}`, {
         params: projectId ? { projectId } : {},
-      })
-      .then((r) => r.data),
+      }),
 
-  delete: (envId: number, key: string, projectId?: number) =>
+  delete: (envId: string, key: string, projectId?: string) =>
     http
       .delete<void>(`/envs/${envId}/variables/${key}`, {
         params: projectId ? { projectId } : {},
-      })
-      .then((r) => r.data),
+      }),
 };

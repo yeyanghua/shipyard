@@ -18,7 +18,7 @@ const buildStore = useBuildStore();
 
 const project = ref<Project | null>(null);
 const envs = ref<Env[]>([]);
-const linkedIds = ref<Set<number>>(new Set());
+const linkedIds = ref<Set<string>>(new Set());
 const builds = ref<Build[]>([]);
 const loading = ref(true);
 const error = ref('');
@@ -29,7 +29,7 @@ const showTrigger = ref(false);
 const triggerForm = ref({ commitSha: '', envId: '' as string | number });
 const triggering = ref(false);
 
-const projectId = computed(() => Number(route.params.id));
+const projectId = computed(() => String(route.params.id));
 
 async function fetchData() {
   loading.value = true;
@@ -53,7 +53,7 @@ async function fetchData() {
 
 onMounted(fetchData);
 
-async function linkEnv(envId: number) {
+async function linkEnv(envId: string) {
   try {
     await envsApi.associate(projectId.value, envId);
     linkedIds.value = new Set([...linkedIds.value, envId]);
@@ -63,7 +63,7 @@ async function linkEnv(envId: number) {
   }
 }
 
-async function unlinkEnv(envId: number) {
+async function unlinkEnv(envId: string) {
   if (!confirm('确认取消关联?')) return;
   try {
     await envsApi.unassociate(projectId.value, envId);
@@ -85,8 +85,9 @@ async function triggerBuild() {
     const build = await buildStore.trigger({
       projectId: projectId.value,
       commitSha: triggerForm.value.commitSha,
-      envId: triggerForm.value.envId ? Number(triggerForm.value.envId) : undefined,
+      envId: triggerForm.value.envId ? String(triggerForm.value.envId) : undefined,
     });
+    // 跳到 build 详情看实时日志
     // 跳到 build 详情看实时日志
     router.push(`/builds/${build.id}`);
   } catch (e) {

@@ -67,7 +67,16 @@ public class ProjectCreateRequest {
         message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
     private String projectType;
 
-    private String projectMeta;  // JSON 字符串
+    /**
+     * Project Meta — 灵活接收 object 或 string.
+     *
+     * <p>V1 阶段: DTO 字段是 {@code Object} (Jackson 自动反序列化为 {@code LinkedHashMap}),
+     * Service 层 {@code ObjectMapper.writeValueAsString(projectMeta)} 序列化成字符串入库.
+     * 这样前端传 JSON 对象或字符串都接受, 不用纠结引号转义.
+     *
+     * <p>V1.5 改: 走 MyBatis-Plus JacksonTypeHandler 存 JSON 字段, 直接反序列化成 Map.
+     */
+    private Object projectMeta;
 
     @Size(max = 512)
     private String description;

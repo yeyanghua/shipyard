@@ -43,7 +43,7 @@ export const useBuildStore = defineStore('build', () => {
   });
 
   /** 加载 build 详情 (含 step 列表) */
-  async function load(buildId: number) {
+  async function load(buildId: string) {
     current.value = await buildsApi.get(buildId);
     status.value = current.value.status;
     steps.value = await buildsApi.listSteps(buildId);
@@ -59,7 +59,7 @@ export const useBuildStore = defineStore('build', () => {
   }
 
   /** 订阅 SSE 实时日志 — 自动管理 EventSource 生命周期 */
-  function subscribeStream(buildId: number) {
+  function subscribeStream(buildId: string) {
     // 清掉旧的
     if (eventSource) {
       eventSource.close();
@@ -86,7 +86,7 @@ export const useBuildStore = defineStore('build', () => {
           existing.finishedAt = event.stepFinishedAt;
         } else {
           steps.value.push({
-            id: 0,  // 服务端不返
+            id: '0',  // 服务端不返, 占位 string
             buildRecordId: buildId,
             stepName: event.stepName,
             stepOrder: event.stepOrder,
@@ -96,6 +96,7 @@ export const useBuildStore = defineStore('build', () => {
             createdAt: new Date().toISOString(),
           });
         }
+        stepLogs.value[event.stepName] = event.logContent;
         stepLogs.value[event.stepName] = event.logContent;
         // RUNNING 状态
         if (status.value === 'PENDING') {
@@ -148,7 +149,7 @@ export const useBuildStore = defineStore('build', () => {
   }
 
   /** 取消构建 */
-  async function cancel(buildId: number) {
+  async function cancel(buildId: string) {
     const updated = await buildsApi.cancel(buildId);
     if (current.value) {
       current.value = updated;
@@ -157,7 +158,7 @@ export const useBuildStore = defineStore('build', () => {
   }
 
   /** 触发新构建 */
-  async function trigger(req: { projectId: number; commitSha: string; envId?: number }) {
+  async function trigger(req: { projectId: string; commitSha: string; envId?: string }) {
     return await buildsApi.create({
       projectId: req.projectId,
       commitSha: req.commitSha,

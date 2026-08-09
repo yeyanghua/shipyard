@@ -119,8 +119,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+        // V1 demo: Vite dev 端口 5173-5180 都允许 (机器上端口可能被占, fallback 5174/5175/...)
+        // 生产用同源部署, CORS 仅 dev 阶段需要
         config.setAllowedOrigins(Arrays.asList(
             "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176",
+            "http://localhost:5177",
+            "http://localhost:5178",
+            "http://localhost:5179",
+            "http://localhost:5180",
             "http://localhost:8080",
             "http://localhost:3000"
         ));

@@ -1,7 +1,7 @@
 /**
  * 构建 API - 对应后端 /api/builds + /api/projects/{id}/builds + SSE /stream.
  *
- * <p>M5 6 接入: 触发构建 / 查详情 / 列 step / 取消 + EventSource 实时日志.
+ * <p>M5 6 接入: 触发构建 / 查详�?/ �?step / 取消 + EventSource 实时日志.
  */
 import { http, sseBaseURL, ApiError } from './client';
 import type { PageResponse } from './types';
@@ -15,8 +15,8 @@ export type BuildStatus =
   | 'CANCELED';
 
 export interface Build {
-  id: number;
-  projectId: number;
+  id: string;
+  projectId: string;
   commitSha: string;
   commitMessage?: string;
   triggeredBy: string;
@@ -32,16 +32,16 @@ export interface Build {
 }
 
 export interface CreateBuildRequest {
-  projectId: number;
-  envId?: number;            // 选填, V1 demo 自动用项目第一个关联 env
+  projectId: string;
+  envId?: string;            // 选填, V1 demo 自动用项目第一个关联 env
   commitSha: string;
   commitMessage?: string;
   triggeredBy?: string;
 }
 
 export interface BuildLog {
-  id: number;
-  buildRecordId: number;
+  id: string;
+  buildRecordId: string;
   stepName: string;
   stepOrder: number;
   logSizeBytes: number;
@@ -51,12 +51,12 @@ export interface BuildLog {
 }
 
 /**
- * SSE 事件 — 跟后端 BuildLogEvent 对应.
+ * SSE 事件 �?跟后�?BuildLogEvent 对应.
  *
  * 客户端用 EventSource.addEventListener('step' | 'build', ...) 区分.
  */
 export interface SseStepEvent {
-  buildId: number;
+  buildId: string;
   eventType: 'step';
   stepName: string;
   stepOrder: number;
@@ -67,7 +67,7 @@ export interface SseStepEvent {
 }
 
 export interface SseBuildEvent {
-  buildId: number;
+  buildId: string;
   eventType: 'build';
   status: BuildStatus;
   imageTag?: string;
@@ -77,40 +77,37 @@ export interface SseBuildEvent {
 export type SseEvent = SseStepEvent | SseBuildEvent;
 
 export const buildsApi = {
-  list: (projectId: number, params: { pageNum?: number; pageSize?: number; status?: string } = {}) =>
+  list: (projectId: string, params: { pageNum?: number; pageSize?: number; status?: string } = {}) =>
     http
       .get<PageResponse<Build>>(`/projects/${projectId}/builds`, {
         params: { pageNum: 1, pageSize: 20, ...params },
-      })
-      .then((r) => r.data),
+      }),
 
-  get: (id: number) => http.get<Build>(`/builds/${id}`).then((r) => r.data),
+  get: (id: string) => http.get<Build>(`/builds/${id}`),
 
   create: (req: CreateBuildRequest) =>
-    http.post<Build>('/builds', req).then((r) => r.data),
+    http.post<Build>('/builds', req),
 
-  cancel: (id: number) => http.post<Build>(`/builds/${id}/cancel`).then((r) => r.data),
+  cancel: (id: string) => http.post<Build>(`/builds/${id}/cancel`),
 
-  listSteps: (id: number) =>
-    http.get<BuildLog[]>(`/builds/${id}/steps`).then((r) => r.data),
+  listSteps: (id: string) =>
+    http.get<BuildLog[]>(`/builds/${id}/steps`),
 
-  getStepLog: (id: number, stepName: string) =>
+  getStepLog: (id: string, stepName: string) =>
     http
-      .get<string>(`/builds/${id}/steps/${encodeURIComponent(stepName)}`)
-      .then((r) => r.data),
+      .get<string>(`/builds/${id}/steps/${encodeURIComponent(stepName)}`),
 
   /**
-   * 订阅 build 实时日志 — 返回 EventSource, 调用方负责 addEventListener + close.
+   * 订阅 build 实时日志 �?返回 EventSource, 调用方负�?addEventListener + close.
    *
    * <p>用法:
    * <pre>{@code
    * const es = buildsApi.subscribeStream(buildId);
-   * es.addEventListener('step', (e) => { ... });    // 新 step
-   * es.addEventListener('build', (e) => { ... });   // 终态
-   * es.onerror = () => es.close();
+   * es.addEventListener('step', (e) => { ... });    // �?step
+   * es.addEventListener('build', (e) => { ... });   // 终�?   * es.onerror = () => es.close();
    * }</pre>
    */
-  subscribeStream: (buildId: number): EventSource => {
+  subscribeStream: (buildId: string): EventSource => {
     return new EventSource(`${sseBaseURL}/api/builds/${buildId}/stream`, {
       withCredentials: false,
     });

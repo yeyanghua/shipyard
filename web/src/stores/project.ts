@@ -1,7 +1,7 @@
 /**
  * 项目 store - Pinia.
  *
- * <p>M4: 接 projectsApi + project-env 关联.
+ * <p>M4: �?projectsApi + project-env 关联.
  */
 import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
@@ -24,9 +24,12 @@ export const useProjectStore = defineStore('project', () => {
         size: pagination.size,
         keyword: pagination.keyword || undefined,
       });
-      list.value = resp.records;
-      total.value = resp.total;
+      // 防御: 后端连不上时 resp �?undefined, �?throw 而是显示空列�?+ 错误
+      list.value = resp?.records ?? [];
+      total.value = resp?.total ?? 0;
     } catch (e) {
+      list.value = [];
+      total.value = 0;
       error.value = (e as Error).message;
     } finally {
       loading.value = false;
@@ -39,13 +42,13 @@ export const useProjectStore = defineStore('project', () => {
     return p;
   }
 
-  async function update(id: number, req: UpdateProjectRequest): Promise<Project> {
+  async function update(id: string, req: UpdateProjectRequest): Promise<Project> {
     const p = await projectsApi.update(id, req);
     await fetchList();
     return p;
   }
 
-  async function remove(id: number) {
+  async function remove(id: string) {
     await projectsApi.delete(id);
     await fetchList();
   }

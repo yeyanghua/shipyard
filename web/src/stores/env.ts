@@ -37,26 +37,26 @@ export const useEnvStore = defineStore('env', () => {
     return e;
   }
 
-  async function update(id: number, req: UpdateEnvRequest): Promise<Env> {
+  async function update(id: string, req: UpdateEnvRequest): Promise<Env> {
     const e = await envsApi.update(id, req);
     await fetchList();
     return e;
   }
 
-  async function remove(id: number) {
+  async function remove(id: string) {
     await envsApi.delete(id);
     await fetchList();
   }
 
-  async function listByProject(projectId: number): Promise<ProjectEnvLink[]> {
+  async function listByProject(projectId: string): Promise<ProjectEnvLink[]> {
     return envsApi.listByProject(projectId);
   }
 
-  async function associate(projectId: number, envId: number) {
+  async function associate(projectId: string, envId: string) {
     await envsApi.associate(projectId, envId);
   }
 
-  async function unassociate(projectId: number, envId: number) {
+  async function unassociate(projectId: string, envId: string) {
     await envsApi.unassociate(projectId, envId);
   }
 

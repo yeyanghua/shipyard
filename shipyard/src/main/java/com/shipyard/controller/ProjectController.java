@@ -17,6 +17,10 @@
 package com.shipyard.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shipyard.common.exception.BusinessException;
+import com.shipyard.common.exception.ErrorCode;
 import com.shipyard.dto.ApiResponse;
 import com.shipyard.dto.PageResponse;
 import com.shipyard.dto.ProjectCreateRequest;
@@ -49,6 +53,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public ApiResponse<PageResponse<ProjectResponse>> list(
@@ -68,17 +73,43 @@ public class ProjectController {
     @PostMapping
     public ApiResponse<ProjectResponse> create(@RequestBody @Valid ProjectCreateRequest req) {
         Project p = new Project();
-        BeanUtils.copyProperties(req, p, "repoToken");  // 跳过明文
-        p.setRepoTokenEnc(req.getRepoToken());           // 字段名复用, Service 加密
+        BeanUtils.copyProperties(req, p, "repoToken", "projectMeta");  // 跳过 Object 字段
+        p.setProjectMeta(stringifyProjectMeta(req.getProjectMeta()));
+        p.setRepoTokenEnc(req.getRepoToken());                          // 字段名复用, Service 加密
         return ApiResponse.ok(ProjectResponse.from(projectService.create(p)));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<ProjectResponse> update(@PathVariable Long id, @RequestBody @Valid ProjectUpdateRequest req) {
         Project p = new Project();
-        BeanUtils.copyProperties(req, p, "repoToken");
+        BeanUtils.copyProperties(req, p, "repoToken", "projectMeta");
+        // 只在 request 显式传了 projectMeta 时才更新 (避免 PUT 部分字段把原值覆盖成 null)
+        if (req.getProjectMeta() != null) {
+            p.setProjectMeta(stringifyProjectMeta(req.getProjectMeta()));
+        }
         p.setRepoTokenEnc(req.getRepoToken());
         return ApiResponse.ok(ProjectResponse.from(projectService.update(id, p)));
+    }
+
+    /**
+     * 把任意 Object 转 JSON 字符串 — projectMeta 字段入库前 stringify.
+     *
+     * <p>支持:
+     * <ul>
+     *   <li>{@code LinkedHashMap} (Jackson 反序列化 JSON 对象) → 写回 JSON 字符串</li>
+     *   <li>{@code String} (用户已传 JSON 字符串) → 原样返回</li>
+     *   <li>{@code null} → null</li>
+     * </ul>
+     */
+    private String stringifyProjectMeta(Object projectMeta) {
+        if (projectMeta == null) return null;
+        if (projectMeta instanceof String s) return s;
+        try {
+            return objectMapper.writeValueAsString(projectMeta);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST,
+                "projectMeta JSON 序列化失败: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")

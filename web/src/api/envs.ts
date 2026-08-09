@@ -5,7 +5,7 @@ import { http } from './client';
 import type { PageResponse } from './types';
 
 export interface Env {
-  id: number;
+  id: string;
   name: string;
   displayName: string;
   clusterType: string;
@@ -38,8 +38,8 @@ export interface UpdateEnvRequest {
 }
 
 export interface ProjectEnvLink {
-  projectId: number;
-  envId: number;
+  projectId: string;
+  envId: string;
 }
 
 export const envsApi = {
@@ -47,33 +47,29 @@ export const envsApi = {
     http
       .get<PageResponse<Env>>('/envs', {
         params: { page: 1, size: 20, ...params },
-      })
-      .then((r) => r.data),
+      }),
 
-  get: (id: number) => http.get<Env>(`/envs/${id}`).then((r) => r.data),
+  get: (id: string) => http.get<Env>(`/envs/${id}`),
 
   create: (req: CreateEnvRequest) =>
-    http.post<Env>('/envs', req).then((r) => r.data),
+    http.post<Env>('/envs', req),
 
-  update: (id: number, req: UpdateEnvRequest) =>
-    http.put<Env>(`/envs/${id}`, req).then((r) => r.data),
+  update: (id: string, req: UpdateEnvRequest) =>
+    http.put<Env>(`/envs/${id}`, req),
 
-  delete: (id: number) =>
-    http.delete<void>(`/envs/${id}`).then((r) => r.data),
+  delete: (id: string) =>
+    http.delete<void>(`/envs/${id}`),
 
   /** 项目-环境关联 */
-  listByProject: (projectId: number) =>
+  listByProject: (projectId: string) =>
     http
-      .get<ProjectEnvLink[]>(`/projects/${projectId}/envs`)
-      .then((r) => r.data),
+      .get<ProjectEnvLink[]>(`/projects/${projectId}/envs`),
 
-  associate: (projectId: number, envId: number) =>
+  associate: (projectId: string, envId: string) =>
     http
-      .post<ProjectEnvLink>(`/projects/${projectId}/envs`, { envId })
-      .then((r) => r.data),
+      .post<ProjectEnvLink>(`/projects/${projectId}/envs`, { envId }),
 
-  unassociate: (projectId: number, envId: number) =>
+  unassociate: (projectId: string, envId: string) =>
     http
-      .delete<void>(`/projects/${projectId}/envs/${envId}`)
-      .then((r) => r.data),
+      .delete<void>(`/projects/${projectId}/envs/${envId}`),
 };

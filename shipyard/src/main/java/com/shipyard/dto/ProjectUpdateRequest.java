@@ -51,7 +51,11 @@ public class ProjectUpdateRequest {
         message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
     private String projectType;
 
-    private String projectMeta;
+    /**
+     * 灵活接收 — 跟 {@link ProjectCreateRequest#projectMeta} 同样逻辑:
+     * Object 接收, Service 层 stringify 入库.
+     */
+    private Object projectMeta;
 
     @Size(max = 512)
     private String description;

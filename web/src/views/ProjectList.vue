@@ -9,11 +9,11 @@ import { useProjectStore } from '@/stores/project';
 import { ApiError } from '@/api';
 
 const store = useProjectStore();
-const confirmDeleteId = ref<number | null>(null);
+const confirmDeleteId = ref<string | null>(null);
 
 onMounted(() => store.fetchList());
 
-async function onDelete(id: number) {
+async function onDelete(id: string) {
   try {
     await store.remove(id);
     confirmDeleteId.value = null;
@@ -49,10 +49,10 @@ function onPageChange(p: number) {
       </div>
     </div>
 
-    <div v-if="store.error" class="error">{{ store.error }}</div>
+    <div v-if="store.error" class="error">⚠️ {{ store.error }} <small>(可能后端没起, 看 logs/demo-backend.log)</small></div>
     <div v-if="store.loading" class="loading">加载中...</div>
 
-    <table v-if="!store.loading && store.list.length > 0" class="table">
+    <table v-if="!store.loading && store.list && store.list.length > 0" class="table">
       <thead>
         <tr>
           <th>Name</th>

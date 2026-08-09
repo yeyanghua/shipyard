@@ -1,7 +1,7 @@
 /**
  * 项目 API - 对应后端 /api/projects.
  *
- * <p>M4: 接后端真实接口, 适配 PageResponse + hasRepoToken (不回显明文).
+ * <p>M4: 接后端真实接�? 适配 PageResponse + hasRepoToken (不回显明�?.
  */
 import { http } from './client';
 import type { PageResponse } from './types';
@@ -15,7 +15,7 @@ export type ProjectType =
   | 'other';
 
 export interface Project {
-  id: number;
+  id: string;
   name: string;
   displayName: string;
   repoProvider: RepoProvider;
@@ -46,7 +46,7 @@ export interface UpdateProjectRequest {
   displayName?: string;
   repoProvider?: RepoProvider;
   repoUrl?: string;
-  repoToken?: string;       // 填了则覆盖+重新加密
+  repoToken?: string;       // 填了则覆�?重新加密
   defaultBranch?: string;
   projectType?: ProjectType;
   projectMeta?: Record<string, unknown>;
@@ -58,17 +58,16 @@ export const projectsApi = {
     http
       .get<PageResponse<Project>>('/projects', {
         params: { page: 1, size: 20, ...params },
-      })
-      .then((r) => r.data),
+      }),
 
-  get: (id: number) => http.get<Project>(`/projects/${id}`).then((r) => r.data),
+  get: (id: string) => http.get<Project>(`/projects/${id}`),
 
   create: (req: CreateProjectRequest) =>
-    http.post<Project>('/projects', req).then((r) => r.data),
+    http.post<Project>('/projects', req),
 
-  update: (id: number, req: UpdateProjectRequest) =>
-    http.put<Project>(`/projects/${id}`, req).then((r) => r.data),
+  update: (id: string, req: UpdateProjectRequest) =>
+    http.put<Project>(`/projects/${id}`, req),
 
-  delete: (id: number) =>
-    http.delete<void>(`/projects/${id}`).then((r) => r.data),
+  delete: (id: string) =>
+    http.delete<void>(`/projects/${id}`),
 };

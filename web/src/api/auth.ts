@@ -30,7 +30,7 @@ export const auth = {
 
   /** 调用 /api/auth/demo-token 拿 token 并存 localStorage */
   async fetchDemoToken(): Promise<DemoTokenResponse> {
-    const r = await http.get<DemoTokenResponse>('/auth/demo-token').then((r) => r.data);
+    const r = await http.get<DemoTokenResponse>('/auth/demo-token');
     localStorage.setItem(TOKEN_KEY, r.token);
     localStorage.setItem(
       TOKEN_EXP_KEY,

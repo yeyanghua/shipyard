@@ -16,10 +16,10 @@ import { envVariablesApi, type EnvVariable, type EnvVariableUpsertItem, ApiError
 import EnvVarEditor from '@/components/EnvVarEditor.vue';
 
 const route = useRoute();
-const envId = computed(() => Number(route.params.id));
+const envId = computed(() => String(route.params.id));
 const projectId = computed(() => {
   const p = route.query.projectId;
-  return p ? Number(p) : undefined;
+  return p ? String(p) : undefined;
 });
 
 const list = ref<EnvVariable[]>([]);
