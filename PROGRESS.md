@@ -519,3 +519,48 @@ curl http://localhost:8080/actuator/health
 
 **Last updated**: 2026-08-09
 **Next action**: 开始 M4 — 后端先写 Project Entity + Mapper + Service + Controller, 跑通 POST /api/projects → 200, 再写前端对接
+
+## 13. M4 端到端验收清单 (2026-08-09 D 盘)
+
+### 后端 (commits 81f4c99 / 1e0f7cd / 88a22e2)
+- [x] 4 Entity + BaseEntity + MetaObjectHandlerImpl
+- [x] 4 Mapper (BaseMapper + Project/Env 复活 raw SQL)
+- [x] 4 Service (Project/Env/ProjectEnv/EnvVariable) + 公共异常
+- [x] 4 Controller + AuthController (/api/auth/demo-token)
+- [x] 10 DTO + GlobalExceptionHandler + BeanUtils
+- [x] 14 业务端点 + E2E test-m4.ps1 20/20 通过
+- [x] 启动时 CryptoHealthCheck 全量校验
+- [x] **Bug 1 (修)**: @Value → @ConfigurationProperties
+- [x] **Bug 2 (修)**: BeanUtils.copyProperties null 覆盖 → copyNonNullProperties
+- [x] **Bug 3 (修)**: @TableLogic 过滤软删 → raw SQL 复活
+- [ ] **Bug 4 (已知)**: Security 6.2 + Boot 3.2.5 的 anyRequest().authenticated() 不拦 anonymous → M5 修
+
+### 前端 (commit 25e37ea)
+- [x] 4 API + 1 types + 1 auth + client 增强 (JWT 注入)
+- [x] 3 Pinia store
+- [x] 5 页面 (ProjectList/CreateProject/ProjectDetail/EnvList/EnvVars)
+- [x] 2 组件 (SecretInput/EnvVarEditor)
+- [x] App.vue onMounted 自动拉 demo token
+- [x] typecheck 0 errors, build OK, vitest 6/6
+- [x] 端到端: vite dev proxy /api → 后端 8080 全通
+
+### V1 demo 演示路径
+1. 启后端 + 前端
+2. 浏览器 localhost:5173
+3. 自动拉 demo JWT
+4. /projects 列表 → + 新建项目
+5. 项目详情 → 关联环境
+6. 环境 → 配变量 (密码 ***)
+7. 显示明文 → 验证解密往返
+
+---
+
+## 14. M5 计划 (2026-08-10+)
+
+1. 修 Security 鉴权 bug (FilterRegistrationBean 显式控制)
+2. drone CI 集成 (触发构建 + HMAC webhook 验签)
+3. SSE 实时日志 (M6 提前)
+4. 环境变量注入 drone (resolveAll 复用)
+5. Web 端 BuildDetail 完整实现
+
+估计 3-4 天.
