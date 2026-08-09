@@ -18,11 +18,10 @@ package com.shipyard.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.shipyard.entity.BuildLog;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-
-import java.util.List;
 
 /**
  * BuildLog Mapper — drone webhook 落日志用.
@@ -51,8 +50,7 @@ public interface BuildLogMapper extends BaseMapper<BuildLog> {
      * <p>对应 SQL: {@code SELECT * FROM build_log WHERE build_record_id = #{buildRecordId}
      * AND step_name = #{stepName} LIMIT 1}.
      */
-    @Select("SELECT * FROM build_log WHERE build_record_id = #{buildRecordId} " +
-        "AND step_name = #{stepName} LIMIT 1")
-    BuildLog selectByBuildRecordIdAndStepName(@Param("buildRecordId") Long buildRecordId,
-                                              @Param("stepName") String stepName);
+    @Select("SELECT * FROM build_log WHERE build_record_id = #{buildRecordId} " + "AND step_name = #{stepName} LIMIT 1")
+    BuildLog selectByBuildRecordIdAndStepName(
+            @Param("buildRecordId") Long buildRecordId, @Param("stepName") String stepName);
 }

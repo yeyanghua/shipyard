@@ -20,6 +20,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -28,8 +29,6 @@ import org.springframework.core.Ordered;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
 
 /**
  * Debug 用的 servlet filter - 强制在 Security chain <b>前</b> 跑, 看 context 状态.
@@ -67,21 +66,27 @@ public class DebugFilter {
     @org.springframework.stereotype.Component
     public static class DebugFilterInner extends OncePerRequestFilter {
         @Override
-        protected void doFilterInternal(HttpServletRequest request,
-                                         HttpServletResponse response,
-                                         FilterChain filterChain) throws ServletException, IOException {
+        protected void doFilterInternal(
+                HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+                throws ServletException, IOException {
             Authentication authBefore = SecurityContextHolder.getContext().getAuthentication();
-            log.info("[DebugFilter] BEFORE chain uri={} authBefore={}",
-                request.getRequestURI(),
-                authBefore == null ? "null" : authBefore.getClass().getSimpleName() + ":" + authBefore.getPrincipal());
+            log.info(
+                    "[DebugFilter] BEFORE chain uri={} authBefore={}",
+                    request.getRequestURI(),
+                    authBefore == null
+                            ? "null"
+                            : authBefore.getClass().getSimpleName() + ":" + authBefore.getPrincipal());
             try {
                 filterChain.doFilter(request, response);
             } finally {
                 Authentication authAfter = SecurityContextHolder.getContext().getAuthentication();
-                log.info("[DebugFilter] AFTER chain uri={} authAfter={} status={}",
-                    request.getRequestURI(),
-                    authAfter == null ? "null" : authAfter.getClass().getSimpleName() + ":" + authAfter.getPrincipal(),
-                    response.getStatus());
+                log.info(
+                        "[DebugFilter] AFTER chain uri={} authAfter={} status={}",
+                        request.getRequestURI(),
+                        authAfter == null
+                                ? "null"
+                                : authAfter.getClass().getSimpleName() + ":" + authAfter.getPrincipal(),
+                        response.getStatus());
                 SecurityContextHolder.clearContext();
             }
         }

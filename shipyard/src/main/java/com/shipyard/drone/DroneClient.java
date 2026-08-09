@@ -59,11 +59,11 @@ public interface DroneClient {
      * <p>字段对齐 drone REST API 的最小子集.
      */
     record DroneBuildRequest(
-        String droneBuildId,      // shipyard 生成的 ID, 用作关联 key
-        Long projectId,           // shipyard project ID (drone 不知道, 但 shipyard log 要有)
-        String repoUrl,           // git repo URL
-        String commitSha,         // 拉这个 commit
-        String commitMessage,     // 仅供 shipyard log 用
-        Map<String, String> envVars  // 注入到 drone 构建环境 (V5 接 EnvVariableService.resolveAll)
-    ) {}
+            String droneBuildId, // shipyard 生成的 ID, 用作关联 key
+            Long projectId, // shipyard project ID (drone 不知道, 但 shipyard log 要有)
+            String repoUrl, // git repo URL
+            String commitSha, // 拉这个 commit
+            String commitMessage, // 仅供 shipyard log 用
+            Map<String, String> envVars // 注入到 drone 构建环境 (V5 接 EnvVariableService.resolveAll)
+            ) {}
 }

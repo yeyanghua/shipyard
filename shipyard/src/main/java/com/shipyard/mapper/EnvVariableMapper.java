@@ -26,5 +26,4 @@ import org.apache.ibatis.annotations.Mapper;
  * <p>业务查询 (按 env / project 过滤, secret 隐藏) 走 Service 层 {@code LambdaQueryWrapper}.
  */
 @Mapper
-public interface EnvVariableMapper extends BaseMapper<EnvVariable> {
-}
+public interface EnvVariableMapper extends BaseMapper<EnvVariable> {}

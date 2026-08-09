@@ -24,12 +24,11 @@ import com.shipyard.mapper.EnvMapper;
 import com.shipyard.mapper.ProjectEnvMapper;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.ProjectEnvService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * ProjectEnv Service 实现.
@@ -49,11 +48,9 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         if (projectMapper.selectById(projectId) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "项目不存在: id=" + projectId);
         }
-        return projectEnvMapper.selectList(
-            new LambdaQueryWrapper<ProjectEnv>()
+        return projectEnvMapper.selectList(new LambdaQueryWrapper<ProjectEnv>()
                 .eq(ProjectEnv::getProjectId, projectId)
-                .orderByAsc(ProjectEnv::getEnvId)
-        );
+                .orderByAsc(ProjectEnv::getEnvId));
     }
 
     @Override
@@ -68,11 +65,9 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
         }
 
         // 幂等: 已存在就返回
-        ProjectEnv existing = projectEnvMapper.selectOne(
-            new LambdaQueryWrapper<ProjectEnv>()
+        ProjectEnv existing = projectEnvMapper.selectOne(new LambdaQueryWrapper<ProjectEnv>()
                 .eq(ProjectEnv::getProjectId, projectId)
-                .eq(ProjectEnv::getEnvId, envId)
-        );
+                .eq(ProjectEnv::getEnvId, envId));
         if (existing != null) {
             log.info("项目 {} 已关联环境 {}, 跳过", projectId, envId);
             return existing;
@@ -89,14 +84,11 @@ public class ProjectEnvServiceImpl implements ProjectEnvService {
     @Override
     @Transactional
     public void unassociate(Long projectId, Long envId) {
-        int rows = projectEnvMapper.delete(
-            new LambdaQueryWrapper<ProjectEnv>()
+        int rows = projectEnvMapper.delete(new LambdaQueryWrapper<ProjectEnv>()
                 .eq(ProjectEnv::getProjectId, projectId)
-                .eq(ProjectEnv::getEnvId, envId)
-        );
+                .eq(ProjectEnv::getEnvId, envId));
         if (rows == 0) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                "项目 " + projectId + " 未关联环境 " + envId);
+            throw new BusinessException(ErrorCode.NOT_FOUND, "项目 " + projectId + " 未关联环境 " + envId);
         }
         log.info("项目 {} 取消关联环境 {}", projectId, envId);
     }

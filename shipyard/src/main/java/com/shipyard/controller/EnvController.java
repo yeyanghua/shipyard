@@ -51,11 +51,10 @@ public class EnvController {
 
     @GetMapping
     public ApiResponse<PageResponse<EnvResponse>> list(
-        @RequestParam(defaultValue = "1") int page,
-        @RequestParam(defaultValue = "20") int size,
-        @RequestParam(required = false) String keyword,
-        @RequestParam(required = false) Boolean production
-    ) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean production) {
         Page<Env> p = envService.list(page, size, keyword, production);
         return ApiResponse.ok(PageResponse.from(p, EnvResponse::from));
     }

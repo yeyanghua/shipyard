@@ -51,8 +51,8 @@ public interface BuildRecordMapper extends BaseMapper<BuildRecord> {
      * <p>注意: 不用 MyBatis-Plus updateById, 因为 update 时也会刷 updated_at, 但我们要的是
      * "业务事件" 语义 (started_at 不是更新, 是开始时间), 用原生 SQL 显式更清楚.
      */
-    @Update("UPDATE build_record SET status = 'RUNNING', started_at = #{startedAt} " +
-        "WHERE id = #{id} AND status = 'PENDING'")
+    @Update("UPDATE build_record SET status = 'RUNNING', started_at = #{startedAt} "
+            + "WHERE id = #{id} AND status = 'PENDING'")
     int markRunning(@Param("id") Long id, @Param("startedAt") java.time.LocalDateTime startedAt);
 
     /**
@@ -60,16 +60,16 @@ public interface BuildRecordMapper extends BaseMapper<BuildRecord> {
      *
      * <p>如果 imageTag / harborImageUrl 为 NULL, SQL 不更新 (用 IFNULL).
      */
-    @Update("UPDATE build_record SET status = #{status}, " +
-        "image_tag = IFNULL(#{imageTag}, image_tag), " +
-        "harbor_image_url = IFNULL(#{harborImageUrl}, harbor_image_url), " +
-        "finished_at = #{finishedAt} " +
-        "WHERE id = #{id} AND status NOT IN ('SUCCESS', 'FAILED', 'TIMEOUT', 'CANCELED')")
-    int markFinished(@Param("id") Long id,
-                     @Param("status") String status,
-                     @Param("imageTag") String imageTag,
-                     @Param("harborImageUrl") String harborImageUrl,
-                     @Param("finishedAt") java.time.LocalDateTime finishedAt);
+    @Update("UPDATE build_record SET status = #{status}, " + "image_tag = IFNULL(#{imageTag}, image_tag), "
+            + "harbor_image_url = IFNULL(#{harborImageUrl}, harbor_image_url), "
+            + "finished_at = #{finishedAt} "
+            + "WHERE id = #{id} AND status NOT IN ('SUCCESS', 'FAILED', 'TIMEOUT', 'CANCELED')")
+    int markFinished(
+            @Param("id") Long id,
+            @Param("status") String status,
+            @Param("imageTag") String imageTag,
+            @Param("harborImageUrl") String harborImageUrl,
+            @Param("finishedAt") java.time.LocalDateTime finishedAt);
 
     /**
      * drone webhook 落完 build_log 后, 把 log_persisted 置 1.

@@ -32,7 +32,6 @@ import lombok.Getter;
  */
 @Getter
 public enum ErrorCode {
-
     SUCCESS(0, "OK"),
 
     BAD_REQUEST(400, "请求参数错误"),

@@ -20,6 +20,7 @@ import com.shipyard.dto.ApiResponse;
 import com.shipyard.dto.ProjectEnvResponse;
 import com.shipyard.entity.ProjectEnv;
 import com.shipyard.service.ProjectEnvService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,8 +29,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * ProjectEnv Controller — /api/projects/{projectId}/envs.
@@ -47,16 +46,13 @@ public class ProjectEnvController {
     public ApiResponse<List<ProjectEnvResponse>> list(@PathVariable Long projectId) {
         List<ProjectEnv> list = projectEnvService.listByProject(projectId);
         List<ProjectEnvResponse> mapped = list.stream()
-            .map(pe -> new ProjectEnvResponse(pe.getProjectId(), pe.getEnvId()))
-            .toList();
+                .map(pe -> new ProjectEnvResponse(pe.getProjectId(), pe.getEnvId()))
+                .toList();
         return ApiResponse.ok(mapped);
     }
 
     @PostMapping
-    public ApiResponse<ProjectEnvResponse> associate(
-        @PathVariable Long projectId,
-        @RequestBody ProjectEnvRequest req
-    ) {
+    public ApiResponse<ProjectEnvResponse> associate(@PathVariable Long projectId, @RequestBody ProjectEnvRequest req) {
         ProjectEnv pe = projectEnvService.associate(projectId, req.getEnvId());
         return ApiResponse.ok(new ProjectEnvResponse(pe.getProjectId(), pe.getEnvId()));
     }

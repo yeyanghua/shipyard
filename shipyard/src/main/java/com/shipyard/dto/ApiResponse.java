@@ -19,9 +19,8 @@ package com.shipyard.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
-import lombok.Data;
-
 import java.time.Instant;
+import lombok.Data;
 
 /**
  * 统一 API 响应体.
@@ -40,7 +39,7 @@ import java.time.Instant;
  * <p>前端 axios 拦截器一刀切: {@code res.code !== 0} → 弹错, 不依赖 HTTP 状态码.
  */
 @Data
-@JsonInclude(JsonInclude.Include.ALWAYS)  // 即使 null 也输出, 前端好判
+@JsonInclude(JsonInclude.Include.ALWAYS) // 即使 null 也输出, 前端好判
 public class ApiResponse<T> {
 
     /** 业务码: 0=成功, 4xx/5xx 见 {@link ErrorCode}. */
@@ -55,8 +54,7 @@ public class ApiResponse<T> {
     /** 响应时间 (毫秒 Unix timestamp). */
     private long timestamp;
 
-    public ApiResponse() {
-    }
+    public ApiResponse() {}
 
     public ApiResponse(int code, String message, T data) {
         this.code = code;

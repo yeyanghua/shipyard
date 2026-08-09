@@ -17,6 +17,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import javax.crypto.SecretKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,11 +29,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import javax.crypto.SecretKey;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 
 /**
  * JWT 认证过滤器 - shipyard V1 用.
@@ -60,38 +59,39 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     public void init() {
         // JJWT 0.12+ 用 Keys.hmacShaKeyFor 自动选 HS256/384/512
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        log.info("JwtAuthFilter initialized with HS256/HS384/HS512 (size={} bits)",
-            secret.getBytes(StandardCharsets.UTF_8).length * 8);
+        log.info(
+                "JwtAuthFilter initialized with HS256/HS384/HS512 (size={} bits)",
+                secret.getBytes(StandardCharsets.UTF_8).length * 8);
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                     HttpServletResponse response,
-                                     FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        log.debug("[JwtAuthFilter] URI={} Authorization header={}", request.getRequestURI(),
-            header == null ? "<absent>" : (header.length() > 30 ? header.substring(0, 30) + "..." : header));
+        log.debug(
+                "[JwtAuthFilter] URI={} Authorization header={}",
+                request.getRequestURI(),
+                header == null ? "<absent>" : (header.length() > 30 ? header.substring(0, 30) + "..." : header));
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
                 Claims claims = Jwts.parser()
-                    .verifyWith(signingKey)
-                    .requireIssuer(issuer)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+                        .verifyWith(signingKey)
+                        .requireIssuer(issuer)
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload();
 
                 String userId = claims.getSubject();
                 String role = claims.get("role", String.class);
 
                 // V1 简化: 角色直接当 authority
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    role != null
-                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-                        : Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                );
+                        userId,
+                        null,
+                        role != null
+                                ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                                : Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception e) {

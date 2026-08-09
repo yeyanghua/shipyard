@@ -16,12 +16,11 @@
 
 package com.shipyard.crypto;
 
-import lombok.RequiredArgsConstructor;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import lombok.RequiredArgsConstructor;
 
 /**
  * HMAC-SHA256 签名器 — drone 端用, 给 webhook body 签名.

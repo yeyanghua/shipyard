@@ -17,15 +17,14 @@
 package com.shipyard.realtime;
 
 import com.shipyard.entity.BuildLog;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 构建日志实时通知器 — shipyard V1 实时日志 (SSE) 的核心.
@@ -73,8 +72,7 @@ public class BuildLogNotifier {
      */
     public SseEmitter subscribe(Long buildId) {
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT_MS);
-        List<SseEmitter> list = subscribers.computeIfAbsent(buildId,
-            k -> new CopyOnWriteArrayList<>());
+        List<SseEmitter> list = subscribers.computeIfAbsent(buildId, k -> new CopyOnWriteArrayList<>());
         list.add(emitter);
 
         // 客户端断线 (timeout / error / complete) 时, 从 list 移除
@@ -89,8 +87,7 @@ public class BuildLogNotifier {
             remove(buildId, emitter);
         });
 
-        log.info("[BuildLogNotifier] subscribe buildId={}, total subscribers for this build={}",
-            buildId, list.size());
+        log.info("[BuildLogNotifier] subscribe buildId={}, total subscribers for this build={}", buildId, list.size());
         return emitter;
     }
 
@@ -106,14 +103,17 @@ public class BuildLogNotifier {
     public void notifyStepLog(BuildLog buildLog) {
         List<SseEmitter> list = subscribers.get(buildLog.getBuildRecordId());
         if (list == null || list.isEmpty()) {
-            return;  // 没人订阅
+            return; // 没人订阅
         }
         BuildLogEvent event = BuildLogEvent.fromStep(buildLog);
         for (SseEmitter emitter : list) {
             sendQuietly(emitter, "step", event);
         }
-        log.debug("[BuildLogNotifier] notify step buildId={} step={} subscribers={}",
-            buildLog.getBuildRecordId(), buildLog.getStepName(), list.size());
+        log.debug(
+                "[BuildLogNotifier] notify step buildId={} step={} subscribers={}",
+                buildLog.getBuildRecordId(),
+                buildLog.getStepName(),
+                list.size());
     }
 
     /**
@@ -134,8 +134,8 @@ public class BuildLogNotifier {
         for (SseEmitter emitter : list) {
             sendQuietly(emitter, "build", event);
         }
-        log.info("[BuildLogNotifier] notify finished buildId={} status={} subscribers={}",
-            buildId, status, list.size());
+        log.info(
+                "[BuildLogNotifier] notify finished buildId={} status={} subscribers={}", buildId, status, list.size());
 
         // 推完终态后, 关所有连接
         for (SseEmitter emitter : list) {

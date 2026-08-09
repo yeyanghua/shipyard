@@ -23,11 +23,11 @@ import com.shipyard.common.enums.BuildStatus;
 import com.shipyard.common.enums.TriggerType;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
+import com.shipyard.drone.DroneClient;
+import com.shipyard.drone.DroneClient.DroneBuildRequest;
 import com.shipyard.dto.BuildCreateRequest;
 import com.shipyard.dto.BuildLogResponse;
 import com.shipyard.dto.BuildResponse;
-import com.shipyard.drone.DroneClient;
-import com.shipyard.drone.DroneClient.DroneBuildRequest;
 import com.shipyard.entity.BuildLog;
 import com.shipyard.entity.BuildRecord;
 import com.shipyard.entity.Project;
@@ -39,14 +39,13 @@ import com.shipyard.realtime.BuildLogNotifier;
 import com.shipyard.service.BuildService;
 import com.shipyard.service.EnvVariableService;
 import com.shipyard.service.ProjectEnvService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 /**
  * BuildService 主实现 — 业务编排.
@@ -110,32 +109,32 @@ public class BuildServiceImpl implements BuildService {
         record.setLogPersisted(0);
         buildRecordMapper.insert(record);
 
-        log.info("[BuildService] createBuild id={} projectId={} droneBuildId={}",
-            record.getId(), record.getProjectId(), droneBuildId);
+        log.info(
+                "[BuildService] createBuild id={} projectId={} droneBuildId={}",
+                record.getId(),
+                record.getProjectId(),
+                droneBuildId);
 
         // 5. 解析 env vars (M5 5 接 EnvVariableService.resolveAll)
         Map<String, String> envVars = resolveBuildEnvVars(request.getProjectId(), request.getEnvId());
         if (!envVars.isEmpty()) {
-            log.info("[BuildService] resolved {} env vars for build (envId={})",
-                envVars.size(), request.getEnvId());
+            log.info("[BuildService] resolved {} env vars for build (envId={})", envVars.size(), request.getEnvId());
         }
 
         // 6. 调 drone (mock 立即返回, real 同步调 drone API)
         DroneBuildRequest droneRequest = new DroneBuildRequest(
-            droneBuildId,
-            request.getProjectId(),
-            project.getRepoUrl(),
-            request.getCommitSha(),
-            request.getCommitMessage(),
-            envVars
-        );
+                droneBuildId,
+                request.getProjectId(),
+                project.getRepoUrl(),
+                request.getCommitSha(),
+                request.getCommitMessage(),
+                envVars);
         try {
             droneClient.triggerBuild(droneRequest);
         } catch (Exception e) {
             log.error("[BuildService] droneClient.triggerBuild failed, mark FAILED", e);
             // drone 调度失败也要标终态, 不然 record 永远卡 PENDING
-            buildRecordMapper.markFinished(record.getId(), BuildStatus.FAILED.name(),
-                null, null, LocalDateTime.now());
+            buildRecordMapper.markFinished(record.getId(), BuildStatus.FAILED.name(), null, null, LocalDateTime.now());
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "drone trigger failed: " + e.getMessage());
         }
 
@@ -176,16 +175,14 @@ public class BuildServiceImpl implements BuildService {
         }
         BuildStatus current = BuildStatus.valueOf(record.getStatus());
         if (current.isTerminal()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "build already in terminal status: " + current);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "build already in terminal status: " + current);
         }
 
         // 通知 drone (mock: 仅设标志; real: 调 drone cancel API)
         droneClient.cancelBuild(record.getDroneBuildId());
 
         // 标 CANCELED — 用 markFinished 走通用终态更新
-        buildRecordMapper.markFinished(id, BuildStatus.CANCELED.name(),
-            null, null, LocalDateTime.now());
+        buildRecordMapper.markFinished(id, BuildStatus.CANCELED.name(), null, null, LocalDateTime.now());
 
         BuildRecord updated = buildRecordMapper.selectById(id);
         return toResponse(updated);
@@ -195,8 +192,9 @@ public class BuildServiceImpl implements BuildService {
     public String getStepLog(Long buildRecordId, String stepName) {
         BuildLog log = buildLogMapper.selectByBuildRecordIdAndStepName(buildRecordId, stepName);
         if (log == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                "step log not found: buildRecordId=" + buildRecordId + " stepName=" + stepName);
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND,
+                    "step log not found: buildRecordId=" + buildRecordId + " stepName=" + stepName);
         }
         return log.getLogContent();
     }
@@ -205,17 +203,17 @@ public class BuildServiceImpl implements BuildService {
     public List<BuildLogResponse> listStepLogs(Long buildRecordId) {
         List<BuildLog> logs = buildLogMapper.selectByBuildRecordIdOrderByStepOrder(buildRecordId);
         return logs.stream()
-            .map(l -> BuildLogResponse.builder()
-                .id(l.getId())
-                .buildRecordId(l.getBuildRecordId())
-                .stepName(l.getStepName())
-                .stepOrder(l.getStepOrder())
-                .logSizeBytes(l.getLogSizeBytes())
-                .startedAt(l.getStartedAt())
-                .finishedAt(l.getFinishedAt())
-                .createdAt(l.getCreatedAt())
-                .build())
-            .toList();
+                .map(l -> BuildLogResponse.builder()
+                        .id(l.getId())
+                        .buildRecordId(l.getBuildRecordId())
+                        .stepName(l.getStepName())
+                        .stepOrder(l.getStepOrder())
+                        .logSizeBytes(l.getLogSizeBytes())
+                        .startedAt(l.getStartedAt())
+                        .finishedAt(l.getFinishedAt())
+                        .createdAt(l.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     // ============== drone 回调 / mock 内部用 ==============
@@ -229,8 +227,13 @@ public class BuildServiceImpl implements BuildService {
     }
 
     @Override
-    public void saveStepLog(Long buildRecordId, int stepOrder, String stepName,
-                             String logContent, LocalDateTime startedAt, LocalDateTime finishedAt) {
+    public void saveStepLog(
+            Long buildRecordId,
+            int stepOrder,
+            String stepName,
+            String logContent,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt) {
         BuildLog stepLog = new BuildLog();
         stepLog.setBuildRecordId(buildRecordId);
         stepLog.setStepOrder(stepOrder);
@@ -241,15 +244,18 @@ public class BuildServiceImpl implements BuildService {
         stepLog.setFinishedAt(finishedAt);
         stepLog.setCreatedAt(LocalDateTime.now());
         buildLogMapper.insert(stepLog);
-        log.info("[BuildService] saveStepLog buildRecordId={} step={} ({} bytes)",
-            buildRecordId, stepName, stepLog.getLogSizeBytes());
+        log.info(
+                "[BuildService] saveStepLog buildRecordId={} step={} ({} bytes)",
+                buildRecordId,
+                stepName,
+                stepLog.getLogSizeBytes());
         // M5 3: 实时推 SSE 订阅者
         buildLogNotifier.notifyStepLog(stepLog);
     }
 
     @Override
-    public void markBuildFinished(Long id, String status, String imageTag,
-                                    String harborImageUrl, LocalDateTime finishedAt) {
+    public void markBuildFinished(
+            Long id, String status, String imageTag, String harborImageUrl, LocalDateTime finishedAt) {
         int affected = buildRecordMapper.markFinished(id, status, imageTag, harborImageUrl, finishedAt);
         if (affected == 0) {
             log.warn("[BuildService] markBuildFinished no-op (id={} already terminal?)", id);
@@ -286,24 +292,22 @@ public class BuildServiceImpl implements BuildService {
         return envVariableService.resolveAll(firstEnvId, projectId);
     }
 
-
-
     private BuildResponse toResponse(BuildRecord r) {
         return BuildResponse.builder()
-            .id(r.getId())
-            .projectId(r.getProjectId())
-            .commitSha(r.getCommitSha())
-            .commitMessage(r.getCommitMessage())
-            .triggeredBy(r.getTriggeredBy())
-            .triggerType(r.getTriggerType())
-            .droneBuildId(r.getDroneBuildId())
-            .status(r.getStatus())
-            .imageTag(r.getImageTag())
-            .harborImageUrl(r.getHarborImageUrl())
-            .startedAt(r.getStartedAt())
-            .finishedAt(r.getFinishedAt())
-            .logPersisted(r.getLogPersisted())
-            .createdAt(r.getCreatedAt())
-            .build();
+                .id(r.getId())
+                .projectId(r.getProjectId())
+                .commitSha(r.getCommitSha())
+                .commitMessage(r.getCommitMessage())
+                .triggeredBy(r.getTriggeredBy())
+                .triggerType(r.getTriggerType())
+                .droneBuildId(r.getDroneBuildId())
+                .status(r.getStatus())
+                .imageTag(r.getImageTag())
+                .harborImageUrl(r.getHarborImageUrl())
+                .startedAt(r.getStartedAt())
+                .finishedAt(r.getFinishedAt())
+                .logPersisted(r.getLogPersisted())
+                .createdAt(r.getCreatedAt())
+                .build();
     }
 }

@@ -1,5 +1,6 @@
 package com.shipyard.config;
 
+import java.util.concurrent.Executors;
 import org.springframework.boot.web.embedded.tomcat.TomcatProtocolHandlerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,8 +11,6 @@ import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import java.util.concurrent.Executors;
 
 /**
  * 虚拟线程 (Project Loom) 配置 — Java 21 LTS.
@@ -35,8 +34,7 @@ public class VirtualThreadConfig implements AsyncConfigurer, WebMvcConfigurer {
      */
     @Bean
     public TomcatProtocolHandlerCustomizer<?> virtualThreadTomcatProtocolHandlerCustomizer() {
-        return protocolHandler ->
-                protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        return protocolHandler -> protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
     }
 
     /**

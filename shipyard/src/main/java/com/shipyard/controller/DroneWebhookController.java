@@ -27,13 +27,12 @@ import com.shipyard.entity.BuildRecord;
 import com.shipyard.mapper.BuildRecordMapper;
 import com.shipyard.service.BuildService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.LocalDateTime;
 
 /**
  * drone webhook 接收端 — V1.5 真实 drone 接入用.
@@ -73,16 +72,16 @@ public class DroneWebhookController {
      */
     @PostMapping("/webhook/drone")
     public ApiResponse<Void> handleDroneWebhook(
-        HttpServletRequest request,
-        @RequestBody String rawBody  // 拿原文, 验签需要 byte-perfect
-    ) {
+            HttpServletRequest request, @RequestBody String rawBody // 拿原文, 验签需要 byte-perfect
+            ) {
         // 1. 验签
         String signature = request.getHeader("X-Drone-Signature");
         HmacVerifier verifier = new HmacVerifier(droneProperties.getWebhookSecret());
         if (!verifier.verify(rawBody, signature)) {
-            log.warn("[DroneWebhook] HMAC verify failed, sig={} body-len={}",
-                signature == null ? "<null>" : signature.substring(0, Math.min(8, signature.length())),
-                rawBody.length());
+            log.warn(
+                    "[DroneWebhook] HMAC verify failed, sig={} body-len={}",
+                    signature == null ? "<null>" : signature.substring(0, Math.min(8, signature.length())),
+                    rawBody.length());
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "drone webhook HMAC verify failed");
         }
 
@@ -99,8 +98,8 @@ public class DroneWebhookController {
         log.info("[DroneWebhook] event={} droneBuildId={}", payload.getEvent(), payload.getDroneBuildId());
         BuildRecord record = buildRecordMapper.selectByDroneBuildId(payload.getDroneBuildId());
         if (record == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                "build record not found: droneBuildId=" + payload.getDroneBuildId());
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, "build record not found: droneBuildId=" + payload.getDroneBuildId());
         }
 
         switch (payload.getEvent()) {
@@ -121,11 +120,13 @@ public class DroneWebhookController {
         if (p.getStepName() == null || p.getLogContent() == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "step_finished requires stepName + logContent");
         }
-        buildService.saveStepLog(buildRecordId,
-            p.getStepOrder() != null ? p.getStepOrder() : 0,
-            p.getStepName(), p.getLogContent(),
-            p.getStepStartedAt() != null ? p.getStepStartedAt() : LocalDateTime.now(),
-            p.getStepFinishedAt() != null ? p.getStepFinishedAt() : LocalDateTime.now());
+        buildService.saveStepLog(
+                buildRecordId,
+                p.getStepOrder() != null ? p.getStepOrder() : 0,
+                p.getStepName(),
+                p.getLogContent(),
+                p.getStepStartedAt() != null ? p.getStepStartedAt() : LocalDateTime.now(),
+                p.getStepFinishedAt() != null ? p.getStepFinishedAt() : LocalDateTime.now());
         log.info("[DroneWebhook] step_finished buildRecordId={} step={}", buildRecordId, p.getStepName());
     }
 
@@ -133,10 +134,13 @@ public class DroneWebhookController {
         if (p.getStatus() == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "build_finished requires status");
         }
-        buildService.markBuildFinished(buildRecordId, p.getStatus(),
-            p.getImageTag(), p.getHarborImageUrl(), LocalDateTime.now());
+        buildService.markBuildFinished(
+                buildRecordId, p.getStatus(), p.getImageTag(), p.getHarborImageUrl(), LocalDateTime.now());
         buildRecordMapper.markLogPersisted(buildRecordId);
-        log.info("[DroneWebhook] build_finished buildRecordId={} status={} imageTag={}",
-            buildRecordId, p.getStatus(), p.getImageTag());
+        log.info(
+                "[DroneWebhook] build_finished buildRecordId={} status={} imageTag={}",
+                buildRecordId,
+                p.getStatus(),
+                p.getImageTag());
     }
 }

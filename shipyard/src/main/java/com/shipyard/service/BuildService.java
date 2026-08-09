@@ -18,7 +18,6 @@ package com.shipyard.service;
 
 import com.shipyard.dto.BuildCreateRequest;
 import com.shipyard.dto.BuildResponse;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -98,8 +97,13 @@ public interface BuildService {
     /**
      * 落单个 step 日志 — drone webhook (V1.5) 或 mock drone 调.
      */
-    void saveStepLog(Long buildRecordId, int stepOrder, String stepName,
-                     String logContent, LocalDateTime startedAt, LocalDateTime finishedAt);
+    void saveStepLog(
+            Long buildRecordId,
+            int stepOrder,
+            String stepName,
+            String logContent,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt);
 
     /**
      * 状态到终态 — drone webhook / mock drone 调.
@@ -109,6 +113,5 @@ public interface BuildService {
      * @param harborImageUrl  Harbor URL (SUCCESS 时填, 其他可 null)
      * @param finishedAt      结束时间
      */
-    void markBuildFinished(Long id, String status, String imageTag,
-                           String harborImageUrl, LocalDateTime finishedAt);
+    void markBuildFinished(Long id, String status, String imageTag, String harborImageUrl, LocalDateTime finishedAt);
 }

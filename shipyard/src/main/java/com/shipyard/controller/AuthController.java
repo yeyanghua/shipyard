@@ -22,16 +22,15 @@ import com.shipyard.dto.ApiResponse;
 import com.shipyard.dto.DemoTokenResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Date;
 
 /**
  * Auth Controller — /api/auth/**.
@@ -70,20 +69,18 @@ public class AuthController {
         String token;
         try {
             token = Jwts.builder()
-                .subject("demo-user")
-                .claim("role", "admin")
-                .issuer(issuer)
-                .issuedAt(now)
-                .expiration(exp)
-                .signWith(signingKey)
-                .compact();
+                    .subject("demo-user")
+                    .claim("role", "admin")
+                    .issuer(issuer)
+                    .issuedAt(now)
+                    .expiration(exp)
+                    .signWith(signingKey)
+                    .compact();
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "生成 demo token 失败", e);
         }
 
-        return ApiResponse.ok(new DemoTokenResponse(
-            token, "demo-user", "admin", EXPIRES_IN_SECONDS
-        ));
+        return ApiResponse.ok(new DemoTokenResponse(token, "demo-user", "admin", EXPIRES_IN_SECONDS));
     }
 
     // 留口子, V1.5 加 /api/auth/login (username/password → JWT)

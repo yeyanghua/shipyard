@@ -42,13 +42,14 @@ public class ProjectUpdateRequest {
     private String repoUrl;
 
     @Size(max = 512)
-    private String repoToken;   // 填了则覆盖并重新加密, 留空/null 不变
+    private String repoToken; // 填了则覆盖并重新加密, 留空/null 不变
 
     @Size(max = 64)
     private String defaultBranch;
 
-    @Pattern(regexp = "^(java_maven|java_gradle|node_pnpm|python_poetry|other)$",
-        message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
+    @Pattern(
+            regexp = "^(java_maven|java_gradle|node_pnpm|python_poetry|other)$",
+            message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
     private String projectType;
 
     /**

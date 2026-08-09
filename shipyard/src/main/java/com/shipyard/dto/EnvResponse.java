@@ -17,9 +17,8 @@
 package com.shipyard.dto;
 
 import com.shipyard.entity.Env;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * 环境响应体 — GET / POST / PUT /api/envs 统一返回.
@@ -49,7 +48,8 @@ public class EnvResponse {
         r.setClusterType(e.getClusterType());
         r.setK8sNamespace(e.getK8sNamespace());
         r.setWorkerUrl(e.getWorkerUrl());
-        r.setHasWorkerToken(e.getWorkerTokenEnc() != null && !e.getWorkerTokenEnc().isEmpty());
+        r.setHasWorkerToken(
+                e.getWorkerTokenEnc() != null && !e.getWorkerTokenEnc().isEmpty());
         r.setIsProduction(e.getIsProduction());
         r.setCreatedAt(e.getCreatedAt());
         r.setUpdatedAt(e.getUpdatedAt());

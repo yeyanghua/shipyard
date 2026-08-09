@@ -19,11 +19,10 @@ package com.shipyard.entity;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * 项目-环境关联表 — 一个项目可以在多个环境部署 (dev/staging/prod), 一个环境也可以挂多个项目.

@@ -26,16 +26,15 @@ import com.shipyard.mapper.EnvMapper;
 import com.shipyard.mapper.EnvVariableMapper;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.EnvVariableService;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * EnvVariable Service 实现.
@@ -63,10 +62,7 @@ public class EnvVariableServiceImpl implements EnvVariableService {
         wrapper.eq(EnvVariable::getEnvId, envId);
         if (projectId != null) {
             // 查项目级 + 全局
-            wrapper.and(w -> w
-                .eq(EnvVariable::getProjectId, projectId)
-                .or().isNull(EnvVariable::getProjectId)
-            );
+            wrapper.and(w -> w.eq(EnvVariable::getProjectId, projectId).or().isNull(EnvVariable::getProjectId));
         } else {
             // 只查全局
             wrapper.isNull(EnvVariable::getProjectId);
@@ -82,8 +78,7 @@ public class EnvVariableServiceImpl implements EnvVariableService {
                 try {
                     v.setVarValueEnc(encrypter.decrypt(v.getVarValueEnc()));
                 } catch (CryptoException e) {
-                    log.warn("env_variable 解密失败 id={}, key={}, error={}",
-                        v.getId(), v.getVarKey(), e.getMessage());
+                    log.warn("env_variable 解密失败 id={}, key={}, error={}", v.getId(), v.getVarKey(), e.getMessage());
                     v.setVarValueEnc("[解密失败: " + e.getMessage() + "]");
                 }
             }
@@ -120,7 +115,7 @@ public class EnvVariableServiceImpl implements EnvVariableService {
         for (EnvVariable item : items) {
             validateItem(item);
             String key = item.getVarKey();
-            String plainValue = item.getVarValueEnc();   // 入参是明文
+            String plainValue = item.getVarValueEnc(); // 入参是明文
 
             EnvVariable existing = findOne(envId, projectId, key);
             if (existing == null) {
@@ -140,7 +135,8 @@ public class EnvVariableServiceImpl implements EnvVariableService {
                 // 更新 (value 重新加密; 同 key 传相同 value 不重复加密? 简化起见每次都重加密)
                 existing.setVarValueEnc(encrypter.encrypt(plainValue));
                 existing.setIsSecret(item.getIsSecret() != null ? item.getIsSecret() : existing.getIsSecret());
-                existing.setDescription(item.getDescription() != null ? item.getDescription() : existing.getDescription());
+                existing.setDescription(
+                        item.getDescription() != null ? item.getDescription() : existing.getDescription());
                 existing.setUpdatedBy(updatedBy != null ? updatedBy : "demo-user");
                 envVariableMapper.updateById(existing);
                 result.add(existing);
@@ -170,22 +166,18 @@ public class EnvVariableServiceImpl implements EnvVariableService {
         Map<String, String> result = new HashMap<>();
 
         // 1. 先查全局 (projectId == NULL), 作为基础
-        List<EnvVariable> globals = envVariableMapper.selectList(
-            new LambdaQueryWrapper<EnvVariable>()
+        List<EnvVariable> globals = envVariableMapper.selectList(new LambdaQueryWrapper<EnvVariable>()
                 .eq(EnvVariable::getEnvId, envId)
-                .isNull(EnvVariable::getProjectId)
-        );
+                .isNull(EnvVariable::getProjectId));
         for (EnvVariable v : globals) {
             result.put(v.getVarKey(), encrypter.decrypt(v.getVarValueEnc()));
         }
 
         // 2. 项目级覆盖
         if (projectId != null) {
-            List<EnvVariable> projectScoped = envVariableMapper.selectList(
-                new LambdaQueryWrapper<EnvVariable>()
+            List<EnvVariable> projectScoped = envVariableMapper.selectList(new LambdaQueryWrapper<EnvVariable>()
                     .eq(EnvVariable::getEnvId, envId)
-                    .eq(EnvVariable::getProjectId, projectId)
-            );
+                    .eq(EnvVariable::getProjectId, projectId));
             for (EnvVariable v : projectScoped) {
                 result.put(v.getVarKey(), encrypter.decrypt(v.getVarValueEnc()));
             }
@@ -207,13 +199,12 @@ public class EnvVariableServiceImpl implements EnvVariableService {
                 encrypter.decrypt(v.getVarValueEnc());
             } catch (CryptoException e) {
                 failed++;
-                failedKeys.add("id=" + v.getId() + " envId=" + v.getEnvId()
-                    + " projectId=" + v.getProjectId() + " key=" + v.getVarKey());
+                failedKeys.add("id=" + v.getId() + " envId=" + v.getEnvId() + " projectId=" + v.getProjectId() + " key="
+                        + v.getVarKey());
             }
         }
         if (failed > 0) {
-            String msg = "启动中止: " + failed + " 个 env_variable 解密失败\n"
-                + String.join("\n", failedKeys);
+            String msg = "启动中止: " + failed + " 个 env_variable 解密失败\n" + String.join("\n", failedKeys);
             log.error(msg);
             throw new CryptoException(msg);
         }
@@ -245,8 +236,7 @@ public class EnvVariableServiceImpl implements EnvVariableService {
      */
     private EnvVariable findOne(Long envId, Long projectId, String key) {
         LambdaQueryWrapper<EnvVariable> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(EnvVariable::getEnvId, envId)
-            .eq(EnvVariable::getVarKey, key);
+        wrapper.eq(EnvVariable::getEnvId, envId).eq(EnvVariable::getVarKey, key);
         if (projectId == null) {
             wrapper.isNull(EnvVariable::getProjectId);
         } else {

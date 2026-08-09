@@ -16,12 +16,11 @@
 
 package com.shipyard.common;
 
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
-
 import java.beans.PropertyDescriptor;
 import java.util.HashSet;
 import java.util.Set;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
 
 /**
  * Bean 工具 — 比 Spring {@code BeanUtils} 更精细的复制.

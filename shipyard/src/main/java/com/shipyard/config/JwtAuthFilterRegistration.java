@@ -40,7 +40,7 @@ public class JwtAuthFilterRegistration {
     @Bean(name = "jwtAuthFilterServletRegistration")
     public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterServletRegistration(JwtAuthFilter filter) {
         FilterRegistrationBean<JwtAuthFilter> reg = new FilterRegistrationBean<>(filter);
-        reg.setEnabled(false);  // 禁掉 servlet 自动注册, 只让 SecurityConfig.addFilterBefore 跑
+        reg.setEnabled(false); // 禁掉 servlet 自动注册, 只让 SecurityConfig.addFilterBefore 跑
         reg.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return reg;
     }

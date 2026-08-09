@@ -57,14 +57,15 @@ public class ProjectCreateRequest {
     private String repoUrl;
 
     @Size(max = 512)
-    private String repoToken;   // 明文, Service 加密
+    private String repoToken; // 明文, Service 加密
 
     @Size(max = 64)
     private String defaultBranch = "main";
 
     @NotBlank
-    @Pattern(regexp = "^(java_maven|java_gradle|node_pnpm|python_poetry|other)$",
-        message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
+    @Pattern(
+            regexp = "^(java_maven|java_gradle|node_pnpm|python_poetry|other)$",
+            message = "必须是 java_maven/java_gradle/node_pnpm/python_poetry/other 之一")
     private String projectType;
 
     /**

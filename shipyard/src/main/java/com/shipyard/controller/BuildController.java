@@ -16,7 +16,6 @@
 
 package com.shipyard.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.shipyard.dto.ApiResponse;
 import com.shipyard.dto.BuildCreateRequest;
 import com.shipyard.dto.BuildLogResponse;
@@ -25,18 +24,16 @@ import com.shipyard.dto.PageResponse;
 import com.shipyard.realtime.BuildLogNotifier;
 import com.shipyard.service.BuildService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.util.List;
 
 /**
  * Build Controller — 构建记录 API.
@@ -71,13 +68,12 @@ public class BuildController {
 
     @GetMapping("/api/projects/{projectId}/builds")
     public ApiResponse<PageResponse<BuildResponse>> list(
-        @PathVariable Long projectId,
-        @RequestParam(defaultValue = "1") int pageNum,
-        @RequestParam(defaultValue = "20") int pageSize,
-        @RequestParam(required = false) String status
-    ) {
+            @PathVariable Long projectId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String status) {
         List<BuildResponse> records = buildService.listBuilds(projectId, status, pageNum, pageSize);
-        long total = records.size();  // V1 简化, 返当前页条数; 完整 total 需另查 count, M5 E2E 验证够用
+        long total = records.size(); // V1 简化, 返当前页条数; 完整 total 需另查 count, M5 E2E 验证够用
         return ApiResponse.ok(new PageResponse<>(records, total, pageNum, pageSize));
     }
 
@@ -92,8 +88,7 @@ public class BuildController {
     }
 
     @GetMapping("/api/builds/{id}/steps/{stepName}")
-    public ApiResponse<String> getStepLog(@PathVariable("id") Long buildRecordId,
-                                          @PathVariable String stepName) {
+    public ApiResponse<String> getStepLog(@PathVariable("id") Long buildRecordId, @PathVariable String stepName) {
         return ApiResponse.ok(buildService.getStepLog(buildRecordId, stepName));
     }
 

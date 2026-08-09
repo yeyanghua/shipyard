@@ -16,10 +16,9 @@
 
 package com.shipyard.crypto;
 
+import java.security.MessageDigest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.security.MessageDigest;
 
 /**
  * HMAC-SHA256 验签器 — shipyard webhook 接收端用.
@@ -65,9 +64,7 @@ public class HmacVerifier {
             String expected = signer.sign(body);
             // 大小写不敏感 + constant-time 比较
             return MessageDigest.isEqual(
-                expected.getBytes(),
-                signature.toLowerCase().getBytes()
-            );
+                    expected.getBytes(), signature.toLowerCase().getBytes());
         } catch (Exception e) {
             log.error("[HmacVerifier] verify failed: {}", e.getMessage());
             return false;

@@ -48,7 +48,7 @@ public class EnvCreateRequest {
     private String workerUrl;
 
     @Size(max = 512)
-    private String workerToken;  // 明文, Service 加密
+    private String workerToken; // 明文, Service 加密
 
-    private Integer isProduction;  // null=0 (dev), 1=生产
+    private Integer isProduction; // null=0 (dev), 1=生产
 }

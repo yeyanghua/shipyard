@@ -22,19 +22,17 @@ import com.shipyard.entity.BuildRecord;
 import com.shipyard.mapper.BuildLogMapper;
 import com.shipyard.mapper.BuildRecordMapper;
 import com.shipyard.service.BuildService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 
 /**
  * Mock drone 客户端 — V1 demo 用, 本地异步模拟 drone 行为.
@@ -66,12 +64,14 @@ public class MockDroneClient implements DroneClient {
      * MockDroneClient 又要调 BuildService 内部方法. 用 lazy proxy 推迟到真正调方法时再注入.
      */
     private final BuildService buildService;
+
     private final DroneProperties droneProperties;
 
-    public MockDroneClient(BuildRecordMapper buildRecordMapper,
-                            BuildLogMapper buildLogMapper,
-                            @Lazy BuildService buildService,
-                            DroneProperties droneProperties) {
+    public MockDroneClient(
+            BuildRecordMapper buildRecordMapper,
+            BuildLogMapper buildLogMapper,
+            @Lazy BuildService buildService,
+            DroneProperties droneProperties) {
         this.buildRecordMapper = buildRecordMapper;
         this.buildLogMapper = buildLogMapper;
         this.buildService = buildService;
@@ -94,14 +94,16 @@ public class MockDroneClient implements DroneClient {
      * 直接用 {@link Executors#newVirtualThreadPerTaskExecutor()} 提交 {@link Runnable} —
      * 跟 Spring 虚拟线程配置一致, 简单可靠, 不依赖 proxy 行为.
      */
-    private static final ExecutorService VIRTUAL_EXECUTOR =
-        Executors.newVirtualThreadPerTaskExecutor();
+    private static final ExecutorService VIRTUAL_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     @Override
     public String triggerBuild(DroneBuildRequest request) {
-        log.info("[MockDrone] triggerBuild droneBuildId={} projectId={} commit={} envVars={}",
-            request.droneBuildId(), request.projectId(), request.commitSha(),
-            request.envVars() == null ? "null" : request.envVars().keySet());
+        log.info(
+                "[MockDrone] triggerBuild droneBuildId={} projectId={} commit={} envVars={}",
+                request.droneBuildId(),
+                request.projectId(),
+                request.commitSha(),
+                request.envVars() == null ? "null" : request.envVars().keySet());
         cancelFlags.put(request.droneBuildId(), new AtomicBoolean(false));
         // 提交到虚拟线程池, 不阻塞 controller
         VIRTUAL_EXECUTOR.submit(() -> runMockBuildImpl(request));
@@ -138,29 +140,34 @@ public class MockDroneClient implements DroneClient {
 
         // 2. 模拟 3 个 step
         List<MockStep> steps = List.of(
-            new MockStep(1, "compile",
-                "[\"INFO] Scanning for projects...\","
-                + "\"\\\"[INFO] Building shipyard demo 1.0-SNAPSHOT\\\",\""
-                + "\"\\\"[INFO] BUILD SUCCESS in 1.2s\\\",\""
-                + "\"\\\"[INFO] 2 actionable tasks: 2 executed\\\"\"]"),
-            new MockStep(2, "test",
-                "[\"INFO] Running com.shipyard.demo.*Test\","
-                + "\"\\\"[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0\\\",\""
-                + "\"\\\"[INFO] BUILD SUCCESS\\\"\"]"),
-            new MockStep(3, "docker-push",
-                "[\"INFO] docker build -t shipyard/demo:mock-... .\","
-                + "\"\\\"[INFO] Sending build context to Docker daemon\\\",\""
-                + "\"\\\"[INFO] Successfully built abc1234\\\",\""
-                + "\"\\\"[INFO] Successfully tagged shipyard/demo:mock-abc1234\\\",\""
-                + "\"\\\"[INFO] (mock) push to harbor skipped\\\"]")
-        );
+                new MockStep(
+                        1,
+                        "compile",
+                        "[\"INFO] Scanning for projects...\","
+                                + "\"\\\"[INFO] Building shipyard demo 1.0-SNAPSHOT\\\",\""
+                                + "\"\\\"[INFO] BUILD SUCCESS in 1.2s\\\",\""
+                                + "\"\\\"[INFO] 2 actionable tasks: 2 executed\\\"\"]"),
+                new MockStep(
+                        2,
+                        "test",
+                        "[\"INFO] Running com.shipyard.demo.*Test\","
+                                + "\"\\\"[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0\\\",\""
+                                + "\"\\\"[INFO] BUILD SUCCESS\\\"\"]"),
+                new MockStep(
+                        3,
+                        "docker-push",
+                        "[\"INFO] docker build -t shipyard/demo:mock-... .\","
+                                + "\"\\\"[INFO] Sending build context to Docker daemon\\\",\""
+                                + "\"\\\"[INFO] Successfully built abc1234\\\",\""
+                                + "\"\\\"[INFO] Successfully tagged shipyard/demo:mock-abc1234\\\",\""
+                                + "\"\\\"[INFO] (mock) push to harbor skipped\\\"]"));
 
         for (MockStep step : steps) {
             // 检查取消
             if (cancelFlags.get(droneBuildId).get()) {
                 log.info("[MockDrone] build canceled at step {} droneBuildId={}", step.name, droneBuildId);
-                buildService.markBuildFinished(record.getId(), BuildStatus.CANCELED.name(),
-                    null, null, LocalDateTime.now());
+                buildService.markBuildFinished(
+                        record.getId(), BuildStatus.CANCELED.name(), null, null, LocalDateTime.now());
                 cancelFlags.remove(droneBuildId);
                 return;
             }
@@ -171,21 +178,21 @@ public class MockDroneClient implements DroneClient {
             LocalDateTime stepEnd = LocalDateTime.now();
 
             // 落 build_log
-            buildService.saveStepLog(record.getId(), step.order, step.name,
-                step.logContent, stepStart, stepEnd);
+            buildService.saveStepLog(record.getId(), step.order, step.name, step.logContent, stepStart, stepEnd);
             log.info("[MockDrone] step {} done droneBuildId={}", step.name, droneBuildId);
         }
 
         // 3. 终态 SUCCESS + 标 log_persisted
-        String imageTag = "mock-" + request.commitSha().substring(0, Math.min(7, request.commitSha().length()));
+        String imageTag = "mock-"
+                + request.commitSha()
+                        .substring(0, Math.min(7, request.commitSha().length()));
         String harborUrl = "harbor.shipyard.local/shipyard/" + request.droneBuildId() + ":" + imageTag;
-        buildService.markBuildFinished(record.getId(), BuildStatus.SUCCESS.name(),
-            imageTag, harborUrl, LocalDateTime.now());
+        buildService.markBuildFinished(
+                record.getId(), BuildStatus.SUCCESS.name(), imageTag, harborUrl, LocalDateTime.now());
         buildRecordMapper.markLogPersisted(record.getId());
 
         cancelFlags.remove(droneBuildId);
-        log.info("[MockDrone] runMockBuild SUCCESS droneBuildId={} imageTag={}",
-            droneBuildId, imageTag);
+        log.info("[MockDrone] runMockBuild SUCCESS droneBuildId={} imageTag={}", droneBuildId, imageTag);
     }
 
     private void sleep(long ms) {

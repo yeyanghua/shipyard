@@ -57,10 +57,9 @@ public class ProjectController {
 
     @GetMapping
     public ApiResponse<PageResponse<ProjectResponse>> list(
-        @RequestParam(defaultValue = "1") int page,
-        @RequestParam(defaultValue = "20") int size,
-        @RequestParam(required = false) String keyword
-    ) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
         Page<Project> p = projectService.list(page, size, keyword);
         return ApiResponse.ok(PageResponse.from(p, ProjectResponse::from));
     }
@@ -73,9 +72,9 @@ public class ProjectController {
     @PostMapping
     public ApiResponse<ProjectResponse> create(@RequestBody @Valid ProjectCreateRequest req) {
         Project p = new Project();
-        BeanUtils.copyProperties(req, p, "repoToken", "projectMeta");  // 跳过 Object 字段
+        BeanUtils.copyProperties(req, p, "repoToken", "projectMeta"); // 跳过 Object 字段
         p.setProjectMeta(stringifyProjectMeta(req.getProjectMeta()));
-        p.setRepoTokenEnc(req.getRepoToken());                          // 字段名复用, Service 加密
+        p.setRepoTokenEnc(req.getRepoToken()); // 字段名复用, Service 加密
         return ApiResponse.ok(ProjectResponse.from(projectService.create(p)));
     }
 
@@ -107,8 +106,7 @@ public class ProjectController {
         try {
             return objectMapper.writeValueAsString(projectMeta);
         } catch (JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "projectMeta JSON 序列化失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "projectMeta JSON 序列化失败: " + e.getMessage());
         }
     }
 

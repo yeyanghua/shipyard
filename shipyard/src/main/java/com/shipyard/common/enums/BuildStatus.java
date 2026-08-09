@@ -24,7 +24,7 @@ import lombok.Getter;
  * <p>状态流转:
  * <pre>
  *   PENDING ──trigger──▶ RUNNING ──success──▶ SUCCESS
- *                            │                 
+ *                            │
  *                            ├──failed──▶ FAILED
  *                            ├──timeout──▶ TIMEOUT
  *                            └──canceled──▶ CANCELED

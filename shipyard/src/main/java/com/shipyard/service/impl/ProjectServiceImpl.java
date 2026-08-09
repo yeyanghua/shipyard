@@ -25,12 +25,11 @@ import com.shipyard.crypto.Encrypter;
 import com.shipyard.entity.Project;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.ProjectService;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.util.Set;
 
 /**
  * Project Service 实现.
@@ -51,9 +50,8 @@ public class ProjectServiceImpl implements ProjectService {
     private static final Set<String> REPO_PROVIDERS = Set.of("gitlab", "gitee");
 
     /** 项目类型白名单. */
-    private static final Set<String> PROJECT_TYPES = Set.of(
-        "java_maven", "java_gradle", "node_pnpm", "python_poetry", "other"
-    );
+    private static final Set<String> PROJECT_TYPES =
+            Set.of("java_maven", "java_gradle", "node_pnpm", "python_poetry", "other");
 
     private final ProjectMapper projectMapper;
     private final Encrypter encrypter;
@@ -66,10 +64,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w
-                .like(Project::getName, keyword)
-                .or().like(Project::getDisplayName, keyword)
-            );
+            wrapper.and(w -> w.like(Project::getName, keyword).or().like(Project::getDisplayName, keyword));
         }
         wrapper.orderByDesc(Project::getCreatedAt);
 
@@ -97,8 +92,7 @@ public class ProjectServiceImpl implements ProjectService {
             // 用 raw SQL 绕过 @TableLogic, 拿到 deleted=1 的记录
             Project existing = projectMapper.selectByIdIncludeDeleted(existingId);
             if (existing == null) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
             }
             // 强制覆盖业务字段, 保留 createdAt; 同时把 deleted 重置为 0 (复活)
             existing.setDeleted(0);
@@ -123,7 +117,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Project update(Long id, Project project) {
-        Project existing = get(id);  // 复用 get 校验存在
+        Project existing = get(id); // 复用 get 校验存在
 
         // name 改了 → 重新校验唯一
         if (StringUtils.hasText(project.getName()) && !project.getName().equals(existing.getName())) {
@@ -170,15 +164,15 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "displayName 不能为空");
         }
         if (!REPO_PROVIDERS.contains(p.getRepoProvider())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "repoProvider 必须是 " + REPO_PROVIDERS + " 之一, 实际: " + p.getRepoProvider());
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "repoProvider 必须是 " + REPO_PROVIDERS + " 之一, 实际: " + p.getRepoProvider());
         }
         if (!StringUtils.hasText(p.getRepoUrl())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "repoUrl 不能为空");
         }
         if (!PROJECT_TYPES.contains(p.getProjectType())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "projectType 必须是 " + PROJECT_TYPES + " 之一, 实际: " + p.getProjectType());
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "projectType 必须是 " + PROJECT_TYPES + " 之一, 实际: " + p.getProjectType());
         }
     }
 

@@ -17,9 +17,8 @@
 package com.shipyard.dto;
 
 import com.shipyard.entity.EnvVariable;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * 环境变量响应体 — GET /api/envs/{envId}/variables 列表.
@@ -37,9 +36,9 @@ public class EnvVariableResponse {
 
     private Long id;
     private Long envId;
-    private Long projectId;   // null=全局
+    private Long projectId; // null=全局
     private String key;
-    private String value;     // 已处理 (*** 或明文)
+    private String value; // 已处理 (*** 或明文)
     private Integer isSecret;
     private String description;
     private String updatedBy;

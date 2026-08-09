@@ -17,12 +17,11 @@
 package com.shipyard.realtime;
 
 import com.shipyard.entity.BuildLog;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 /**
  * SSE 事件 payload — build_log 步骤 或 build 终态.
@@ -60,24 +59,24 @@ public class BuildLogEvent {
 
     public static BuildLogEvent fromStep(BuildLog log) {
         return BuildLogEvent.builder()
-            .buildId(log.getBuildRecordId())
-            .eventType("step")
-            .stepName(log.getStepName())
-            .stepOrder(log.getStepOrder())
-            .logContent(log.getLogContent())
-            .logSizeBytes(log.getLogSizeBytes())
-            .stepStartedAt(log.getStartedAt())
-            .stepFinishedAt(log.getFinishedAt())
-            .build();
+                .buildId(log.getBuildRecordId())
+                .eventType("step")
+                .stepName(log.getStepName())
+                .stepOrder(log.getStepOrder())
+                .logContent(log.getLogContent())
+                .logSizeBytes(log.getLogSizeBytes())
+                .stepStartedAt(log.getStartedAt())
+                .stepFinishedAt(log.getFinishedAt())
+                .build();
     }
 
     public static BuildLogEvent fromFinished(Long buildId, String status, String imageTag, String harborImageUrl) {
         return BuildLogEvent.builder()
-            .buildId(buildId)
-            .eventType("build")
-            .status(status)
-            .imageTag(imageTag)
-            .harborImageUrl(harborImageUrl)
-            .build();
+                .buildId(buildId)
+                .eventType("build")
+                .status(status)
+                .imageTag(imageTag)
+                .harborImageUrl(harborImageUrl)
+                .build();
     }
 }

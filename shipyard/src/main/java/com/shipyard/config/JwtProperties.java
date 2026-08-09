@@ -16,10 +16,9 @@
 
 package com.shipyard.config;
 
+import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-
-import java.util.List;
 
 /**
  * shipyard JWT 配置 - 用 @ConfigurationProperties 绑 shipyard.jwt.* 配置段.

@@ -25,12 +25,11 @@ import com.shipyard.crypto.Encrypter;
 import com.shipyard.entity.Env;
 import com.shipyard.mapper.EnvMapper;
 import com.shipyard.service.EnvService;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.util.Set;
 
 /**
  * Env Service 实现 — 跟 {@link ProjectServiceImpl} 同构, 字段差异.
@@ -53,10 +52,7 @@ public class EnvServiceImpl implements EnvService {
 
         LambdaQueryWrapper<Env> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w
-                .like(Env::getName, keyword)
-                .or().like(Env::getDisplayName, keyword)
-            );
+            wrapper.and(w -> w.like(Env::getName, keyword).or().like(Env::getDisplayName, keyword));
         }
         if (production != null) {
             wrapper.eq(Env::getIsProduction, production ? 1 : 0);
@@ -85,10 +81,9 @@ public class EnvServiceImpl implements EnvService {
             log.info("环境 {} 已存在 (id={}), 走复活+更新流程", env.getName(), existingId);
             Env existing = envMapper.selectByIdIncludeDeleted(existingId);
             if (existing == null) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
             }
-            existing.setDeleted(0);  // 复活
+            existing.setDeleted(0); // 复活
             BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
             if (StringUtils.hasText(env.getWorkerTokenEnc())) {
                 existing.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
@@ -161,8 +156,8 @@ public class EnvServiceImpl implements EnvService {
         }
         // clusterType 允许默认 ("k8s")
         if (StringUtils.hasText(e.getClusterType()) && !CLUSTER_TYPES.contains(e.getClusterType())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "clusterType 必须是 " + CLUSTER_TYPES + " 之一, 实际: " + e.getClusterType());
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "clusterType 必须是 " + CLUSTER_TYPES + " 之一, 实际: " + e.getClusterType());
         }
     }
 }

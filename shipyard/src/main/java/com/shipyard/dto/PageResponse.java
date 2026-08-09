@@ -17,13 +17,12 @@
 package com.shipyard.dto;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 统一分页响应体.
@@ -53,14 +52,7 @@ public class PageResponse<T> {
      * 从 MyBatis-Plus {@link IPage} 转 PageResponse, 用 {@code mapper} 把 Entity 转 DTO.
      */
     public static <E, T> PageResponse<T> from(IPage<E> page, Function<E, T> mapper) {
-        List<T> mapped = page.getRecords().stream()
-            .map(mapper)
-            .collect(Collectors.toList());
-        return new PageResponse<>(
-            mapped,
-            page.getTotal(),
-            (int) page.getCurrent(),
-            (int) page.getSize()
-        );
+        List<T> mapped = page.getRecords().stream().map(mapper).collect(Collectors.toList());
+        return new PageResponse<>(mapped, page.getTotal(), (int) page.getCurrent(), (int) page.getSize());
     }
 }

@@ -57,7 +57,7 @@ public class CryptoHealthCheck implements ApplicationRunner {
             log.info("=== 加密健康检查通过 ({} 条 env_variable) ===", count);
         } catch (Exception e) {
             log.error("=== 加密健康检查失败, shipyard 启动中止 ===", e);
-            throw e;  // Spring 捕获后启动失败
+            throw e; // Spring 捕获后启动失败
         }
     }
 }

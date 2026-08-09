@@ -17,6 +17,8 @@
 package com.shipyard.config;
 
 import com.shipyard.common.JwtAuthFilter;
+import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -32,9 +34,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Spring Security Config - shipyard V1.
@@ -93,25 +92,23 @@ public class SecurityConfig {
         log.info("=== shipyard SecurityFilterChain configured (demo-mode={}) ===", demoMode);
         log.info("Whitelist ({} entries): {}", whitelist.size(), whitelist);
 
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> {
-                if (demoMode) {
-                    // V1 demo: 所有 path permitAll, JwtAuthFilter 仍跑 (解析 JWT 写 context, 但不强制)
-                    // 注意: AuthorizationFilter 因为 6.2 bug 实际不会 deny, 这里写 permitAll 是语义清晰
-                    log.info("[V1 demo-mode] All paths permitAll. JWT解析仍跑 (供业务读 user info).");
-                    authz.anyRequest().permitAll();
-                } else {
-                    // V1.5+: 严格模式 (待 6.2 bug 修复后才能真正生效)
-                    whitelist.forEach(path -> authz.requestMatchers(path).permitAll());
-                    authz.requestMatchers("OPTIONS", "/**").permitAll();
-                    authz.anyRequest().hasAuthority("ROLE_admin");
-                }
-            })
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> {
+                    if (demoMode) {
+                        // V1 demo: 所有 path permitAll, JwtAuthFilter 仍跑 (解析 JWT 写 context, 但不强制)
+                        // 注意: AuthorizationFilter 因为 6.2 bug 实际不会 deny, 这里写 permitAll 是语义清晰
+                        log.info("[V1 demo-mode] All paths permitAll. JWT解析仍跑 (供业务读 user info).");
+                        authz.anyRequest().permitAll();
+                    } else {
+                        // V1.5+: 严格模式 (待 6.2 bug 修复后才能真正生效)
+                        whitelist.forEach(path -> authz.requestMatchers(path).permitAll());
+                        authz.requestMatchers("OPTIONS", "/**").permitAll();
+                        authz.anyRequest().hasAuthority("ROLE_admin");
+                    }
+                })
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -122,17 +119,16 @@ public class SecurityConfig {
         // V1 demo: Vite dev 端口 5173-5180 都允许 (机器上端口可能被占, fallback 5174/5175/...)
         // 生产用同源部署, CORS 仅 dev 阶段需要
         config.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176",
-            "http://localhost:5177",
-            "http://localhost:5178",
-            "http://localhost:5179",
-            "http://localhost:5180",
-            "http://localhost:8080",
-            "http://localhost:3000"
-        ));
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:5175",
+                "http://localhost:5176",
+                "http://localhost:5177",
+                "http://localhost:5178",
+                "http://localhost:5179",
+                "http://localhost:5180",
+                "http://localhost:8080",
+                "http://localhost:3000"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count"));

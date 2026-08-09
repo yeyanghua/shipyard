@@ -19,9 +19,8 @@ package com.shipyard.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 /**
  * 批量 upsert 环境变量请求体 — PUT /api/envs/{envId}/variables?projectId=xxx.

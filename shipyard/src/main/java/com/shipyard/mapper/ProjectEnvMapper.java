@@ -27,5 +27,4 @@ import org.apache.ibatis.annotations.Mapper;
  * 跟 SQL 复合主键不匹配. 统一用 {@code LambdaQueryWrapper} 显式条件.
  */
 @Mapper
-public interface ProjectEnvMapper extends BaseMapper<ProjectEnv> {
-}
+public interface ProjectEnvMapper extends BaseMapper<ProjectEnv> {}

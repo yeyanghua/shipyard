@@ -17,9 +17,8 @@
 package com.shipyard.dto;
 
 import com.shipyard.entity.Project;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * 项目响应体 — GET / POST / PUT /api/projects 统一返回.
@@ -34,7 +33,7 @@ public class ProjectResponse {
     private String displayName;
     private String repoProvider;
     private String repoUrl;
-    private Boolean hasRepoToken;   // 替代 repoToken, 防泄漏
+    private Boolean hasRepoToken; // 替代 repoToken, 防泄漏
     private String defaultBranch;
     private String projectType;
     private String projectMeta;

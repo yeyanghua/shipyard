@@ -22,6 +22,8 @@ import com.shipyard.dto.EnvVariableUpsertRequest;
 import com.shipyard.entity.EnvVariable;
 import com.shipyard.service.EnvVariableService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,9 +33,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * EnvVariable Controller — /api/envs/{envId}/variables.
@@ -50,9 +49,7 @@ public class EnvVariableController {
     /** GET /api/envs/{envId}/variables?projectId=xxx — 列表 (secret 显示 "***"). */
     @GetMapping
     public ApiResponse<List<EnvVariableResponse>> list(
-        @PathVariable Long envId,
-        @RequestParam(required = false) Long projectId
-    ) {
+            @PathVariable Long envId, @RequestParam(required = false) Long projectId) {
         List<EnvVariable> list = envVariableService.list(envId, projectId);
         return ApiResponse.ok(list.stream().map(EnvVariableResponse::from).toList());
     }
@@ -60,21 +57,20 @@ public class EnvVariableController {
     /** PUT /api/envs/{envId}/variables?projectId=xxx — 批量 upsert. */
     @PutMapping
     public ApiResponse<List<EnvVariableResponse>> batchUpsert(
-        @PathVariable Long envId,
-        @RequestParam(required = false) Long projectId,
-        @RequestBody @Valid EnvVariableUpsertRequest req
-    ) {
+            @PathVariable Long envId,
+            @RequestParam(required = false) Long projectId,
+            @RequestBody @Valid EnvVariableUpsertRequest req) {
         List<EnvVariable> items = req.getItems().stream()
-            .map(i -> {
-                EnvVariable v = new EnvVariable();
-                // 注意: DTO 字段是 key, Entity 字段是 varKey — BeanUtils 不会自动转换
-                v.setVarKey(i.getKey());
-                v.setVarValueEnc(i.getValue());   // 字段名复用, Service 加密
-                v.setIsSecret(i.getIsSecret());
-                v.setDescription(i.getDescription());
-                return v;
-            })
-            .toList();
+                .map(i -> {
+                    EnvVariable v = new EnvVariable();
+                    // 注意: DTO 字段是 key, Entity 字段是 varKey — BeanUtils 不会自动转换
+                    v.setVarKey(i.getKey());
+                    v.setVarValueEnc(i.getValue()); // 字段名复用, Service 加密
+                    v.setIsSecret(i.getIsSecret());
+                    v.setDescription(i.getDescription());
+                    return v;
+                })
+                .toList();
         List<EnvVariable> upserted = envVariableService.batchUpsert(envId, projectId, items, "demo-user");
         return ApiResponse.ok(upserted.stream().map(EnvVariableResponse::from).toList());
     }
@@ -86,10 +82,7 @@ public class EnvVariableController {
      */
     @GetMapping("/{key}")
     public ApiResponse<Map<String, String>> getDecrypted(
-        @PathVariable Long envId,
-        @PathVariable String key,
-        @RequestParam(required = false) Long projectId
-    ) {
+            @PathVariable Long envId, @PathVariable String key, @RequestParam(required = false) Long projectId) {
         String value = envVariableService.getDecryptedValue(envId, projectId, key);
         return ApiResponse.ok(Map.of("value", value));
     }
@@ -97,10 +90,7 @@ public class EnvVariableController {
     /** DELETE /api/envs/{envId}/variables/{key}?projectId=xxx — 删除. */
     @DeleteMapping("/{key}")
     public ApiResponse<Void> delete(
-        @PathVariable Long envId,
-        @PathVariable String key,
-        @RequestParam(required = false) Long projectId
-    ) {
+            @PathVariable Long envId, @PathVariable String key, @RequestParam(required = false) Long projectId) {
         envVariableService.delete(envId, projectId, key);
         return ApiResponse.ok();
     }
