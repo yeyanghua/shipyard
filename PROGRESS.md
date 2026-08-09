@@ -486,6 +486,23 @@ curl http://localhost:8080/actuator/health
 - **JWT demo token** — V1 demo 没有用户系统,所有 API 直接放行 (M2.5 白名单) 或者用一个 hard-coded token
 - **MyBatis-Plus 软删 + 唯一约束** — name 唯一约束 + 软删有冲突,M4 实现时注意
 
+### 详细方案
+详见 `docs/M4-detail.md` (10 章节,含固化决策表),含:
+- 范围与边界(M4 走"项目/环境/env_variable CRUD",plan 原"M4 repo 抽象层"推迟到 M5.1)
+- 数据模型(4 张表字段回顾 + 关键设计点)
+- 后端设计(17 个新文件 + Entity/Mapper/Service/Controller/DTO/异常/测试)
+- 前端设计(API 客户端 + Pinia + 5 个页面 + 关键组件 EnvVarEditor/SecretInput)
+- 5 个关键决策(已拍板,见 M4-detail.md 顶部决策表)
+- 任务分解(后端 4 天 + 前端 3 天 + 联调 0.5 天)
+- 验收标准 + 风险 + 后续 Milestone 衔接
+
+### 已拍板的 5 个关键决策(2026-08-09)
+1. M4 范围:走 PROGRESS.md(项目/环境 CRUD),plan 原 M4 推迟到 M5.1
+2. 鉴权:Hard-coded JWT(`/api/auth/demo-token` + 前端 localStorage)
+3. 加密:折中(3 个 secret 加密,其他明文)
+4. 删除:软删(`@TableLogic` 自动过滤)
+5. 错误码:业务码独立(HTTP 永远 200,body `{code: 0=成功}`)
+
 ### 估计
 - 后端: 1-1.5 天
 - 前端: 1-1.5 天
