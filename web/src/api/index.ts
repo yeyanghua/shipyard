@@ -9,3 +9,4 @@ export * from './envVariables';
 export * from './builds';
 export * from './auth';
 export * from './pipelines';
+export * from './dockerfileTemplates';

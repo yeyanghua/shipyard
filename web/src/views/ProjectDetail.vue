@@ -6,7 +6,7 @@
  */
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { projectsApi, envsApi, buildsApi, pipelinesApi, type Project, type Env, type Build, type Pipeline, ApiError } from '@/api';
+import { projectsApi, envsApi, buildsApi, pipelinesApi, dockerfileTemplatesApi, parseVariableSchema, recommendTemplate, type Project, type Env, type Build, type Pipeline, type DockerfileTemplate, type TemplateVariableDef, ApiError } from '@/api';
 import { useEnvStore } from '@/stores/env';
 import { useBuildStore } from '@/stores/build';
 import SecretInput from '@/components/SecretInput.vue';
@@ -22,10 +22,26 @@ const linkedIds = ref<Set<string>>(new Set());
 const builds = ref<Build[]>([]);
 const activePipeline = ref<Pipeline | null>(null);
 const pipelineCount = ref(0);
+const dockerfileTemplates = ref<DockerfileTemplate[]>([]);
 const loading = ref(true);
 const error = ref('');
 const showAddEnv = ref(false);
 const showTrigger = ref(false);
+const showDockerfileModal = ref(false);
+const dockerfilePreview = ref('');
+const dockerfilePreviewing = ref(false);
+const dockerfileGenerating = ref(false);
+const dockerfileForm = ref<{
+  templateName: string;
+  variables: Record<string, string>;
+  repoBranch: string;
+  commitMessage: string;
+}>({
+  templateName: '',
+  variables: {},
+  repoBranch: 'main',
+  commitMessage: 'chore: add Dockerfile via shipyard',
+});
 
 // 触发构建表单
 const triggerForm = ref({ commitSha: '', envId: '' as string | number });
@@ -54,6 +70,12 @@ async function fetchData() {
     } catch (e) {
       // pipeline 拉失败不影响项目详情展示
       console.warn('[ProjectDetail] pipeline load failed:', (e as ApiError).message);
+    }
+    // 加载 Dockerfile 模板 (M12) — 失败不影响项目详情
+    try {
+      dockerfileTemplates.value = await dockerfileTemplatesApi.listTemplates();
+    } catch (e) {
+      console.warn('[ProjectDetail] dockerfile templates load failed:', (e as ApiError).message);
     }
   } catch (e) {
     error.value = (e as ApiError).message;
@@ -109,6 +131,99 @@ async function triggerBuild() {
 
 const linkedEnvs = computed(() => envs.value.filter((e) => linkedIds.value.has(e.id)));
 const unlinkedEnvs = computed(() => envs.value.filter((e) => !linkedIds.value.has(e.id)));
+
+// ===== M12 Dockerfile =====
+
+const recommendedTemplate = computed(() => {
+  if (!project.value || dockerfileTemplates.value.length === 0) return null;
+  return recommendTemplate(dockerfileTemplates.value, project.value.projectType);
+});
+
+const selectedTemplate = computed(() => {
+  if (!dockerfileForm.value.templateName) return null;
+  return dockerfileTemplates.value.find((t) => t.name === dockerfileForm.value.templateName) ?? null;
+});
+
+const templateVariableDefs = computed<TemplateVariableDef[]>(() => {
+  if (!selectedTemplate.value) return [];
+  return parseVariableSchema(selectedTemplate.value.variableSchema);
+});
+
+function openDockerfileModal() {
+  if (!recommendedTemplate.value) {
+    alert('没有可用的 Dockerfile 模板');
+    return;
+  }
+  // 预填推荐模板 + 默认值
+  dockerfileForm.value.templateName = recommendedTemplate.value.name;
+  const defaults: Record<string, string> = {};
+  for (const v of parseVariableSchema(recommendedTemplate.value.variableSchema)) {
+    if (v.default != null) defaults[v.key] = v.default;
+  }
+  dockerfileForm.value.variables = defaults;
+  dockerfilePreview.value = '';
+  showDockerfileModal.value = true;
+  // 立刻预渲染一份给用户看
+  refreshPreview();
+}
+
+async function refreshPreview() {
+  if (!project.value || !dockerfileForm.value.templateName) return;
+  dockerfilePreviewing.value = true;
+  try {
+    const r = await dockerfileTemplatesApi.preview(projectId.value, {
+      templateName: dockerfileForm.value.templateName,
+      variables: dockerfileForm.value.variables,
+      repoBranch: dockerfileForm.value.repoBranch,
+      commitMessage: dockerfileForm.value.commitMessage,
+    });
+    dockerfilePreview.value = r.renderedContent;
+  } catch (e) {
+    dockerfilePreview.value = `// 预览失败: ${(e as ApiError).message}`;
+  } finally {
+    dockerfilePreviewing.value = false;
+  }
+}
+
+function onTemplateChange(newName: string) {
+  dockerfileForm.value.templateName = newName;
+  // 切模板时, 用新模板的默认值重置 variables
+  const tpl = dockerfileTemplates.value.find((t) => t.name === newName);
+  if (tpl) {
+    const defaults: Record<string, string> = {};
+    for (const v of parseVariableSchema(tpl.variableSchema)) {
+      if (v.default != null) defaults[v.key] = v.default;
+    }
+    dockerfileForm.value.variables = defaults;
+  }
+  refreshPreview();
+}
+
+async function doGenerate() {
+  if (!project.value) return;
+  dockerfileGenerating.value = true;
+  try {
+    const r = await dockerfileTemplatesApi.generate(projectId.value, {
+      templateName: dockerfileForm.value.templateName,
+      variables: dockerfileForm.value.variables,
+      repoBranch: dockerfileForm.value.repoBranch,
+      commitMessage: dockerfileForm.value.commitMessage,
+    });
+    alert(
+      `✅ Dockerfile 已生成\n\n` +
+      `记录 ID: ${r.projectDockerfileId}\n` +
+      `状态: ${r.status}\n` +
+      `分支: ${r.repoBranch}\n` +
+      `Commit: ${r.commitMessage}\n\n` +
+      `⚠️ V1 demo: 状态卡 draft, 未真推 Gitea. V1.5 接 Gitea adapter 后转 pushed.`
+    );
+    showDockerfileModal.value = false;
+  } catch (e) {
+    alert(`生成失败: ${(e as ApiError).message}`);
+  } finally {
+    dockerfileGenerating.value = false;
+  }
+}
 
 function statusColor(status: string): string {
   switch (status) {
@@ -230,6 +345,21 @@ function statusColor(status: string): string {
     </section>
 
     <section class="card">
+      <div class="section-header">
+        <h2>Dockerfile <span class="count">{{ dockerfileTemplates.length }} 模板</span></h2>
+        <button class="link primary" @click="openDockerfileModal">
+          🐳 生成 Dockerfile
+        </button>
+      </div>
+      <div v-if="recommendedTemplate" class="dockerfile-info">
+        <span>项目类型 <code>{{ project.projectType }}</code> → 推荐模板:</span>
+        <code class="template-name">{{ recommendedTemplate.name }}</code>
+        <span class="muted">{{ recommendedTemplate.displayName }}</span>
+      </div>
+      <div v-else class="empty">无可用模板</div>
+    </section>
+
+    <section class="card">
       <h2>构建历史 <span class="count">{{ builds.length }}</span></h2>
       <div v-if="builds.length === 0" class="empty">暂无构建记录 — 点上面"🚀 触发构建"试试</div>
       <table v-else class="build-table">
@@ -256,6 +386,69 @@ function statusColor(status: string): string {
         </tbody>
       </table>
     </section>
+
+    <!-- M12 Dockerfile 弹窗 -->
+    <div v-if="showDockerfileModal" class="modal-mask" @click.self="showDockerfileModal = false">
+      <div class="modal modal-wide">
+        <h3>🐳 生成 Dockerfile</h3>
+        <p class="hint">
+          ⚠️ V1 demo: 生成后状态卡 draft, 不真推 Gitea.
+          V1.5 接 Gitea adapter 后转 pushed + 填 commit SHA.
+        </p>
+
+        <div class="form-row">
+          <label>
+            <span>模板</span>
+            <select :value="dockerfileForm.templateName" @change="(e: any) => onTemplateChange(e.target.value)">
+              <option v-for="t in dockerfileTemplates" :key="t.id" :value="t.name">
+                {{ t.displayName }} ({{ t.language }} / {{ t.buildTool }})
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>目标分支</span>
+            <input v-model="dockerfileForm.repoBranch" @blur="refreshPreview" />
+          </label>
+        </div>
+
+        <div v-if="templateVariableDefs.length > 0" class="vars-block">
+          <h4>模板变量</h4>
+          <div class="vars-grid">
+            <label v-for="v in templateVariableDefs" :key="v.key">
+              <span>
+                {{ v.description ?? v.key }}
+                <em v-if="v.required">*</em>
+                <code class="var-key">{{ v.key }}</code>
+              </span>
+              <input
+                v-model="dockerfileForm.variables[v.key]"
+                :placeholder="v.default ?? ''"
+                @input="refreshPreview"
+              />
+            </label>
+          </div>
+        </div>
+
+        <label class="full-row">
+          <span>Commit message</span>
+          <input v-model="dockerfileForm.commitMessage" @blur="refreshPreview" />
+        </label>
+
+        <h4 class="preview-title">
+          预览 (渲染后)
+          <span v-if="dockerfilePreviewing" class="muted">渲染中...</span>
+          <button v-else class="link small" @click="refreshPreview">🔄 刷新</button>
+        </h4>
+        <pre class="dockerfile-preview">{{ dockerfilePreview || '// 填变量后自动预览' }}</pre>
+
+        <div class="modal-actions">
+          <button @click="showDockerfileModal = false">取消</button>
+          <button class="btn-primary" :disabled="dockerfileGenerating" @click="doGenerate">
+            {{ dockerfileGenerating ? '生成中...' : '💾 生成 (写 draft 记录)' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
   <div v-else-if="loading" class="loading">加载中...</div>
 </template>
@@ -334,4 +527,39 @@ dd { margin: 0; }
 
 .error { color: #dc2626; background: #fee2e2; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; }
 .loading { padding: 24px; text-align: center; }
+
+/* ===== M12 Dockerfile ===== */
+.dockerfile-info {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: #eff6ff; border: 1px solid #93c5fd; border-radius: 4px; font-size: 14px;
+}
+.template-name { background: #fff; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+
+.modal-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 8px; padding: 24px; min-width: 560px; max-width: 720px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+.modal-wide { min-width: 800px; max-width: 1000px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { margin: 0 0 8px; }
+.modal .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
+.modal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.modal label span { color: var(--text-muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.modal label em { color: #dc2626; font-style: normal; }
+.modal .var-key { background: #f3f4f6; padding: 1px 6px; border-radius: 3px; font-size: 11px; color: var(--text-muted); }
+.modal input, .modal select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; font-family: inherit; }
+.modal .full-row { margin-top: 12px; }
+.vars-block { margin-top: 16px; }
+.vars-block h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+.vars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.preview-title { margin: 16px 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.preview-title .link.small { font-size: 12px; background: none; border: 0; cursor: pointer; color: var(--primary); }
+.dockerfile-preview {
+  background: #1e293b; color: #e2e8f0;
+  font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.5;
+  padding: 16px; border-radius: 4px;
+  max-height: 320px; overflow: auto; margin: 0 0 12px;
+  white-space: pre-wrap; word-break: break-all;
+}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal-actions button { padding: 6px 16px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 13px; background: #fff; }
+.modal-actions .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.modal-actions button:disabled { background: #9ca3af; cursor: not-allowed; border: 0; }
 </style>
