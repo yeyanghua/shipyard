@@ -115,7 +115,7 @@ shipyard:
     # Mock 模式开关: V1 demo 默认 true, V1.5 接真实 drone 时改 false
     mock-enabled: true
     # Mock 模式下每个 step 模拟耗时 (ms), 用于 demo 看到实时日志流
-    mock-step-delay-ms: 1500
+    mock-step-delay-ms: 3000
 
   # JWT 配置 (M2.5 补充, SecurityConfig 用了)
   jwt:

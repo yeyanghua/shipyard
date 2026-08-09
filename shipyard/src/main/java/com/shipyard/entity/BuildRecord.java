@@ -16,10 +16,13 @@
 
 package com.shipyard.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.time.LocalDateTime;
 
@@ -27,6 +30,11 @@ import java.time.LocalDateTime;
  * 构建记录 — 每次 shipyard 触发 drone 构建一行.
  *
  * <p>对应 V1__init.sql 的 {@code build_record} 表 (M2 已落库).
+ *
+ * <p><b>注意</b>: 这个实体 <b>不继承 {@link BaseEntity}</b>, 因为 build_record 表只有
+ * {@code created_at} 没有 {@code updated_at} — 业务语义上"构建更新时间"应该用
+ * {@code started_at} / {@code finished_at} (drone 真实业务时间戳) 表达, 不需要
+ * MyBatis-Plus 的通用 updated_at.
  *
  * <p>关键字段:
  * <ul>
@@ -39,9 +47,12 @@ import java.time.LocalDateTime;
  * <p>状态机见 {@code BuildStatus} enum.
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @TableName("build_record")
-public class BuildRecord extends BaseEntity {
+public class BuildRecord {
+
+    /** 主键 (雪花 ID) */
+    @TableId(type = IdType.ASSIGN_ID)
+    private Long id;
 
     /** 所属项目 */
     @TableField("project_id")
@@ -106,4 +117,12 @@ public class BuildRecord extends BaseEntity {
      */
     @TableField("log_persisted")
     private Integer logPersisted;
+
+    /** 创建时间 — 自动填 */
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createdAt;
+
+    /** 逻辑删除标记 */
+    @TableLogic
+    private Integer deleted;
 }

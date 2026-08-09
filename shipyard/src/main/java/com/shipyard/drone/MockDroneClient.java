@@ -22,11 +22,13 @@ import com.shipyard.entity.BuildRecord;
 import com.shipyard.mapper.BuildLogMapper;
 import com.shipyard.mapper.BuildRecordMapper;
 import com.shipyard.service.BuildService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,25 +56,54 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "shipyard.drone.mock-enabled", havingValue = "true", matchIfMissing = true)
 public class MockDroneClient implements DroneClient {
 
     private final BuildRecordMapper buildRecordMapper;
     private final BuildLogMapper buildLogMapper;
+    /**
+     * {@link Lazy} 解循环依赖: BuildServiceImpl 注入 DroneClient (即 MockDroneClient),
+     * MockDroneClient 又要调 BuildService 内部方法. 用 lazy proxy 推迟到真正调方法时再注入.
+     */
     private final BuildService buildService;
     private final DroneProperties droneProperties;
 
+    public MockDroneClient(BuildRecordMapper buildRecordMapper,
+                            BuildLogMapper buildLogMapper,
+                            @Lazy BuildService buildService,
+                            DroneProperties droneProperties) {
+        this.buildRecordMapper = buildRecordMapper;
+        this.buildLogMapper = buildLogMapper;
+        this.buildService = buildService;
+        this.droneProperties = droneProperties;
+    }
+
     /** 取消标志 — droneBuildId → AtomicBoolean */
     private final Map<String, AtomicBoolean> cancelFlags = new ConcurrentHashMap<>();
+
+    /**
+     * Mock build 异步执行器 — Java 21 虚拟线程池.
+     *
+     * <p><b>不用 Spring {@code @Async}</b> 原因:
+     * <ol>
+     *   <li>{@code @Async} 不支持 String 返回 (triggerBuild 要返 droneBuildId)</li>
+     *   <li>{@code MockDroneClient implements DroneClient}, Spring 用 JDK 动态代理
+     *       (proxy implements interface list, 实际类型是 {@code jdk.proxy2.$Proxy}),
+     *       self-injection 拿到 proxy 类型不匹配</li>
+     * </ol>
+     * 直接用 {@link Executors#newVirtualThreadPerTaskExecutor()} 提交 {@link Runnable} —
+     * 跟 Spring 虚拟线程配置一致, 简单可靠, 不依赖 proxy 行为.
+     */
+    private static final ExecutorService VIRTUAL_EXECUTOR =
+        Executors.newVirtualThreadPerTaskExecutor();
 
     @Override
     public String triggerBuild(DroneBuildRequest request) {
         log.info("[MockDrone] triggerBuild droneBuildId={} projectId={} commit={}",
             request.droneBuildId(), request.projectId(), request.commitSha());
         cancelFlags.put(request.droneBuildId(), new AtomicBoolean(false));
-        // 提交异步任务, 不阻塞调用方
-        runMockBuild(request);
+        // 提交到虚拟线程池, 不阻塞 controller
+        VIRTUAL_EXECUTOR.submit(() -> runMockBuildImpl(request));
         return request.droneBuildId();
     }
 
@@ -86,13 +117,12 @@ public class MockDroneClient implements DroneClient {
     }
 
     /**
-     * 异步执行 mock build — @Async + virtual thread (per VirtualThreadConfig).
+     * 异步执行 mock build — 由 {@link #triggerBuild} 提交到虚拟线程池.
      *
-     * <p>3 个 step: compile (1.5s) → test (1.5s) → docker-push (1.5s),
+     * <p>3 个 step: compile → test → docker-push, 每 step {@code mock-step-delay-ms},
      * 每个 step 完生成 5-8 行假日志, 落 {@code build_log}.
      */
-    @Async
-    public void runMockBuild(DroneBuildRequest request) {
+    public void runMockBuildImpl(DroneBuildRequest request) {
         String droneBuildId = request.droneBuildId();
         log.info("[MockDrone] runMockBuild start droneBuildId={}", droneBuildId);
 

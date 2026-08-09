@@ -38,7 +38,6 @@ import com.shipyard.service.BuildService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,7 +73,6 @@ public class BuildServiceImpl implements BuildService {
     // ============== 业务 API ==============
 
     @Override
-    @Transactional
     public BuildResponse createBuild(BuildCreateRequest request) {
         // 1. 校验 project 存在
         Project project = projectMapper.selectById(request.getProjectId());
@@ -93,7 +91,7 @@ public class BuildServiceImpl implements BuildService {
         // 3. 分配 droneBuildId
         String droneBuildId = "drone-" + UUID.randomUUID();
 
-        // 4. 落 build_record (PENDING)
+        // 4. 落 build_record (PENDING) — 单 SQL 自动 commit
         BuildRecord record = new BuildRecord();
         record.setProjectId(request.getProjectId());
         record.setCommitSha(request.getCommitSha());
