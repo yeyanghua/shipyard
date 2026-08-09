@@ -68,6 +68,24 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'AI 诊断', milestone: 'M12' },
   },
   {
+    path: '/monitoring',
+    name: 'monitoring',
+    component: () => import('@/views/Monitoring.vue'),
+    meta: { title: '监控', milestone: 'M13' },
+  },
+  {
+    path: '/activity',
+    name: 'activity',
+    component: () => import('@/views/Activity.vue'),
+    meta: { title: '活动日志', milestone: 'M13' },
+  },
+  {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('@/views/Notifications.vue'),
+    meta: { title: '通知', milestone: 'M13' },
+  },
+  {
     // 404 兜底
     path: '/:pathMatch(.*)*',
     name: 'not-found',

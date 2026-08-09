@@ -26,14 +26,18 @@ const IconHome = 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10';
 const IconFolder = 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z';
 const IconServer = 'M2 3h20v8H2z M2 13h20v8H2z M6 7h.01 M6 17h.01';
 const IconSparkles = 'M12 3l1.9 5.5L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.5z M19 4l.7 1.7L21 6l-1.3.3L19 8l-.7-1.7L17 6l1.3-.3z M5 16l.7 1.7L7 18l-1.3.3L5 20l-.7-1.7L3 18l1.3-.3z';
+const IconActivity = 'M22 12h-4l-3 9L9 3l-3 9H2';
+const IconHistory = 'M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-6.74 2.74L3 8 M3 3v5h5 M12 7v5l4 2';
 const IconLogo = 'M2 20a4 4 0 0 0 4-4V8a2 2 0 0 1 4 0v8a4 4 0 0 0 8 0V6 M6 12h.01 M18 18h.01';
 const IconBook = 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z';
 
 const navItems = [
-  { to: '/',          label: '总览',     icon: IconHome,     shortcut: 'G H' },
-  { to: '/projects',  label: '项目',     icon: IconFolder,   shortcut: 'G P' },
-  { to: '/envs',      label: '环境',     icon: IconServer,   shortcut: 'G E' },
-  { to: '/ai/diagnosis', label: 'AI 助手', icon: IconSparkles, shortcut: 'G A' },
+  { to: '/',             label: '总览',     icon: IconHome,     shortcut: 'G H' },
+  { to: '/projects',     label: '项目',     icon: IconFolder,   shortcut: 'G P' },
+  { to: '/envs',         label: '环境',     icon: IconServer,   shortcut: 'G E' },
+  { to: '/monitoring',   label: '监控',     icon: IconActivity, shortcut: 'G M' },
+  { to: '/activity',     label: '活动',     icon: IconHistory,  shortcut: 'G L' },
+  { to: '/ai/diagnosis', label: 'AI 助手',  icon: IconSparkles, shortcut: 'G A' },
 ];
 
 /** 路由对应 sidebar 选中状态 */
