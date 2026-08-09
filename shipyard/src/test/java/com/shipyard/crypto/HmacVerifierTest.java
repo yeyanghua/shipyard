@@ -16,10 +16,10 @@
 
 package com.shipyard.crypto;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * HmacVerifier 单元测试 — 覆盖伪造 / 篡改 / 边界 case.

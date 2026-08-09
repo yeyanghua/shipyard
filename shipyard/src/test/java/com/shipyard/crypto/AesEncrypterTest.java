@@ -1,15 +1,14 @@
 package com.shipyard.crypto;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * AesEncrypter 单元测试.
@@ -46,19 +45,17 @@ class AesEncrypterTest {
     @DisplayName("往返: 中文/特殊字符/JSON/长字符串")
     void roundTrip_unicodeAndJson() {
         String[] inputs = {
-                "中文测试 🚀",                                  // Unicode + emoji
-                "{\"token\":\"glpat-xxxx\",\"host\":\"https://gitlab.com\"}",  // JSON
-                "a".repeat(1000),                                // 1000 字符
-                "line1\nline2\nline3\twith\ttab",                // 控制字符
-                "!@#$%^&*()_+-={}[]|:;\"'<>,.?/`~"              // 特殊符号
+            "中文测试 🚀", // Unicode + emoji
+            "{\"token\":\"glpat-xxxx\",\"host\":\"https://gitlab.com\"}", // JSON
+            "a".repeat(1000), // 1000 字符
+            "line1\nline2\nline3\twith\ttab", // 控制字符
+            "!@#$%^&*()_+-={}[]|:;\"'<>,.?/`~" // 特殊符号
         };
 
         for (String input : inputs) {
             String ciphertext = encrypter.encrypt(input);
             String decrypted = encrypter.decrypt(ciphertext);
-            assertThat(decrypted)
-                    .as("Round-trip failed for: %s", input)
-                    .isEqualTo(input);
+            assertThat(decrypted).as("Round-trip failed for: %s", input).isEqualTo(input);
         }
     }
 
@@ -73,9 +70,7 @@ class AesEncrypterTest {
         }
 
         // 100 次加密应该全部不同 (碰撞概率 2^-96, 视为不可能)
-        assertThat(ciphertexts)
-                .as("AES-GCM 每次应该用随机 IV,100 次密文应全部不同")
-                .hasSize(100);
+        assertThat(ciphertexts).as("AES-GCM 每次应该用随机 IV,100 次密文应全部不同").hasSize(100);
     }
 
     @Test
@@ -102,8 +97,7 @@ class AesEncrypterTest {
         // 截断 (留 IV 但去掉部分密文+tag)
         String truncated = ciphertext.substring(0, ciphertext.length() - 4);
 
-        assertThatThrownBy(() -> encrypter.decrypt(truncated))
-                .isInstanceOf(CryptoException.class);
+        assertThatThrownBy(() -> encrypter.decrypt(truncated)).isInstanceOf(CryptoException.class);
     }
 
     @Test
@@ -112,7 +106,7 @@ class AesEncrypterTest {
         String ciphertext = encrypter.encrypt("secret");
 
         // 用另一个 key 建解密器
-        String otherKeyBase64 = Base64.getEncoder().encodeToString(new byte[]{1, 2, 3});
+        String otherKeyBase64 = Base64.getEncoder().encodeToString(new byte[] {1, 2, 3});
         // 注意: 这个 key 长度不合法,构造就该抛.改用合法长度但值不同的 key
         byte[] otherKeyBytes = new byte[32];
         for (int i = 0; i < 32; i++) {
@@ -121,17 +115,14 @@ class AesEncrypterTest {
         String otherKey = Base64.getEncoder().encodeToString(otherKeyBytes);
         AesEncrypter otherEncrypter = new AesEncrypter(otherKey);
 
-        assertThatThrownBy(() -> otherEncrypter.decrypt(ciphertext))
-                .isInstanceOf(CryptoException.class);
+        assertThatThrownBy(() -> otherEncrypter.decrypt(ciphertext)).isInstanceOf(CryptoException.class);
     }
 
     @Test
     @DisplayName("null / 空字符串边界")
     void edgeCases_nullAndEmpty() {
-        assertThatThrownBy(() -> encrypter.encrypt(null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> encrypter.decrypt(null))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> encrypter.encrypt(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> encrypter.decrypt(null)).isInstanceOf(IllegalArgumentException.class);
 
         // 空字符串合法
         String ciphertext = encrypter.encrypt("");
@@ -141,8 +132,7 @@ class AesEncrypterTest {
     @Test
     @DisplayName("无效 Base64 → 解密抛 CryptoException")
     void decrypt_invalidBase64_throwsException() {
-        assertThatThrownBy(() -> encrypter.decrypt("!!!not-base64!!!"))
-                .isInstanceOf(CryptoException.class);
+        assertThatThrownBy(() -> encrypter.decrypt("!!!not-base64!!!")).isInstanceOf(CryptoException.class);
     }
 
     @Test

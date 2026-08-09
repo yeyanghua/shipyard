@@ -77,7 +77,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  */
 @Slf4j
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, ShipyardSecurityProperties.class, DroneProperties.class})
+@EnableConfigurationProperties({
+    JwtProperties.class,
+    ShipyardSecurityProperties.class,
+    DroneProperties.class,
+    ShipyardAiProperties.class
+})
 @RequiredArgsConstructor
 public class SecurityConfig {
 

@@ -117,6 +117,17 @@ shipyard:
     # Mock 模式下每个 step 模拟耗时 (ms), 用于 demo 看到实时日志流
     mock-step-delay-ms: 3000
 
+  # AI 配置 (M6 2 新增)
+  # V1 demo 默认 mock, 无需 env var. 接真实 LLM 时配对应 env var + 改 default-provider.
+  ai:
+    default-provider: mock  # mock / tongyi / deepseek
+    mock:
+      model: v1             # mock 内部版本号
+    tongyi:
+      model: qwen-turbo
+    deepseek:
+      model: deepseek-chat
+
   # JWT 配置 (M2.5 补充, SecurityConfig 用了)
   jwt:
     # HS256 secret - V1 demo 用固定值,生产环境必须改!
