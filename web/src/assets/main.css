@@ -1,55 +1,598 @@
-/* ============================================================
- * shipyard Web 全局样式 (M3 stub,后续 milestone 改)
- * ============================================================ */
+/* ===========================================================================
+ * shipyard — global design system
+ *
+ * <p>风格: Industrial Precision (Linear + Vercel + Drone CI).
+ * <p>暗色主题为默认, 配色克制, 字体个性化 (Manrope + JetBrains Mono + Noto Sans SC).
+ *
+ * <h2>CSS 变量分类</h2>
+ * <ul>
+ *   <li>--color-*  颜色 (bg / surface / text / accent / status)</li>
+ *   <li>--font-*   字体 (display / body / mono / zh)</li>
+ *   <li>--size-*   尺寸 (radius / spacing / height)</li>
+ *   <li>--shadow-* 阴影 (subtle, 不超过 2px blur)</li>
+ * </ul>
+ * ========================================================================== */
+
 :root {
-  --bg: #fafafa;
-  --card: #ffffff;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-  --text: #1f2937;
-  --text-muted: #6b7280;
-  --text-soft: #9ca3af;
-  --primary: #3b82f6;
-  --primary-soft: #dbeafe;
-  --success: #10b981;
-  --success-soft: #d1fae5;
-  --warn: #f59e0b;
-  --warn-soft: #fef3c7;
-  --danger: #ef4444;
-  --danger-soft: #fee2e2;
+  /* ---- 颜色: 背景层 (从深到浅) ---- */
+  --color-bg-base: #0a0e1a;       /* 主背景 — 深蓝黑 */
+  --color-bg-surface: #131825;    /* 卡片表面 */
+  --color-bg-elevated: #1a2030;   /* 悬浮元素 / modal / hover row */
+  --color-bg-overlay: rgba(10, 14, 26, 0.72); /* modal-mask */
+
+  /* ---- 颜色: 边框 / 分隔 ---- */
+  --color-border: #1f2937;        /* 默认边框 */
+  --color-border-strong: #2d3748; /* 表头分隔 / 强分隔 */
+  --color-divider: rgba(255, 255, 255, 0.06);
+
+  /* ---- 颜色: 文字 ---- */
+  --color-text-primary: #f5f6fa;    /* 主文字 */
+  --color-text-secondary: #9ca3af;  /* 次要 / 描述 */
+  --color-text-muted: #6b7280;      /* muted / 提示 */
+  --color-text-inverse: #0a0e1a;    /* 暗底反白 (浅色按钮上) */
+  --color-text-link: #06b6d4;       /* 链接 */
+
+  /* ---- 颜色: 品牌 + 强调 ---- */
+  --color-accent: #06b6d4;          /* 主品牌色 — 青色 */
+  --color-accent-hover: #0891b2;
+  --color-accent-soft: rgba(6, 182, 212, 0.12); /* 12% alpha — hover row / tag bg */
+  --color-accent-strong: #22d3ee;   /* hover/active 上的更亮 */
+
+  /* ---- 颜色: 状态 ---- */
+  --color-success: #10b981;
+  --color-success-soft: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.14);
+  --color-info: #3b82f6;
+  --color-info-soft: rgba(59, 130, 246, 0.14);
+
+  /* ---- 字体 ---- */
+  --font-display: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'Monaco',
+    'Inconsolata', 'Roboto Mono', Consolas, monospace;
+  --font-zh: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* ---- 尺寸 ---- */
+  --radius-sm: 3px;
+  --radius-md: 5px;          /* 卡片/按钮/输入框 — 企业感 4-6px */
+  --radius-lg: 8px;          /* 弹窗 / 大区块 */
+  --radius-pill: 9999px;     /* 状态徽章 */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- 高度 ---- */
+  --height-topbar: 56px;
+  --height-sidebar: 64px;     /* 折叠态宽度 */
+  --height-sidebar-expanded: 240px; /* 展开态宽度 */
+
+  /* ---- 阴影: 微妙, 不超过 2px blur ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.32);  /* 弹窗 */
+
+  /* ---- 过渡 ---- */
+  --transition-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-* {
-  box-sizing: border-box;
+/* ==========================================================================
+ * Reset + base
+ * ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+html {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01'; /* Manrope 风格细节 */
 }
 
-html,
-body,
-#app {
+body {
+  background: var(--color-bg-base);
+  min-height: 100vh;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums; /* 数字等宽 — 工程感 */
+}
+
+/* 选区高亮 */
+::selection { background: var(--color-accent); color: #fff; }
+
+/* 滚动条: 暗色主题定制 (Webkit) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-bg-base); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+  border: 2px solid var(--color-bg-base);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* 链接 */
+a { color: var(--color-text-link); text-decoration: none; transition: color var(--transition-fast); }
+a:hover { color: var(--color-accent-strong); }
+
+/* 标题 — 用 display 字体 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-text-primary);
   margin: 0;
-  padding: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
-  font-size: 14px;
-  color: var(--text);
-  background: var(--bg);
-  line-height: 1.5;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
+h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+h4 { font-size: 14px; color: var(--color-text-secondary); font-weight: 500; }
 
-a {
-  color: var(--primary);
-  text-decoration: none;
+/* 代码 / mono */
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
 }
+code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-strong);
+}
+pre {
+  background: #0d1421;
+  color: #e2e8f0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow-x: auto;
+  margin: 0;
+}
+pre code { background: transparent; padding: 0; color: inherit; }
 
-button {
+/* ==========================================================================
+ * Form 控件 (统一暗色风格)
+ * ========================================================================== */
+
+input, textarea, select {
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 7px 11px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  font-feature-settings: 'tnum';
+}
+input:hover, textarea:hover, select:hover { border-color: var(--color-border-strong); }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+input::placeholder, textarea::placeholder { color: var(--color-text-muted); }
+input:disabled, textarea:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+label { font-size: 13px; color: var(--color-text-secondary); }
+
+/* checkbox / radio — 用 accent 色 */
+input[type='checkbox'], input[type='radio'] {
+  accent-color: var(--color-accent);
+  width: 16px;
+  height: 16px;
   cursor: pointer;
 }
 
-code,
-pre {
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+/* ==========================================================================
+ * 通用组件基类
+ * ========================================================================== */
+
+/* 按钮: 主色 + 次色 + ghost + danger */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-strong);
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  color: var(--color-text-inverse);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+}
+.btn-danger {
+  background: transparent;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-soft);
+}
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-lg { padding: 10px 20px; font-size: 15px; }
+
+/* 链接式按钮 (用于行内操作) */
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--color-text-link);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.link:hover { color: var(--color-accent-strong); }
+.link.danger { color: var(--color-danger); }
+.link.danger:hover { color: #f87171; }
+.link.muted { color: var(--color-text-muted); }
+
+/* 卡片 */
+.card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  transition: border-color var(--transition-fast);
+}
+.card:hover { border-color: var(--color-border-strong); }
+.card h2 { margin: 0 0 var(--space-4); font-size: 15px; font-weight: 600; }
+
+/* 状态徽章 (小圆角 pill) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-success { color: var(--color-success); background: var(--color-success-soft); }
+.badge-warning { color: var(--color-warning); background: var(--color-warning-soft); }
+.badge-danger  { color: var(--color-danger);  background: var(--color-danger-soft);  }
+.badge-info    { color: var(--color-info);    background: var(--color-info-soft);    }
+.badge-neutral { color: var(--color-text-secondary); background: var(--color-bg-elevated); }
+.badge-accent  { color: var(--color-accent);  background: var(--color-accent-soft);  }
+
+/* 状态圆点 (8x8, 用于 table inline 状态) */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.success { background: var(--color-success); box-shadow: 0 0 8px var(--color-success); }
+.status-dot.warning { background: var(--color-warning); }
+.status-dot.danger  { background: var(--color-danger); }
+.status-dot.info    { background: var(--color-info); }
+.status-dot.muted   { background: var(--color-text-muted); }
+.status-dot.accent  { background: var(--color-accent); box-shadow: 0 0 8px var(--color-accent); }
+
+/* 通用 table 样式 */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-strong);
+  z-index: 1;
+}
+.data-table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text-primary);
+}
+.data-table tbody tr {
+  transition: background var(--transition-fast);
+  cursor: default;
+}
+.data-table tbody tr.clickable { cursor: pointer; }
+.data-table tbody tr:hover { background: var(--color-accent-soft); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+
+/* 空状态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-4);
+  color: var(--color-text-muted);
+  gap: var(--space-3);
+}
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+.empty-title { font-size: 14px; color: var(--color-text-secondary); font-weight: 500; }
+.empty-desc  { font-size: 12px; color: var(--color-text-muted); max-width: 360px; text-align: center; }
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-bg-elevated) 0%,
+    var(--color-border) 50%,
+    var(--color-bg-elevated) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+ * 入场动画
+ * ========================================================================== */
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeIn 0.2s ease-out; }
+.slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Vue Router 过渡: 简单淡入 */
+.route-fade-enter-active { transition: opacity 0.18s ease-out; }
+.route-fade-leave-active { transition: opacity 0.12s ease-in; }
+.route-fade-enter-from { opacity: 0; }
+.route-fade-leave-to   { opacity: 0; }
+
+/* ==========================================================================
+ * Element Plus 主题覆盖 (暗色 + 青色 accent + Manrope + sharp 边角)
+ *
+ * <p>Element Plus 自带 dark mode 变量, 我们只覆盖关键 token + 字体/圆角.
+ * <p>基础色板/中性色/状态色都从 --color-* 推导.
+ * ========================================================================== */
+
+html.dark {
+  /* 主题色 (青色) */
+  --el-color-primary: #06b6d4;
+  --el-color-primary-light-3: #22d3ee;
+  --el-color-primary-light-5: #67e8f9;
+  --el-color-primary-light-7: #a5f3fc;
+  --el-color-primary-light-8: #cffafe;
+  --el-color-primary-light-9: #ecfeff;
+  --el-color-primary-dark-2: #0891b2;
+
+  /* 状态色 (对齐设计系统) */
+  --el-color-success: #10b981;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444;
+  --el-color-info: #3b82f6;
+  --el-color-error: #ef4444;
+
+  /* 背景层 */
+  --el-bg-color: #131825;
+  --el-bg-color-page: #0a0e1a;
+  --el-bg-color-overlay: #1a2030;
+
+  /* 文字 */
+  --el-text-color-primary: #f5f6fa;
+  --el-text-color-regular: #d1d5db;
+  --el-text-color-secondary: #9ca3af;
+  --el-text-color-placeholder: #6b7280;
+  --el-text-color-disabled: #4b5563;
+
+  /* 边框 */
+  --el-border-color: #1f2937;
+  --el-border-color-light: #1f2937;
+  --el-border-color-lighter: rgba(255, 255, 255, 0.06);
+  --el-border-color-extra-light: rgba(255, 255, 255, 0.04);
+  --el-border-color-darker: #2d3748;
+  --el-border-color-dark: #1f2937;
+
+  /* 填充 (input/select 背景) */
+  --el-fill-color: #1a2030;
+  --el-fill-color-light: rgba(255, 255, 255, 0.04);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.02);
+  --el-fill-color-extra-light: rgba(255, 255, 255, 0.015);
+  --el-fill-color-blank: #131825;
+  --el-fill-color-dark: #0a0e1a;
+  --el-fill-color-darker: #060a14;
+
+  /* 字体 (全局) */
+  --el-font-family: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-font-family-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', monospace;
+  --el-font-size-base: 13px;
+
+  /* 圆角 (sharp 企业感) */
+  --el-border-radius-base: 5px;
+  --el-border-radius-small: 3px;
+  --el-border-radius-round: 9999px;
+
+  /* 阴影 */
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --el-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --el-box-shadow-dark: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* mask 背景 (modal / drawer) */
+  --el-mask-color: rgba(10, 14, 26, 0.72);
+  --el-overlay-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Element Plus 组件细节微调 */
+html.dark .el-button {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+html.dark .el-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+}
+html.dark .el-card__header {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-weight: 600;
+}
+html.dark .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-row-hover-bg-color: var(--color-accent-soft);
+  --el-table-header-bg-color: var(--color-bg-elevated);
+  --el-table-header-text-color: var(--color-text-secondary);
+  --el-table-border-color: var(--color-divider);
+  --el-table-header-text-align: left;
+  font-size: 13px;
+}
+html.dark .el-table th.el-table__cell {
+  background: var(--color-bg-elevated);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+html.dark .el-table td.el-table__cell {
+  border-bottom: 1px solid var(--color-divider);
+}
+html.dark .el-table .el-table__row:hover > td.el-table__cell {
+  background: var(--color-accent-soft) !important;
+}
+html.dark .el-tabs__item {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+html.dark .el-tabs__item.is-active { color: var(--color-accent); }
+html.dark .el-tabs__active-bar { background-color: var(--color-accent); }
+html.dark .el-drawer {
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border);
+}
+html.dark .el-drawer__header {
+  margin-bottom: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+}
+html.dark .el-drawer__body { padding: 20px 24px; }
+html.dark .el-tag {
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 0;
+}
+html.dark .el-input__wrapper,
+html.dark .el-textarea__inner,
+html.dark .el-select__wrapper {
+  background: var(--color-bg-base);
+  box-shadow: 0 0 0 1px var(--color-border) !important;
+}
+html.dark .el-input__wrapper:hover,
+html.dark .el-textarea__inner:hover,
+html.dark .el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-border-strong) !important;
+}
+html.dark .el-input__wrapper.is-focus,
+html.dark .el-textarea__inner:focus,
+html.dark .el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--color-accent) !important;
+}
+html.dark .el-empty__description p { color: var(--color-text-muted); }
+html.dark .el-pagination .el-pager li { background: transparent; }
+html.dark .el-pagination .el-pager li.is-active { color: var(--color-accent); }
+html.dark .el-tooltip__popper { font-size: 12px; }
+
+/* 工具类 — 在 vue 模板里直接用 */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+.text-mono { font-family: var(--font-mono); }
+.text-muted { color: var(--color-text-muted); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-accent { color: var(--color-accent); }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.text-lg { font-size: 16px; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; }
+.mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
+.w-full { width: 100%; }
+.cursor-pointer { cursor: pointer; }
+
