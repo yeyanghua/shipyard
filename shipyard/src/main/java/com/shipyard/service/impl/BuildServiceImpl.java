@@ -31,10 +31,13 @@ import com.shipyard.drone.DroneClient.DroneBuildRequest;
 import com.shipyard.entity.BuildLog;
 import com.shipyard.entity.BuildRecord;
 import com.shipyard.entity.Project;
+import com.shipyard.entity.ProjectEnv;
 import com.shipyard.mapper.BuildLogMapper;
 import com.shipyard.mapper.BuildRecordMapper;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.BuildService;
+import com.shipyard.service.EnvVariableService;
+import com.shipyard.service.ProjectEnvService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -69,6 +72,8 @@ public class BuildServiceImpl implements BuildService {
     private final BuildLogMapper buildLogMapper;
     private final ProjectMapper projectMapper;
     private final DroneClient droneClient;
+    private final ProjectEnvService projectEnvService;
+    private final EnvVariableService envVariableService;
 
     // ============== 业务 API ==============
 
@@ -106,14 +111,21 @@ public class BuildServiceImpl implements BuildService {
         log.info("[BuildService] createBuild id={} projectId={} droneBuildId={}",
             record.getId(), record.getProjectId(), droneBuildId);
 
-        // 5. 调 drone (mock 立即返回, real 同步调 drone API)
+        // 5. 解析 env vars (M5 5 接 EnvVariableService.resolveAll)
+        Map<String, String> envVars = resolveBuildEnvVars(request.getProjectId(), request.getEnvId());
+        if (!envVars.isEmpty()) {
+            log.info("[BuildService] resolved {} env vars for build (envId={})",
+                envVars.size(), request.getEnvId());
+        }
+
+        // 6. 调 drone (mock 立即返回, real 同步调 drone API)
         DroneBuildRequest droneRequest = new DroneBuildRequest(
             droneBuildId,
             request.getProjectId(),
             project.getRepoUrl(),
             request.getCommitSha(),
             request.getCommitMessage(),
-            Map.of()  // V1 mock 不接 env vars, V5 接 EnvVariableService.resolveAll
+            envVars
         );
         try {
             droneClient.triggerBuild(droneRequest);
@@ -241,6 +253,33 @@ public class BuildServiceImpl implements BuildService {
     }
 
     // ============== helper ==============
+
+    /**
+     * 解析构建用的 env vars (M5 5 接 EnvVariableService).
+     *
+     * <p>逻辑:
+     * <ol>
+     *   <li>envId 显式传了 → 调 resolveAll(envId, projectId), 拿明文 vars</li>
+     *   <li>envId 没传 + project 有关联 env → 自动用第一个关联 env</li>
+     *   <li>envId 没传 + project 没关联 env → 返空 map (V1 demo 接受, mock drone 不接 vars 也能跑)</li>
+     * </ol>
+     *
+     * <p>V1.5 改: envId 必填, 没传 400.
+     */
+    private Map<String, String> resolveBuildEnvVars(Long projectId, Long envId) {
+        if (envId != null) {
+            return envVariableService.resolveAll(envId, projectId);
+        }
+        List<ProjectEnv> projectEnvs = projectEnvService.listByProject(projectId);
+        if (projectEnvs.isEmpty()) {
+            log.debug("[BuildService] no env associated with project {}, envVars=empty", projectId);
+            return Map.of();
+        }
+        Long firstEnvId = projectEnvs.get(0).getEnvId();
+        return envVariableService.resolveAll(firstEnvId, projectId);
+    }
+
+
 
     private BuildResponse toResponse(BuildRecord r) {
         return BuildResponse.builder()

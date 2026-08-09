@@ -99,8 +99,9 @@ public class MockDroneClient implements DroneClient {
 
     @Override
     public String triggerBuild(DroneBuildRequest request) {
-        log.info("[MockDrone] triggerBuild droneBuildId={} projectId={} commit={}",
-            request.droneBuildId(), request.projectId(), request.commitSha());
+        log.info("[MockDrone] triggerBuild droneBuildId={} projectId={} commit={} envVars={}",
+            request.droneBuildId(), request.projectId(), request.commitSha(),
+            request.envVars() == null ? "null" : request.envVars().keySet());
         cancelFlags.put(request.droneBuildId(), new AtomicBoolean(false));
         // 提交到虚拟线程池, 不阻塞 controller
         VIRTUAL_EXECUTOR.submit(() -> runMockBuildImpl(request));

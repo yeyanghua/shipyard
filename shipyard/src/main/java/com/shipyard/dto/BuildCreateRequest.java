@@ -35,4 +35,15 @@ public class BuildCreateRequest {
 
     /** 触发人 (前端传 userId / 邮箱, 默认 "unknown") */
     private String triggeredBy;
+
+    /**
+     * 目标环境 ID (选填) — V1 demo 阶段选填:
+     * <ul>
+     *   <li>传了 — 调 {@code EnvVariableService.resolveAll(envId, projectId)} 拿 env vars 注入 drone</li>
+     *   <li>没传 — env vars = 空 map (mock drone 不接 vars, V1 demo 可跑通)</li>
+     * </ul>
+     *
+     * <p>V1.5 改必填 (project 至少要绑一个 env 才能 build).
+     */
+    private Long envId;
 }
