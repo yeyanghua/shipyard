@@ -78,7 +78,7 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, ShipyardSecurityProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, ShipyardSecurityProperties.class, DroneProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
