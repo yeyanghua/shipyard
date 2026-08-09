@@ -18,7 +18,7 @@ package com.shipyard.config;
 
 import com.shipyard.common.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -58,16 +58,20 @@ import java.util.List;
  * </ul>
  */
 @Configuration
+@EnableConfigurationProperties(JwtProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final JwtProperties jwtProperties;
 
     /**
      * 白名单 path 列表 - 从 application.yml 读,这样可以不改代码调白名单.
+     * (用 @ConfigurationProperties 而不是 @Value,因为 @Value 解析不了 YAML list)
      */
-    @Value("${shipyard.jwt.whitelist}")
-    private List<String> whitelist;
+    private List<String> getWhitelist() {
+        return jwtProperties.getWhitelist();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -82,7 +86,7 @@ public class SecurityConfig {
             // path 授权规则
             .authorizeHttpRequests(authz -> {
                 // 1. 白名单全部放行
-                whitelist.forEach(path ->
+                getWhitelist().forEach(path ->
                     authz.requestMatchers(path).permitAll());
                 // 2. OPTIONS 请求(CORS 预检)放行
                 authz.requestMatchers("OPTIONS", "/**").permitAll();
