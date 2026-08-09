@@ -6,11 +6,11 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `85dcc05` (M2.5 启动崩溃修复:JwtProperties 替代 @Value,13 张表落库 + health UP 验证) |
-| 当前 milestone | **M4 项目/环境 CRUD 前后端贯通**(M2 + M3 + M2.5 全部验收通过) |
-| 总 commit | 15 |
+| 当前 commit | `25e37ea` (M4 前端对接完成, 端到端跑通) |
+| 当前 milestone | **M4 ✅ 完成 (后端 + 前端 + 端到端), M5 准备开始 (drone 集成)** |
+| 总 commit | 18 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排) |
-| 上次更新 | 2026-08-09 (D 盘开发) |
+| 上次更新 | 2026-08-09 (D 盘开发, M4 端到端验收) |
 
 ---
 
@@ -28,6 +28,8 @@
 - **M2 shipyard 后端骨架** ✅ (commit `063970a`) - Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway + AesEncrypter + 虚拟线程 4 处
 - **M2.5 合并 Security** ✅ (commit `28fb602`) - 从 master/ 合并 SecurityConfig + JwtAuthFilter + JWT 配置到 shipyard/
 - **M2.5 启动崩溃修复** ✅ (commit `85dcc05`) - SecurityConfig 用 @ConfigurationProperties 替代 @Value 修白名单解析,本机 MySQL 8.4 + Redis 落 13 张表 + /actuator/health UP 全验
+- **M4 后端 1+2+3+4** ✅ (commits `81f4c99` `1e0f7cd` `88a22e2`) - 4 Entity + 4 Mapper + 4 Service + 4 Controller + 10 DTO + 公共异常 + Hard-coded JWT 鉴权; 14 业务端点 + /api/auth/demo-token; E2E 20/20 通过
+- **M4 前端** ✅ (commit `25e37ea`) - 4 API (projects/envs/envVariables/auth) + 3 store (project/env/auth) + 5 页面 (ProjectList/CreateProject/ProjectDetail/EnvList/EnvVars) + 2 组件 (SecretInput/EnvVarEditor) + App.vue 自动拉 demo token; typecheck 0 errors, build OK, vitest 6/6; vite dev proxy /api → 后端 8080 端到端跑通
   - **根因**:`@Value("${shipyard.jwt.whitelist}")` 解析不了 YAML list → 抛 `IllegalArgumentException: Could not resolve placeholder` → ApplicationContext 刷新失败 → Tomcat 启动后立即关闭
   - **修法**:新增 `JwtProperties.java`(`@ConfigurationProperties(prefix = "shipyard.jwt")`),SecurityConfig 改构造器注入,删 @Value 字段
   - **D 盘验证**:MySQL 8.4 (root/123456) + Redis 7 (无密码) 本机起;`mvn spring-boot:run` 2.49s;Flyway V1__init.sql 134ms 落 13 张业务表 + flyway_schema_history;`/actuator/health` → `{"status":"UP","groups":["liveness","readiness"]}`
@@ -85,6 +87,10 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `5851894` | M3: shipyard Web 前端骨架 (Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试) |
 | `28fb602` | 合并 master/ → shipyard/ + SecurityConfig/JwtAuthFilter(JWT 白名单) + 删 1182 行重复 |
 | `85dcc05` | M2.5 启动崩溃修复:SecurityConfig 用 JwtProperties(@ConfigurationProperties) 替代 @Value,YAML list 解析修好,本机 13 张表落库 + health UP 全验 |
+| `81f4c99` | M4 后端 1+2:4 Entity + 4 Mapper + 3 Service (Project/Env/ProjectEnv) + 公共异常 (BusinessException/ErrorCode) |
+| `1e0f7cd` | M4 后端 3:EnvVariableService (加密/解密/resolve/validate) + 启动加密健康检查 |
+| `88a22e2` | M4 后端 4:4 Controller + 10 DTO + GlobalExceptionHandler + /api/auth/demo-token + BeanUtils 工具 |
+| `25e37ea` | M4 前端对接:4 API + 3 store + 5 页面 + 2 组件 + App.vue 自动拉 token; 端到端跑通 |
 
 ---
 
