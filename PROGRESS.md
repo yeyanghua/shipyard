@@ -1,18 +1,18 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成**。
-> M6 (Pipeline 编辑 + AI 改) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M6 1 数据层完成**。
+> M6 2 (AI 集成) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `376f40e` (M5 6 前端 BuildDetail 完成, V1 demo 端到端跑通) |
-| 当前 milestone | **M5 ✅ 全部完成, M6 准备开始** |
-| 总 commit | 25 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 50% 完成 |
-| 上次更新 | 2026-08-09 (D 盘开发, M5 端到端验收) |
+| 当前 commit | `18d0765` (M6 1 pipeline_template 数据层 + ai_interaction entity) |
+| 当前 milestone | **M6 1 ✅ 数据层完成, M6 2 AI 集成准备开始** |
+| 总 commit | 27 (M5 25 + spotless + M6 1) |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 55% 完成 |
+| 上次更新 | 2026-08-09 (D 盘开发, M6 1 后端数据层完成) |
 
 ---
 
@@ -29,9 +29,10 @@
 - **M3** Web 端骨架 (commit `5851894`) - Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试
 - **M4** 前后端贯通 (commits `81f4c99` `1e0f7cd` `88a22e2` `25e37ea`) - 4 Entity + 4 Mapper + 4 Service + 4 Controller + 10 DTO + 公共异常 + Hard-coded JWT 鉴权; 14 业务端点 + /api/auth/demo-token; E2E 20/20 通过
 - **M5** 端到端可演示 (commits `3fac032` `fe17315` `2cf2b44` `bcb69c4` `6be779e` `1e1d9cb` `376f40e`) - drone 集成 mock + SSE 实时日志 + 环境变量注入 + 前端 BuildDetail 实时 UI
-- **D 盘验证**: mvn test 23/23 + test-m5-2.ps1 13/13 + test-m5-5.ps1 8/8 + pnpm typecheck 0 errors + pnpm build 729ms
+- **M6 1** pipeline_template 后端数据层 (commits `5157f1c` `18d0765`) - 3 枚举 (ReviewStatus/AiCapability/LlmProvider) + 2 实体 (PipelineTemplate/AiInteraction) + 2 Mapper + Service 业务规则 (版本自增/active 唯一/approved immutable) + 20 单元测试
+- **D 盘验证**: mvn test 43/43 (9 AesEncrypter + 14 HmacVerifier + 20 PipelineTemplate) + test-m5-2.ps1 13/13 + test-m5-5.ps1 8/8 + pnpm typecheck 0 errors + pnpm build 729ms
 
-⏳ **下一步**: M6 Pipeline 编辑 + AI 改/生成 (mock LLM 默认开启)
+⏳ **下一步**: M6 2 — AI 集成 (LlmAdapter interface + MockLlmAdapter 默认, 3 capability)
 
 ---
 
@@ -151,27 +152,36 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 
 **目标**: shipyard 端存 pipeline_template, Vue 端 PipelineEdit 页可改, AI (mock LLM 默认) 一键生成.
 
-**M6 1 — pipeline_template 表** + Entity + Mapper + Service
-- V1__init.sql 已有 `pipeline_template` 表, 落 13 张时已建
-- 字段: id / project_id / version / yaml_content / generated_by / created_at / deleted
+✅ **M6 1 — pipeline_template 后端数据层** (commits `5157f1c` `18d0765`, 2026-08-09)
+- 3 枚举: ReviewStatus (draft/approved/rejected) + AiCapability (pipeline_gen/diagnosis/decision) + LlmProvider (mock/tongyi/deepseek)
+- 2 实体: PipelineTemplate (不继承 BaseEntity, 表没 updated_at) + AiInteraction (不可变流水表, 没 deleted)
+- 2 Mapper: PipelineTemplateMapper (max version 自增 / active 唯一 / unactivateOthers 事务) + AiInteractionMapper
+- PipelineTemplateService: 业务规则 (版本自增 / approved immutable / 一项目一 active / active 必须 approved / 删除约束)
+- 20 单元测试全过, mvn test 43/43 总数
+- E2E 留到 M6 4 controller 加完后一起做
 
-**M6 2 — AI 集成** (MockLLMAdapter 默认)
-- 3 capability: pipeline_gen (生成) / diagnosis (诊断) / decision (发布决策)
+⏳ **M6 2 — AI 集成** (MockLLMAdapter 默认, 下个开工)
+- LlmAdapter interface + 3 实现: MockLlmAdapter (默认) / TongyiLlmAdapter / DeepseekLlmAdapter
+- 3 capability 各自的 prompt 模板 + response 解析
+- ai_interaction 表自动落痕 (含脱敏)
 - 默认 mock, 真 LLM 走 TONGYI_API_KEY / DEEPSEEK_API_KEY env var
-- ai_interaction 表记录所有调用 (留痕)
 
-**M6 3 — PipelineEdit 页** (前端)
+**M6 4 — PipelineTemplate Controller** (后端, 跟 M6 2 一起)
+- `GET /api/projects/{id}/pipeline` 当前 active 版本
+- `GET /api/projects/{id}/pipeline/versions` 列出所有版本
+- `POST /api/projects/{id}/pipeline` 创建新版本 (含 AI 生成入口)
+- `PUT /api/projects/{id}/pipeline/{versionId}` 更新 (draft only)
+- `POST /api/projects/{id}/pipeline/{versionId}/approve` 审批
+- `POST /api/projects/{id}/pipeline/{versionId}/reject` 驳回
+- `POST /api/projects/{id}/pipeline/{versionId}/activate` 激活
+
+**M6 3 — PipelineEdit 页** (前端, M6 4 后做)
 - YAML 编辑器 (textarea + 实时校验) + AI 改按钮 + diff 展示
 - Web AI 页面占位先, M12 接真 LLM
 
-**M6 4 — BuildService 集成** (后端)
-- `POST /api/projects/{id}/pipeline` 触发 AI 生成
-- `PUT /api/projects/{id}/pipeline/{versionId}` 更新
-- `GET /api/projects/{id}/pipeline` 当前版本
+**M6 5 — 接入真实 LLM** (略, V1 demo 不做, M12 接)
 
-**M6 5 — M12 接入真实 LLM** (略, 跟 M6 并行)
-
-**工时**: 3-4 天
+**剩余工时**: 2-3 天 (M6 2 + M6 4 + M6 3)
 
 ---
 
