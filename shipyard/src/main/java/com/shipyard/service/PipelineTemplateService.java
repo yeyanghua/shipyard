@@ -49,6 +49,14 @@ public interface PipelineTemplateService {
     List<PipelineTemplate> listByProject(Long projectId);
 
     /**
+     * 查项目的所有版本 (含已软删), 按 version 降序 — E2E 清理 / 审计用.
+     *
+     * @param projectId 项目 ID
+     * @return 版本列表 (含 deleted=1)
+     */
+    List<PipelineTemplate> listByProjectIncludeDeleted(Long projectId);
+
+    /**
      * 查项目当前 active 版本 — 0 或 1 个.
      *
      * @param projectId 项目 ID
@@ -141,4 +149,12 @@ public interface PipelineTemplateService {
      * @throws com.shipyard.common.exception.BusinessException 不存在 / 违反约束时抛
      */
     void delete(Long id);
+
+    /**
+     * 强制删除 — 物理删, 跳过业务规则校验. V1 demo 阶段用, 方便 E2E 重跑.
+     *
+     * <p>走 {@code deleteByIdForce} 物理删 (避开 @TableLogic 软删),
+     * 不抛 409 业务异常. V1.5 改: 这个方法考虑删掉, 改用 "先 unactivate 再 delete" 流程.
+     */
+    void forceDelete(Long id);
 }

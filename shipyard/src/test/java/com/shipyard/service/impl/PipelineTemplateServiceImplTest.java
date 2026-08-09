@@ -298,7 +298,7 @@ class PipelineTemplateServiceImplTest {
 
         service.delete(50L);
 
-        verify(pipelineTemplateMapper, times(1)).deleteById(50L);
+        verify(pipelineTemplateMapper, times(1)).deleteByIdForce(50L);
     }
 
     @Test
@@ -309,7 +309,7 @@ class PipelineTemplateServiceImplTest {
 
         service.delete(50L);
 
-        verify(pipelineTemplateMapper, times(1)).deleteById(50L);
+        verify(pipelineTemplateMapper, times(1)).deleteByIdForce(50L);
     }
 
     @Test
@@ -322,7 +322,28 @@ class PipelineTemplateServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("已审批且 active 的 Pipeline 不能删除");
 
-        verify(pipelineTemplateMapper, never()).deleteById(anyLong());
+        verify(pipelineTemplateMapper, never()).deleteByIdForce(anyLong());
+    }
+
+    @Test
+    @DisplayName("forceDelete 成功: 跳过业务约束, 物理删 approved+active")
+    void forceDelete_approvedActive_succeeds() {
+        when(pipelineTemplateMapper.deleteByIdForce(50L)).thenReturn(1);
+
+        service.forceDelete(50L);
+
+        verify(pipelineTemplateMapper, times(1)).deleteByIdForce(50L);
+    }
+
+    @Test
+    @DisplayName("forceDelete 失败: 不存在抛 NOT_FOUND (affected=0)")
+    void forceDelete_notExists_throwsNotFound() {
+        when(pipelineTemplateMapper.deleteByIdForce(999L)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.forceDelete(999L))
+            .isInstanceOf(BusinessException.class)
+            .extracting(e -> ((BusinessException) e).getErrorCode())
+            .isEqualTo(ErrorCode.NOT_FOUND);
     }
 
     // ==================== get / listByProject / getActive ====================

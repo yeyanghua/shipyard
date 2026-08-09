@@ -41,6 +41,7 @@ import lombok.NoArgsConstructor;
 public class BuildResponse {
     private Long id;
     private Long projectId;
+    private Long pipelineTemplateId;
     private String commitSha;
     private String commitMessage;
     private String triggeredBy;

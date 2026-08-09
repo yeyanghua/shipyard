@@ -63,6 +63,14 @@ public class PipelineTemplateServiceImpl implements PipelineTemplateService {
     }
 
     @Override
+    public List<PipelineTemplate> listByProjectIncludeDeleted(Long projectId) {
+        if (projectId == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "projectId 不能为空");
+        }
+        return pipelineTemplateMapper.selectVersionsByProjectIdIncludeDeleted(projectId);
+    }
+
+    @Override
     public PipelineTemplate getActive(Long projectId) {
         if (projectId == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "projectId 不能为空");
@@ -207,7 +215,7 @@ public class PipelineTemplateServiceImpl implements PipelineTemplateService {
                     ErrorCode.RESOURCE_CONFLICT, "已审批且 active 的 Pipeline 不能删除, 请先 activate 其他版本: id=" + id);
         }
 
-        pipelineTemplateMapper.deleteById(existing.getId());
+        pipelineTemplateMapper.deleteByIdForce(existing.getId());
         log.info(
                 "[PipelineTemplate] 软删 id={} version={} project={} reviewStatus={} isActive={}",
                 existing.getId(),
@@ -215,6 +223,16 @@ public class PipelineTemplateServiceImpl implements PipelineTemplateService {
                 existing.getProjectId(),
                 existing.getReviewStatus(),
                 existing.getIsActive());
+    }
+
+    @Override
+    public void forceDelete(Long id) {
+        // forceDelete 路径: 直接调 mapper 物理删, 不查 row (避免 @TableLogic 过滤 + 软删行也能删)
+        int affected = pipelineTemplateMapper.deleteByIdForce(id);
+        if (affected == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Pipeline 不存在: id=" + id);
+        }
+        log.info("[PipelineTemplate] 强制删除 id={} (跳过业务约束, affected={})", id, affected);
     }
 
     // ==================== 私有辅助方法 ====================

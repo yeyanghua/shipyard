@@ -84,4 +84,33 @@ public interface PipelineTemplateMapper extends BaseMapper<PipelineTemplate> {
     @Select("SELECT * FROM pipeline_template " + "WHERE project_id = #{projectId} AND deleted = 0 "
             + "ORDER BY version DESC")
     List<PipelineTemplate> selectVersionsByProjectId(@Param("projectId") Long projectId);
+
+    /**
+     * 查 project 的所有版本 (含 deleted=1) — E2E 清理 / 审计用.
+     *
+     * <p>对应 SQL: {@code SELECT * FROM pipeline_template WHERE project_id = #{projectId} ORDER BY version DESC}.
+     */
+    @Select("SELECT * FROM pipeline_template WHERE project_id = #{projectId} ORDER BY version DESC")
+    List<PipelineTemplate> selectVersionsByProjectIdIncludeDeleted(@Param("projectId") Long projectId);
+
+    /**
+     * 物理删除 — 绕开 @TableLogic.
+     *
+     * <p>为什么用物理删不用软删: {@code pipeline_template} 表的 UNIQUE KEY
+     * {@code (project_id, version)} 不区分 {@code deleted} 列, 软删行也占着
+     * unique key, 后续 "复活 + fork 新版本" 会冲突. pipeline_template 是 V1 demo
+     * 的可丢弃数据, 业务上不存在 "恢复删除的 pipeline" 场景, 物理删更直接.
+     *
+     * <p>V1.5 改: 如果需要审计, 改用单独审计表, 不要在主表用软删.
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM pipeline_template WHERE id = #{id}")
+    int deleteByIdForce(@Param("id") Long id);
+
+    /**
+     * 按 ID 查 — 不过滤软删 (force delete 路径用, 业务上 deleted=1 的也要能 force 删).
+     *
+     * <p>对应 SQL: {@code SELECT * FROM pipeline_template WHERE id = #{id}}.
+     */
+    @Select("SELECT * FROM pipeline_template WHERE id = #{id}")
+    PipelineTemplate selectByIdIncludeDeleted(@Param("id") Long id);
 }

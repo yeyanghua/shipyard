@@ -38,6 +38,7 @@ import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.realtime.BuildLogNotifier;
 import com.shipyard.service.BuildService;
 import com.shipyard.service.EnvVariableService;
+import com.shipyard.service.PipelineTemplateService;
 import com.shipyard.service.ProjectEnvService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,6 +76,7 @@ public class BuildServiceImpl implements BuildService {
     private final ProjectEnvService projectEnvService;
     private final EnvVariableService envVariableService;
     private final BuildLogNotifier buildLogNotifier;
+    private final PipelineTemplateService pipelineTemplateService;
 
     // ============== 业务 API ==============
 
@@ -107,6 +109,14 @@ public class BuildServiceImpl implements BuildService {
         record.setDroneBuildId(droneBuildId);
         record.setStatus(BuildStatus.PENDING.name());
         record.setLogPersisted(0);
+
+        // M6 4.2: 绑 project 当前 active pipeline — V1 mock 不用 pipeline 内容跑 step,
+        // 但 build_record.pipeline_template_id 留痕, V1.5 真接 drone 时按 pipeline yaml 渲染 step
+        com.shipyard.entity.PipelineTemplate activePipeline =
+            pipelineTemplateService.getActive(request.getProjectId());
+        if (activePipeline != null) {
+            record.setPipelineTemplateId(activePipeline.getId());
+        }
         buildRecordMapper.insert(record);
 
         log.info(
@@ -296,6 +306,7 @@ public class BuildServiceImpl implements BuildService {
         return BuildResponse.builder()
                 .id(r.getId())
                 .projectId(r.getProjectId())
+                .pipelineTemplateId(r.getPipelineTemplateId())
                 .commitSha(r.getCommitSha())
                 .commitMessage(r.getCommitMessage())
                 .triggeredBy(r.getTriggeredBy())
