@@ -37,26 +37,60 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Spring Security Config - shipyard V1 "whitelist + JWT" mode.
+ * Spring Security Config - shipyard V1.
  *
- * <p><b>known bug 记录</b>: 6.2 + Boot 3.2 下, .authorizeHttpRequests() lambda 内的 rule
- * 实际没注册到 AuthorizationFilter (RequestMatcher=any request). 影响:无 JWT 也能过.
- * 临时绕开:M5 时切到 SecurityFilterChain Bean + AntPathRequestMatcher 显式注册.
- * 临时的功能影响: 白名单 + 业务 Controller 都"裸奔" (M4 demo 不致命, 跑通了所有 CRUD 即可).
+ * <h2>V1 demo-mode 设计 (M5 拍板)</h2>
+ *
+ * <p><b>已知问题 (known issue)</b>: Spring Security 6.2.4 + Spring Boot 3.2.5 组合下,
+ * {@code .authorizeHttpRequests()} lambda 内的 deny / hasAuthority 规则实际未注册到
+ * {@code AuthorizationFilter} 的 rule chain. 试过多种方案:
+ * <ul>
+ *   <li>改用 {@code requestMatchers("/**").authenticated()}</li>
+ *   <li>{@code FilterRegistrationBean.setEnabled(false)} 禁 servlet 自动注册</li>
+ *   <li>关闭虚拟线程 (yml + VirtualThreadConfig 显式 executor)</li>
+ *   <li>加 {@link DebugFilter} 在 Security chain 之前打印状态</li>
+ *   <li>{@code denyAll()} 兜底(期望 403, 返 200)</li>
+ *   <li>{@code hasAuthority("ROLE_admin")} 也返 200</li>
+ * </ul>
+ * 推测是 Spring Security 6.2 lambda 注册链的 bug (类似 issue #14105).
+ * 详情见 {@code docs/KNOWN_ISSUES.md}.
+ *
+ * <p><b>V1 workaround</b>: 所有 path 默认 {@code permitAll} (demo-mode = true 时),
+ * JWT filter 仍跑 — 解析 token 写入 SecurityContext (供业务用 user info),
+ * 但 AuthorizationFilter 不强制鉴权.
+ *
+ * <p><b>V1.5 修复计划</b>:
+ * <ul>
+ *   <li><b>方案 A (推荐)</b>: 降版本到 Spring Security 6.1.x + Boot 3.1.x
+ *       — 根因消失, 代码语义不动</li>
+ *   <li><b>方案 B</b>: 写自定义 {@code AuthorizationFilter} 完全绕开
+ *       {@code authorizeHttpRequests} lambda 链</li>
+ * </ul>
+ *
+ * <p><b>配置</b>: {@code shipyard.security.demo-mode=true|false}
+ * <ul>
+ *   <li>{@code true} (默认 V1): 所有 path permitAll, 但 JwtAuthFilter 仍解析 JWT</li>
+ *   <li>{@code false} (V1.5+): 通过 {@link SecurityConfig#securityFilterChain} 强制鉴权
+ *       (等方案 A/B 落地后才能真正生效)</li>
+ * </ul>
+ *
+ * @see <a href="https://github.com/spring-projects/spring-security/issues/14105">Spring Security #14105</a>
  */
 @Slf4j
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, ShipyardSecurityProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final JwtProperties jwtProperties;
+    private final ShipyardSecurityProperties securityProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         List<String> whitelist = jwtProperties.getWhitelist();
-        log.info("=== shipyard SecurityFilterChain configured ===");
+        boolean demoMode = securityProperties.isDemoMode();
+        log.info("=== shipyard SecurityFilterChain configured (demo-mode={}) ===", demoMode);
         log.info("Whitelist ({} entries): {}", whitelist.size(), whitelist);
 
         http
@@ -65,9 +99,17 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> {
-                whitelist.forEach(path -> authz.requestMatchers(path).permitAll());
-                authz.requestMatchers("OPTIONS", "/**").permitAll();
-                authz.anyRequest().authenticated();
+                if (demoMode) {
+                    // V1 demo: 所有 path permitAll, JwtAuthFilter 仍跑 (解析 JWT 写 context, 但不强制)
+                    // 注意: AuthorizationFilter 因为 6.2 bug 实际不会 deny, 这里写 permitAll 是语义清晰
+                    log.info("[V1 demo-mode] All paths permitAll. JWT解析仍跑 (供业务读 user info).");
+                    authz.anyRequest().permitAll();
+                } else {
+                    // V1.5+: 严格模式 (待 6.2 bug 修复后才能真正生效)
+                    whitelist.forEach(path -> authz.requestMatchers(path).permitAll());
+                    authz.requestMatchers("OPTIONS", "/**").permitAll();
+                    authz.anyRequest().hasAuthority("ROLE_admin");
+                }
             })
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

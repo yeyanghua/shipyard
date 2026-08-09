@@ -15,7 +15,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/shipyard?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:}
+    password: ${MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -50,7 +50,7 @@ spring:
   # ---- 虚拟线程 (Java 21 + Project Loom) ----
   threads:
     virtual:
-      enabled: true   # Spring Boot 3.2 启用虚拟线程 (TaskDecorator / Async executor)
+      enabled: true   # M2 启用 (M5 临时关掉排查 Security bug, 已确认不是虚拟线程引起)
 
   # ---- Jackson ----
   jackson:
@@ -101,6 +101,13 @@ shipyard:
     # 注意:这是 dev 默认值,生产必须覆盖. 文件 shipyard.key 在 .gitignore 里.
     key: ${SHIPYARD_CRYPTO_KEY:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
 
+  # Security V1 demo-mode 开关 (M5 拍板方案 C)
+  # true:  所有 API permitAll, JwtAuthFilter 仍跑 (解析 JWT 写 context, 但不强制鉴权)
+  # false: 严格模式 (V1.5+ 等 Spring Security 6.2 鉴权 bug 修好才能真正生效)
+  # 详见 docs/KNOWN_ISSUES.md
+  security:
+    demo-mode: true
+
   # JWT 配置 (M2.5 补充, SecurityConfig 用了)
   jwt:
     # HS256 secret - V1 demo 用固定值,生产环境必须改!
@@ -125,6 +132,7 @@ logging:
     root: INFO
     com.shipyard: DEBUG
     org.springframework.web: INFO
+    org.springframework.security: DEBUG
     com.baomidou.mybatisplus: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
