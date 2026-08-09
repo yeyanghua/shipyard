@@ -1,18 +1,19 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M6 1/2/4 完成**。
-> M6 3 (前端 PipelineEdit 页) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M6 1/2/3/4 全部完成**。
+> k8s 阶段 0~3 完成 (3 台 Rocky 9.6 VM, k8s 1.31, Calico v3.28). M7 (前端 EnvVars UI) 准备开始.
+> **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `96dbf47` (M6 4 PipelineController + BuildService 集成 + force delete) |
-| 当前 milestone | **M6 1/2/4 ✅ 全部完成, M6 3 前端 PipelineEdit 页准备开始** |
-| 总 commit | 30 (M5 25 + spotless × 2 + M6 1 + M6 2 + M6 4) |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 65% 完成 |
-| 上次更新 | 2026-08-09 (D 盘开发, M6 4 E2E 18/18 全过) |
+| 当前 commit | `d05f63e` (K8S-DEPLOY.md 部署文档) |
+| 当前 milestone | **M6 1/2/3/4 ✅ 全部完成, k8s 阶段 0~3 ✅, M7 准备开始** |
+| 总 commit | 32 (M5 25 + spotless × 2 + M6 × 4 + K8S-DEPLOY) |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 70% 完成 |
+| 上次更新 | 2026-08-09 (D 盘开发, M6 3 前端 PipelineEdit + k8s 3 节点 Ready) |
 
 ---
 
@@ -32,9 +33,12 @@
 - **M6 1** pipeline_template 后端数据层 (commits `5157f1c` `18d0765`) - 3 枚举 (ReviewStatus/AiCapability/LlmProvider) + 2 实体 (PipelineTemplate/AiInteraction) + 2 Mapper + Service 业务规则 (版本自增/active 唯一/approved immutable) + 20 单元测试
 - **M6 2** AI 集成 (commits `0aa80ef` `052b294`) - LlmAdapter interface + 3 实现 (Mock/Tongyi/Deepseek) + 3 capability handler (PipelineGen/Diagnosis/Decision) + AiInteractionService 落痕 + PromptSanitizer 脱敏 + 48 单元测试
 - **M6 4** PipelineController + BuildService 集成 (commit `96dbf47`) - 7 端点 + 4 DTO + createBuild 自动绑 active pipeline + force delete (V1 demo) + 1 单元测试
-- **D 盘验证**: mvn test 93/93 (9 AesEncrypter + 14 HmacVerifier + 22 PipelineTemplate + 48 M6 2) + test-m5-2 13/13 + test-m5-5 8/8 + test-m6-4 18/18 + pnpm typecheck 0 errors + pnpm build 729ms
+- **M6 3** 前端 PipelineEdit 页 (commit `8279e3f`) - 8 端点 api client + 重写 PipelineEdit.vue (YAML 编辑器 + AI 改按钮 + 行级 LCS diff) + ProjectDetail 卡片 + 顺手修 M3 留下的 lint config (flat config → traditional .eslintrc.cjs)
+- **k8s 阶段 0~3** 3 台 Rocky 9.6 VM 集群 (k8s-master/node1/node2 全 Ready) - 阿里云 docker-ce + 阿里云 pause 镜像 + quay.io calico + VPN 代理 192.168.10.29:7890 - 完整步骤 + 11 条踩坑合集见 `docs/K8S-DEPLOY.md`
+- **docs/K8S-DEPLOY.md** (commit `d05f63e`) - 539 行 k8s 部署复习文档
+- **D 盘验证**: mvn test 93/93 (9 AesEncrypter + 14 HmacVerifier + 22 PipelineTemplate + 48 M6 2) + test-m5-2 13/13 + test-m5-5 8/8 + test-m6-4 18/18 + test-m6-3 13/13 + pnpm typecheck 0 errors + pnpm lint 0 errors 0 warnings (max-warnings 0)
 
-⏳ **下一步**: M6 3 — 前端 PipelineEdit 页 (YAML 编辑器 + AI 改按钮 + diff 展示)
+⏳ **下一步**: M7 — 前端 EnvVars UI (项目级 env 变量管理, 路由已有 `/envs/:id/variables` 占位 M7)
 
 ---
 
@@ -314,6 +318,9 @@ README.zh-CN.md                                            ← 仓库入口(中�
 docs/
 ├── architecture.md                                        ← 架构总览(stub, M2 后更新)
 ├── KNOWN_ISSUES.md                                        ← 已知问题 + workaround (M5 加)
+├── DEPLOY.md                                              ← M5 demo 部署版本清单
+├── DEPLOY-ENV.md                                          ← M15 真实环境组件版本清单
+├── K8S-DEPLOY.md                                          ← k8s 1.31 集群部署全流程 + 11 踩坑 (M6 3 后加)
 ├── demo/                                                  ← (M15 加 demo 视频/截图)
 ├── interview-prep.md                                      ← (M15 加, 5分钟讲稿 + Q&A)
 └── superpowers/
