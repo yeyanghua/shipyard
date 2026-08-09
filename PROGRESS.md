@@ -6,11 +6,11 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `28fb602` (合并 master/ → shipyard/ + SecurityConfig 提前到 M2.5) |
-| 当前 milestone | **M4 准备开始**(M2 + M3 已完成 + M2.5 Security 合并) |
-| 总 commit | 14 |
+| 当前 commit | `85dcc05` (M2.5 启动崩溃修复:JwtProperties 替代 @Value,13 张表落库 + health UP 验证) |
+| 当前 milestone | **M4 项目/环境 CRUD 前后端贯通**(M2 + M3 + M2.5 全部验收通过) |
+| 总 commit | 15 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排) |
-| 上次更新 | 2026-08-08 |
+| 上次更新 | 2026-08-09 (D 盘开发) |
 
 ---
 
@@ -27,6 +27,11 @@
 - 推 GitHub 成功(SSH 认证走 `yeyanghua`)
 - **M2 shipyard 后端骨架** ✅ (commit `063970a`) - Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway + AesEncrypter + 虚拟线程 4 处
 - **M2.5 合并 Security** ✅ (commit `28fb602`) - 从 master/ 合并 SecurityConfig + JwtAuthFilter + JWT 配置到 shipyard/
+- **M2.5 启动崩溃修复** ✅ (commit `85dcc05`) - SecurityConfig 用 @ConfigurationProperties 替代 @Value 修白名单解析,本机 MySQL 8.4 + Redis 落 13 张表 + /actuator/health UP 全验
+  - **根因**:`@Value("${shipyard.jwt.whitelist}")` 解析不了 YAML list → 抛 `IllegalArgumentException: Could not resolve placeholder` → ApplicationContext 刷新失败 → Tomcat 启动后立即关闭
+  - **修法**:新增 `JwtProperties.java`(`@ConfigurationProperties(prefix = "shipyard.jwt")`),SecurityConfig 改构造器注入,删 @Value 字段
+  - **D 盘验证**:MySQL 8.4 (root/123456) + Redis 7 (无密码) 本机起;`mvn spring-boot:run` 2.49s;Flyway V1__init.sql 134ms 落 13 张业务表 + flyway_schema_history;`/actuator/health` → `{"status":"UP","groups":["liveness","readiness"]}`
+  - **dev 启动方式**:`$env:MYSQL_PASSWORD='123456'; mvn spring-boot:run`(IntelliJ Run Configuration 的 Env vars 加 `MYSQL_PASSWORD=123456` 也行;不传密码会立即报错,不会"半起")
 - **M3 shipyard Web 前端骨架** ✅ (commit `5851894`) - Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试
 - **M2 shipyard 后端骨架 ✅** (commit `063970a`) (Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + MySQL 8 + Lombok + JUnit 5)
   - 13 张表 Flyway V1 migration 落库(spec 标的 12 是 typo,实际 13)
@@ -79,6 +84,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `063970a` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
 | `5851894` | M3: shipyard Web 前端骨架 (Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试) |
 | `28fb602` | 合并 master/ → shipyard/ + SecurityConfig/JwtAuthFilter(JWT 白名单) + 删 1182 行重复 |
+| `85dcc05` | M2.5 启动崩溃修复:SecurityConfig 用 JwtProperties(@ConfigurationProperties) 替代 @Value,YAML list 解析修好,本机 13 张表落库 + health UP 全验 |
 
 ---
 
@@ -353,5 +359,140 @@ Mavis 读 PROGRESS.md + spec + plan 自动接上, 不需要你解释"做了啥"�
 
 ---
 
-**Last updated**: 2026-08-08
-**Next action**: 开始 M2 master 后端骨架(Spring Boot 3.2 + Java 21 + Flyway)
+## 11. M2.5 完整验证记录 (2026-08-09, D 盘)
+
+### D 盘环境
+- **OS**: Windows 11, PowerShell
+- **JDK**: 21.0.6 (Oracle) at `D:\jdk-21.0.6`
+- **Maven**: 3.8.9 at `D:\apache-maven-3.8.9\bin\mvn.cmd`
+- **MySQL**: 8.4.5 (服务 `MySQL84`, 端口 3306, 密码 `123456`)
+- **Redis**: 在跑 (端口 6379, 无密码)
+- **项目根**: `D:\Projects\shipyard` (从 GitHub `yeyanghua/shipyard` clone)
+
+### 验收清单
+| 项 | 结果 | 备注 |
+|---|---|---|
+| `mvn compile` | ✅ | BUILD SUCCESS |
+| `mvn test` (9 个 crypto 测试) | ✅ | AesEncrypter 全部通过 |
+| 创建 `shipyard` 库 | ✅ | `CREATE DATABASE shipyard DEFAULT CHARACTER SET utf8mb4` |
+| `mvn spring-boot:run` | ✅ | 2.49s 启动 |
+| Flyway V1__init.sql | ✅ | 134ms 落 13 张业务表 + flyway_schema_history |
+| 13 张业务表存在 | ✅ | ai_interaction, alert_log, build_log, build_record, deploy_record, dockerfile_template, env, env_variable, pipeline_template, project, project_dockerfile, project_env, worker |
+| `/actuator/health` | ✅ | `{"status":"UP","groups":["liveness","readiness"]}` |
+| GitHub push | ✅ | commit `85dcc05` → origin/main |
+
+### 关键命令
+```powershell
+# 创建库 (PowerShell)
+& "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p123456 -h localhost -P 3306 `
+  -e "CREATE DATABASE IF NOT EXISTS shipyard DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 启动后端 (必须传 MYSQL_PASSWORD, application.yml 密码默认空)
+$env:MYSQL_PASSWORD = '123456'
+Set-Location D:\Projects\shipyard\shipyard
+mvn spring-boot:run
+
+# 验证
+curl http://localhost:8080/actuator/health
+# → {"status":"UP","groups":["liveness","readiness"]}
+```
+
+### dev 启动"正常"警告 (M2 范围预期)
+- `No MyBatis mapper was found in '[com.shipyard.**.mapper]' package` — M4 才加 mapper, M2 只搭骨架
+- `No active profile set, falling back to 1 default profile: "default"` — yml 没指定 profile, 默认 OK
+- `Flyway upgrade recommended: MySQL 8.4 is newer than this version of Flyway` — 已知, Flyway 9.22.3 仍可工作, 升级到 10.x 列入 V1.5
+- `Using generated security password` — Spring Security 默认行为, 我们没暴露 user details service, 忽略
+
+### 13 张表清单 (与 spec §6 对齐)
+| # | 表名 | 用途 |
+|---|---|---|
+| 1 | project | 项目元数据 |
+| 2 | pipeline_template | 流水线模板, 版本化 |
+| 3 | dockerfile_template | Dockerfile 模板, shipyard 自带 |
+| 4 | project_dockerfile | 项目 Dockerfile 实例 |
+| 5 | env | 环境定义 |
+| 6 | project_env | 项目-环境关联 |
+| 7 | env_variable | 环境变量, env × project 维度 |
+| 8 | build_record | 构建记录, 含 log_persisted 字段 |
+| 9 | build_log | 构建日志, 按 step 存, LONGTEXT |
+| 10 | deploy_record | 发布记录, 含 snapshot_yaml 用于回滚 |
+| 11 | worker | worker 注册, 每环境一个 |
+| 12 | ai_interaction | AI 对话留痕, LLM request/response/采纳与否 |
+| 13 | alert_log | 告警日志, P0/P1/P2 + open/acknowledged/resolved |
+
+---
+
+## 12. M4 计划 - 项目/环境 CRUD 前后端贯通
+
+### 目标
+让 shipyard 从"能跑"变成"能用":实现 project/env/env_variable 三表 CRUD,前后端贯通,V1 横向 demo 第一个可交互场景。
+
+### 后端 (shipyard/)
+1. **Entity** (MyBatis-Plus 注解)
+   - `Project.java` (id/name/description/repo_url/created_at/updated_at/deleted)
+   - `Env.java` (id/name/cluster/region/description/created_at/updated_at/deleted)
+   - `EnvVariable.java` (id/env_id/project_id/key/value/encrypted/created_at/updated_at)
+2. **Mapper** (extends BaseMapper<T>)
+   - `ProjectMapper`, `EnvMapper`, `EnvVariableMapper`
+3. **Service + Impl** (业务逻辑)
+   - `ProjectService` — list / get / create / update / delete (逻辑删除)
+   - `EnvService` — list / get / create / update / delete
+   - `EnvVariableService` — list / batch upsert (环境变量按 env × project 维度)
+4. **Controller** (REST + JWT 白名单豁免只有 actuator, 其他都要 JWT)
+   - `GET /api/projects` — 列表(分页)
+   - `POST /api/projects` — 创建
+   - `GET /api/projects/{id}` — 详情
+   - `PUT /api/projects/{id}` — 更新
+   - `DELETE /api/projects/{id}` — 软删
+   - `GET /api/envs?projectId=xxx` — 某项目下的环境
+   - `POST /api/envs` — 创建
+   - `GET /api/envs/{id}/variables` — 环境变量列表
+   - `PUT /api/envs/{id}/variables` — 批量 upsert (value 走 Encrypter 加密)
+   - `GET /api/envs/{id}/variables/{key}` — 单个查(解密)
+5. **DTO + 异常处理**
+   - `PageResponse<T>` (统一分页响应)
+   - `ApiError` (统一错误体 {code, message, details})
+   - `BusinessException` + `GlobalExceptionHandler` (@RestControllerAdvice)
+6. **测试** (JUnit 5 + Mockito,目标覆盖率 70%+)
+   - ProjectServiceTest / EnvServiceTest / EnvVariableServiceTest
+   - ProjectControllerTest (MockMvc) — 验证 JWT 拦截 + CRUD
+   - AesEncrypter 集成测试 (EnvVariable 加解密往返)
+
+### 前端 (web/)
+1. **API 客户端** (`src/api/projects.ts`, `src/api/envs.ts`)
+2. **页面补全** (M3 已有占位, M4 接真数据)
+   - `ProjectList.vue` — 表格 + 新建按钮 + 搜索
+   - `CreateProject.vue` — 表单 (name/description/repo_url) + 校验
+   - `ProjectDetail.vue` — Tab 切基本信息 / 关联环境 / Dockerfile
+   - `EnvList.vue` — 项目下的环境列表
+   - `EnvVars.vue` — 环境变量 Key-Value 编辑器 (加密标记)
+3. **Pinia store** (`src/stores/projects.ts`)
+4. **测试** (Vitest)
+   - `projectsApi.test.ts` — mock axios, 验证请求参数和响应处理
+   - `ProjectList.spec.ts` — 组件渲染 + 交互
+
+### V1 demo 演示路径 (M4 完成后的横向 demo)
+1. 用户登录 (M4 不做, JWT 用 M2.5 的 demo token)
+2. 创建项目 "demo-java-app", 填 repo URL
+3. 选环境 "dev", 配置环境变量 `DB_URL` / `DB_PASSWORD` (后者加密)
+4. 触发构建 (M5 接入 drone)
+5. 构建日志 SSE 实时输出 (M6)
+6. 部署到 dev 环境 (M7)
+7. 查看 AI 诊断 (M8)
+8. 回滚 (M7 一并)
+
+### 风险
+- **加密值前端展示** — 前端不该看明文,只显示 `***`,查看走单独 API (M4 列计划但可以 V1.5 再细化)
+- **JWT demo token** — V1 demo 没有用户系统,所有 API 直接放行 (M2.5 白名单) 或者用一个 hard-coded token
+- **MyBatis-Plus 软删 + 唯一约束** — name 唯一约束 + 软删有冲突,M4 实现时注意
+
+### 估计
+- 后端: 1-1.5 天
+- 前端: 1-1.5 天
+- 测试 + 联调: 0.5 天
+- 总计: 3-3.5 天
+
+---
+
+**Last updated**: 2026-08-09
+**Next action**: 开始 M4 — 后端先写 Project Entity + Mapper + Service + Controller, 跑通 POST /api/projects → 200, 再写前端对接
