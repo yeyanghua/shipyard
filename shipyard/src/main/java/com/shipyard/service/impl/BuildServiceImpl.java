@@ -35,6 +35,7 @@ import com.shipyard.entity.ProjectEnv;
 import com.shipyard.mapper.BuildLogMapper;
 import com.shipyard.mapper.BuildRecordMapper;
 import com.shipyard.mapper.ProjectMapper;
+import com.shipyard.realtime.BuildLogNotifier;
 import com.shipyard.service.BuildService;
 import com.shipyard.service.EnvVariableService;
 import com.shipyard.service.ProjectEnvService;
@@ -74,6 +75,7 @@ public class BuildServiceImpl implements BuildService {
     private final DroneClient droneClient;
     private final ProjectEnvService projectEnvService;
     private final EnvVariableService envVariableService;
+    private final BuildLogNotifier buildLogNotifier;
 
     // ============== 业务 API ==============
 
@@ -241,6 +243,8 @@ public class BuildServiceImpl implements BuildService {
         buildLogMapper.insert(stepLog);
         log.info("[BuildService] saveStepLog buildRecordId={} step={} ({} bytes)",
             buildRecordId, stepName, stepLog.getLogSizeBytes());
+        // M5 3: 实时推 SSE 订阅者
+        buildLogNotifier.notifyStepLog(stepLog);
     }
 
     @Override
@@ -249,7 +253,10 @@ public class BuildServiceImpl implements BuildService {
         int affected = buildRecordMapper.markFinished(id, status, imageTag, harborImageUrl, finishedAt);
         if (affected == 0) {
             log.warn("[BuildService] markBuildFinished no-op (id={} already terminal?)", id);
+            return;
         }
+        // M5 3: 推终态 + 关所有订阅连接
+        buildLogNotifier.notifyBuildFinished(id, status, imageTag, harborImageUrl);
     }
 
     // ============== helper ==============

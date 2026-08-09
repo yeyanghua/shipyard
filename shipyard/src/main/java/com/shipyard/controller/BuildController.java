@@ -22,9 +22,11 @@ import com.shipyard.dto.BuildCreateRequest;
 import com.shipyard.dto.BuildLogResponse;
 import com.shipyard.dto.BuildResponse;
 import com.shipyard.dto.PageResponse;
+import com.shipyard.realtime.BuildLogNotifier;
 import com.shipyard.service.BuildService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -48,11 +51,13 @@ import java.util.List;
  *   <li>{@code GET    /api/builds/{id}/steps/{stepName}}        查单个 step 日志</li>
  * </ul>
  */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class BuildController {
 
     private final BuildService buildService;
+    private final BuildLogNotifier buildLogNotifier;
 
     @PostMapping("/api/builds")
     public ApiResponse<BuildResponse> create(@RequestBody @Valid BuildCreateRequest request) {
@@ -90,5 +95,31 @@ public class BuildController {
     public ApiResponse<String> getStepLog(@PathVariable("id") Long buildRecordId,
                                           @PathVariable String stepName) {
         return ApiResponse.ok(buildService.getStepLog(buildRecordId, stepName));
+    }
+
+    /**
+     * SSE 实时日志订阅 — {@code GET /api/builds/{id}/stream}.
+     *
+     * <p>MIME: {@code text/event-stream}, 长连接.
+     *
+     * <p>事件流:
+     * <ul>
+     *   <li>{@code event: step} — 新 step log 落库时推, data = {@code BuildLogEvent.step*} 字段</li>
+     *   <li>{@code event: build} — build 终态时推, data = {@code BuildLogEvent.status} + image info
+     *       (推完后连接自动关)</li>
+     * </ul>
+     *
+     * <p><b>客户端建议</b>:
+     * <ol>
+     *   <li>先 GET /api/builds/{id}/steps 拿已有 step (snapshot)</li>
+     *   <li>再 EventSource 订阅本端点, 拿后续事件</li>
+     * </ol>
+     *
+     * <p>V1 demo: mock drone 跑 3 step × 3s = 9s 后推终态关连接.
+     */
+    @GetMapping(value = "/api/builds/{id}/stream", produces = "text/event-stream")
+    public SseEmitter streamBuildLogs(@PathVariable("id") Long buildId) {
+        log.info("[BuildController] SSE subscribe buildId={}", buildId);
+        return buildLogNotifier.subscribe(buildId);
     }
 }
