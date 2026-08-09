@@ -101,6 +101,24 @@ shipyard:
     # 注意:这是 dev 默认值,生产必须覆盖. 文件 shipyard.key 在 .gitignore 里.
     key: ${SHIPYARD_CRYPTO_KEY:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
 
+  # JWT 配置 (M2.5 补充, SecurityConfig 用了)
+  jwt:
+    # HS256 secret - V1 demo 用固定值,生产环境必须改!
+    secret: ${SHIPYARD_JWT_SECRET:change-me-in-production-please-this-is-not-secure-256bit-key}
+    expiration-seconds: 86400  # 24h
+    issuer: shipyard
+    whitelist:
+      # V1 白名单 - 这些 path 不需要 JWT
+      - /api/auth/**
+      - /actuator/**
+      - /webhook/drone
+      - /api/health
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /favicon.ico
+      - /error
+
 # ---- 日志 ----
 logging:
   level:

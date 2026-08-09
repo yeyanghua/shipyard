@@ -17,6 +17,9 @@ analyze_sprite.py
 fix_jpeg_to_png.py
 split_player_sprite.py
 
+# 早期用过 master/ 目录,已合并到 shipyard/. 留本地作历史参考,不跟踪.
+master/
+
 # ============================================================
 # 1. Java / Maven (shipyard 后端)
 # ============================================================
