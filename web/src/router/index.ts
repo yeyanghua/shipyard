@@ -35,7 +35,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/projects/:id/pipeline',
     name: 'pipeline-edit',
     component: () => import('@/views/PipelineEdit.vue'),
-    meta: { title: '流水线编辑', milestone: 'M6' },
+    meta: { title: '流水线编辑', milestone: 'M6 3' },
   },
   {
     path: '/builds/:id',

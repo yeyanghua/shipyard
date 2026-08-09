@@ -8,3 +8,4 @@ export * from './envs';
 export * from './envVariables';
 export * from './builds';
 export * from './auth';
+export * from './pipelines';

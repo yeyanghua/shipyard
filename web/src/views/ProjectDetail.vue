@@ -6,7 +6,7 @@
  */
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { projectsApi, envsApi, buildsApi, type Project, type Env, type Build, ApiError } from '@/api';
+import { projectsApi, envsApi, buildsApi, pipelinesApi, type Project, type Env, type Build, type Pipeline, ApiError } from '@/api';
 import { useEnvStore } from '@/stores/env';
 import { useBuildStore } from '@/stores/build';
 import SecretInput from '@/components/SecretInput.vue';
@@ -20,6 +20,8 @@ const project = ref<Project | null>(null);
 const envs = ref<Env[]>([]);
 const linkedIds = ref<Set<string>>(new Set());
 const builds = ref<Build[]>([]);
+const activePipeline = ref<Pipeline | null>(null);
+const pipelineCount = ref(0);
 const loading = ref(true);
 const error = ref('');
 const showAddEnv = ref(false);
@@ -44,6 +46,15 @@ async function fetchData() {
     // 加载 build 历史
     const buildRes = await buildsApi.list(projectId.value, { pageNum: 1, pageSize: 10 });
     builds.value = buildRes.records;
+    // 加载 active pipeline (M6 3) + 总版本数
+    try {
+      activePipeline.value = await pipelinesApi.getActive(projectId.value);
+      const versions = await pipelinesApi.listVersions(projectId.value);
+      pipelineCount.value = versions.length;
+    } catch (e) {
+      // pipeline 拉失败不影响项目详情展示
+      console.warn('[ProjectDetail] pipeline load failed:', (e as ApiError).message);
+    }
   } catch (e) {
     error.value = (e as ApiError).message;
   } finally {
@@ -203,6 +214,22 @@ function statusColor(status: string): string {
     </section>
 
     <section class="card">
+      <div class="section-header">
+        <h2>流水线 <span class="count">{{ pipelineCount }}</span></h2>
+        <button class="link primary" @click="router.push(`/projects/${projectId}/pipeline`)">
+          🚰 进入编辑器
+        </button>
+      </div>
+      <div v-if="activePipeline" class="pipeline-active">
+        <span class="status-dot" :style="{ background: '#10b981' }"></span>
+        <span>当前 ACTIVE: <code>v{{ activePipeline.version }}</code></span>
+        <span v-if="activePipeline.aiModifiedBy" class="ai-tag">AI/{{ activePipeline.aiModifiedBy }}</span>
+        <span class="muted">{{ activePipeline.createdAt }}</span>
+      </div>
+      <div v-else class="empty">暂无 active 流水线 — 进入编辑器用 AI 生成一个</div>
+    </section>
+
+    <section class="card">
       <h2>构建历史 <span class="count">{{ builds.length }}</span></h2>
       <div v-if="builds.length === 0" class="empty">暂无构建记录 — 点上面"🚀 触发构建"试试</div>
       <table v-else class="build-table">
@@ -288,6 +315,13 @@ dd { margin: 0; }
 .add-env ul { margin: 0; }
 .add-env li { cursor: pointer; }
 .add-env li:hover { background: var(--primary-soft); }
+
+.pipeline-active {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; font-size: 14px;
+}
+.ai-tag { background: #ede9fe; color: #6d28d9; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+.section-header .link.primary { color: var(--primary); background: none; border: 0; cursor: pointer; font-size: 13px; }
 
 .build-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .build-table th, .build-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }

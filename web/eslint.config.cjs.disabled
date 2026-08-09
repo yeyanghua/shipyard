@@ -1,0 +1,43 @@
+// ESLint 8 + flat config (M6 3 修复: ignorePatterns 改成 ignores 顶层).
+// 原 M3 配置用 .eslintrc 风格的 ignorePatterns 字段, ESLint 8 flat config 不识别.
+// 修法: 把 ignore 拆成独立 object (ignores 字段) + rules 拆成另一个 object (数组形式).
+
+module.exports = [
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      '*.config.js',
+      '*.config.cjs',
+      '*.config.ts',
+    ],
+  },
+  {
+    root: true,
+    env: {
+      browser: true,
+      es2022: true,
+      node: true,
+    },
+    extends: [
+      'eslint:recommended',
+      'plugin:vue/vue3-recommended',
+      'plugin:@typescript-eslint/recommended',
+    ],
+    parser: 'vue-eslint-parser',
+    parserOptions: {
+      parser: '@typescript-eslint/parser',
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      extraFileExtensions: ['.vue'],
+    },
+    plugins: ['@typescript-eslint'],
+    rules: {
+      'vue/multi-word-component-names': 'off', // shipyard 单页 (App.vue) / 单组件可单词
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+];

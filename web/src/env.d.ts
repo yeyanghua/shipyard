@@ -11,7 +11,9 @@ interface ImportMeta {
 
 declare module '*.vue' {
   import type { DefineComponent } from 'vue';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Vite 官方 vue-shim 模板: {} 是空 props/空 data 的合法占位.
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types */
   const component: DefineComponent<{}, {}, any>;
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types */
   export default component;
 }
