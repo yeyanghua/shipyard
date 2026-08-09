@@ -1,19 +1,20 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M6 1/2/3/4 + M7 polish + M12 全部完成**。
-> k8s 阶段 0~3 完成 (3 台 Rocky 9.6 VM, k8s 1.31, Calico v3.28). V1 主体约 75% 完成.
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M6 1/2/3/4 + M7 polish + M12 + M13 全部完成**。
+> k8s 阶段 0~3 完成 (3 台 Rocky 9.6 VM, k8s 1.31, Calico v3.28). V1 主体约 78% 完成.
+> M13: 引入 Element Plus + 全局命令面板 (Cmd+K) + Monitoring/Activity/Notifications 3 个核心页面 + 明暗主题切换.
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `16e3b87` (M12 Dockerfile 模板生成) |
-| 当前 milestone | **M6 1/2/3/4 + M7 polish + M12 ✅ 全部完成, k8s 阶段 0~3 ✅** |
-| 总 commit | 35 (M5 25 + spotless × 2 + M6 × 4 + K8S-DEPLOY + M7 polish + M12) |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 75% 完成 |
-| 上次更新 | 2026-08-09 (D 盘开发, M12 5 套 Dockerfile 模板 + UI) |
+| 当前 commit | `49f532b` (M13 Phase 2c — 明暗主题切换) |
+| 当前 milestone | **M1-M12 全部完成 + M13 阶段 1-2 全部完成 ✅** |
+| 总 commit | 36 (35 + M13) |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 78% 完成 |
+| 上次更新 | 2026-08-09 (D 盘开发, M13 主题切换 + 4 个 phase commit) |
 
 ---
 
@@ -38,9 +39,10 @@
 - **docs/K8S-DEPLOY.md** (commit `d05f63e`) - 539 行 k8s 部署复习文档
 - **M7 polish** (commit `d1add71`) - EnvVars UI 4 个增强: .env 批量导入 + K8s Secret YAML 预览 + key 冲突检查 + 搜索过滤
 - **M12 Dockerfile 模板** (commit `16e3b87`) - 5 套内置模板 (java_maven_jdk21 / java_gradle_jdk21 / node_pnpm_20 / python_poetry_312 / generic_alpine) + 启动时幂等插入 + Service 渲染 (${var} 替换) + 3 端点 (list/preview/generate) + 前端 ProjectDetail 卡片 + 动态变量表单 + 实时预览
+- **M13 前端全面升级** (commits `30aa294` `c37c17d` `fc6df2e` `49f532b`) - 引入 Element Plus + 暗色主题深度覆盖 + 全局命令面板 (Cmd+K Linear 风格) + 3 个新页面 (Monitoring/Activity/Notifications) + 明暗主题切换 (Pinia + localStorage 持久化 + system 跟随)
 - **D 盘验证**: mvn test 113/113 (9 AesEncrypter + 14 HmacVerifier + 22 PipelineTemplate + 48 M6 2 + 12 DockerfileTemplate + 8 ProjectDockerfile) + test-m5-2 13/13 + test-m5-5 8/8 + test-m6-4 18/18 + test-m6-3 13/13 + test-m12 11/11 + pnpm typecheck 0 errors + pnpm lint 0 errors 0 warnings (max-warnings 0)
 
-⏳ **下一步**: M8 — worker Go (k8s deploy worker, 3-5 天) 或 M9 snapshot + 回滚 (1-2 天) 或 M11 监控告警 (1-2 天)
+⏳ **下一步**: M8 — worker Go (k8s deploy worker, 3-5 天) 或 M9 snapshot + 回滚 (1-2 天) 或 M11 监控告警 (1-2 天) 或 M13 Phase 4 (ProjectDetail Tabs + 5 页 polish, 1-2 天)
 
 ---
 
