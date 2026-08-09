@@ -41,7 +41,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/builds/:id',
     name: 'build-detail',
     component: () => import('@/views/BuildDetail.vue'),
-    meta: { title: '构建详情', milestone: 'M11' },
+    meta: { title: '构建详情', milestone: 'M5' },
   },
   {
     path: '/deploys/:id',
