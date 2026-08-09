@@ -1,18 +1,18 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M6 1 数据层完成**。
-> M6 2 (AI 集成) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M6 1/2/4 完成**。
+> M6 3 (前端 PipelineEdit 页) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `18d0765` (M6 1 pipeline_template 数据层 + ai_interaction entity) |
-| 当前 milestone | **M6 1 ✅ 数据层完成, M6 2 AI 集成准备开始** |
-| 总 commit | 27 (M5 25 + spotless + M6 1) |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 55% 完成 |
-| 上次更新 | 2026-08-09 (D 盘开发, M6 1 后端数据层完成) |
+| 当前 commit | `96dbf47` (M6 4 PipelineController + BuildService 集成 + force delete) |
+| 当前 milestone | **M6 1/2/4 ✅ 全部完成, M6 3 前端 PipelineEdit 页准备开始** |
+| 总 commit | 30 (M5 25 + spotless × 2 + M6 1 + M6 2 + M6 4) |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 65% 完成 |
+| 上次更新 | 2026-08-09 (D 盘开发, M6 4 E2E 18/18 全过) |
 
 ---
 
@@ -30,9 +30,11 @@
 - **M4** 前后端贯通 (commits `81f4c99` `1e0f7cd` `88a22e2` `25e37ea`) - 4 Entity + 4 Mapper + 4 Service + 4 Controller + 10 DTO + 公共异常 + Hard-coded JWT 鉴权; 14 业务端点 + /api/auth/demo-token; E2E 20/20 通过
 - **M5** 端到端可演示 (commits `3fac032` `fe17315` `2cf2b44` `bcb69c4` `6be779e` `1e1d9cb` `376f40e`) - drone 集成 mock + SSE 实时日志 + 环境变量注入 + 前端 BuildDetail 实时 UI
 - **M6 1** pipeline_template 后端数据层 (commits `5157f1c` `18d0765`) - 3 枚举 (ReviewStatus/AiCapability/LlmProvider) + 2 实体 (PipelineTemplate/AiInteraction) + 2 Mapper + Service 业务规则 (版本自增/active 唯一/approved immutable) + 20 单元测试
-- **D 盘验证**: mvn test 43/43 (9 AesEncrypter + 14 HmacVerifier + 20 PipelineTemplate) + test-m5-2.ps1 13/13 + test-m5-5.ps1 8/8 + pnpm typecheck 0 errors + pnpm build 729ms
+- **M6 2** AI 集成 (commits `0aa80ef` `052b294`) - LlmAdapter interface + 3 实现 (Mock/Tongyi/Deepseek) + 3 capability handler (PipelineGen/Diagnosis/Decision) + AiInteractionService 落痕 + PromptSanitizer 脱敏 + 48 单元测试
+- **M6 4** PipelineController + BuildService 集成 (commit `96dbf47`) - 7 端点 + 4 DTO + createBuild 自动绑 active pipeline + force delete (V1 demo) + 1 单元测试
+- **D 盘验证**: mvn test 93/93 (9 AesEncrypter + 14 HmacVerifier + 22 PipelineTemplate + 48 M6 2) + test-m5-2 13/13 + test-m5-5 8/8 + test-m6-4 18/18 + pnpm typecheck 0 errors + pnpm build 729ms
 
-⏳ **下一步**: M6 2 — AI 集成 (LlmAdapter interface + MockLlmAdapter 默认, 3 capability)
+⏳ **下一步**: M6 3 — 前端 PipelineEdit 页 (YAML 编辑器 + AI 改按钮 + diff 展示)
 
 ---
 
