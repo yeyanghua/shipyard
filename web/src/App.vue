@@ -1,10 +1,21 @@
 <script setup lang="ts">
 /**
- * 根组件 — 顶部导航 + RouterView.
+ * 根组件 - 顶部导航 + RouterView.
  *
- * <p>V1 简单布局,后续 milestone 加 sidebar / breadcrumbs / 暗色主题.
+ * <p>V1 简单布局, 后续 milestone 加 sidebar / breadcrumbs / 暗色主题.
+ * <p>启动时确保有 demo token (调 /api/auth/demo-token 一次).
  */
+import { onMounted } from 'vue';
 import { RouterLink, RouterView } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
+onMounted(async () => {
+  // 后台静默拉 token, 不阻塞首屏
+  auth.ensureToken().catch(() => {
+    // 失败不打扰 UI, 各页面调 API 时会再触发
+  });
+});
 </script>
 
 <template>
@@ -21,6 +32,10 @@ import { RouterLink, RouterView } from 'vue-router';
         <RouterLink to="/envs" active-class="active">环境</RouterLink>
         <RouterLink to="/ai" active-class="active">AI</RouterLink>
       </nav>
+      <div class="status">
+        <span v-if="auth.tokenInfo" class="ok">✓ 已登录 ({{ auth.tokenInfo.userId }})</span>
+        <span v-else class="warn">未登录</span>
+      </div>
     </header>
     <main class="app-main">
       <RouterView />
@@ -63,6 +78,8 @@ import { RouterLink, RouterView } from 'vue-router';
 .nav {
   display: flex;
   gap: 16px;
+  flex: 1;
+  margin-left: 32px;
 }
 .nav a {
   color: #d1d5db;
@@ -77,6 +94,15 @@ import { RouterLink, RouterView } from 'vue-router';
 .nav a.active {
   background: #3b82f6;
   color: #fff;
+}
+.status {
+  font-size: 12px;
+}
+.status .ok {
+  color: #6ee7b7;
+}
+.status .warn {
+  color: #fcd34d;
 }
 .app-main {
   flex: 1;

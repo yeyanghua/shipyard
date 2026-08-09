@@ -48,7 +48,6 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'vue-vendor': ['vue', 'vue-router', 'pinia'],
             'http-vendor': ['axios'],
-            'time-vendor': ['dayjs'],
           },
         },
       },

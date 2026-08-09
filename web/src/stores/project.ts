@@ -1,21 +1,64 @@
 /**
- * 项目状态 store — Pinia.
+ * 项目 store - Pinia.
  *
- * <p>M3 stub: 状态 + actions 占位, M4 接 projectsApi.
+ * <p>M4: 接 projectsApi + project-env 关联.
  */
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { Project } from '@/api';
+import { reactive, ref } from 'vue';
+import { projectsApi, type Project, type CreateProjectRequest, type UpdateProjectRequest } from '@/api';
 
 export const useProjectStore = defineStore('project', () => {
-  const projects = ref<Project[]>([]);
-  const current = ref<Project | null>(null);
+  const list = ref<Project[]>([]);
+  const total = ref(0);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // M4 时实现:
-  // async function fetchAll() { ... }
-  // async function create(req: CreateProjectRequest) { ... }
+  const pagination = reactive({ page: 1, size: 20, keyword: '' });
 
-  return { projects, current, loading, error };
+  async function fetchList() {
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await projectsApi.list({
+        page: pagination.page,
+        size: pagination.size,
+        keyword: pagination.keyword || undefined,
+      });
+      list.value = resp.records;
+      total.value = resp.total;
+    } catch (e) {
+      error.value = (e as Error).message;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function create(req: CreateProjectRequest): Promise<Project> {
+    const p = await projectsApi.create(req);
+    await fetchList();
+    return p;
+  }
+
+  async function update(id: number, req: UpdateProjectRequest): Promise<Project> {
+    const p = await projectsApi.update(id, req);
+    await fetchList();
+    return p;
+  }
+
+  async function remove(id: number) {
+    await projectsApi.delete(id);
+    await fetchList();
+  }
+
+  return {
+    list,
+    total,
+    loading,
+    error,
+    pagination,
+    fetchList,
+    create,
+    update,
+    remove,
+  };
 });
