@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shipyard - master backend (Spring Boot 3.2 + Java 21)
+  ============================================================
+  这是 shipyard 平台后端 (master) 的 Maven 配置。
+
+  关键选型:
+  - Spring Boot 3.2.5 (Java 21 LTS 兼容 + 内置虚拟线程配置)
+  - MyBatis-Plus 3.5.7 (国内主流, 简单 CRUD 用 BaseMapper)
+  - Flyway 10.x (数据库迁移, schema 一进 git)
+  - Sa-Token? 不, 用 JJWT 1.0 (轻量, 跟 Spring Security 集成好)
+  - Lombok 1.18 (减少样板代码, 跟 Java 21 兼容)
+  - Jqwik 1.7 (Property-based testing, 跟 JUnit 5 集成)
+  - Testcontainers 1.19 (真实数据库容器跑集成测试)
+
+  虚拟线程:
+  - Java 21 + Spring Boot 3.2 一行 spring.threads.virtual.enabled=true 启用
+  - 不要在 synchronized 块里做 I/O (会 pin 住 carrier)
+  - 详细设计: docs/superpowers/specs/2026-08-08-platform-design.md §3.2.1
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================ -->
+    <!-- Spring Boot parent - 锁住整个依赖生态的版本 -->
+    <!-- ============================================================ -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.shipyard</groupId>
+    <artifactId>shipyard-backend</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>shipyard-backend</name>
+    <description>shipyard platform master backend - Spring Boot + Java 21 + virtual threads</description>
+
+    <properties>
+        <!-- Java 21 LTS - 用虚拟线程 -->
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 关键依赖版本(显式锁定, 不被 parent 升) -->
+        <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <mysql-connector.version>8.3.0</mysql-connector.version>
+        <flyway.version>10.10.0</flyway.version>
+        <jjwt.version>0.12.5</jjwt.version>
+        <jqwik.version>1.7.3</jqwik.version>
+        <testcontainers.version>1.19.7</testcontainers.version>
+        <spotless.version>2.43.0</spotless.version>
+    </properties>
+
+    <dependencies>
+        <!-- ============================================================ -->
+        <!-- Web + 虚拟线程 (Java 21 LTS) -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!--
+          Spring Boot 3.2+ 内置 spring.threads.virtual.enabled=true
+          自动让所有阻塞 I/O 跑在虚拟线程上
+        -->
+
+        <!-- ============================================================ -->
+        <!-- 数据访问: MyBatis-Plus + MySQL + Flyway -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>${mysql-connector.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 安全: Spring Security + JWT -->
+        <!-- V1 用白名单模式 (权限后面加), 见 SecurityConfig -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 缓存 + 分布式锁: Redis -->
+        <!-- 构建状态缓存、deploy_record 锁防重 -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 验证: Bean Validation (Spring 自带, 但显式声明更清楚) -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 监控: Actuator + Prometheus -->
+        <!-- /actuator/health + /actuator/prometheus -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 工具: Lombok (编译期生成 getter/setter/builder) -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- 测试: JUnit 5 + jqwik (PBT) + Testcontainers (集成) -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>${jqwik.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik-api</artifactId>
+            <version>${jqwik.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>shipyard-backend</finalName>
+        <plugins>
+            <!-- Spring Boot Maven 插件: java -jar shipyard-backend.jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- ============================================================ -->
+            <!-- Spotless: Google Java Style + Apache 2.0 License header -->
+            <!-- 跟 CI 质量门绑定, 防止代码风格漂移 -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat/>
+                        <licenseHeader>
+                            <file>src/main/resources/license-header.txt</file>
+                        </licenseHeader>
+                    </java>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire: 跑单元测试 + PBT -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

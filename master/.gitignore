@@ -1,0 +1,49 @@
+# ============================================================
+# shipyard-backend (master) .gitignore
+# ============================================================
+
+# Maven 构建产物
+target/
+.mvn/
+mvnw
+mvnw.cmd
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# 日志
+logs/
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 测试覆盖率
+coverage/
+target/site/jacoco/
+target/surefire-reports/
+
+# 本地环境变量
+.env
+.env.local
+
+# 锁文件
+*.lock
+
+# jqwik 失败 case 数据库(用于 shrink 复现,PBT 跑时自动生成)
+.jqwik-database/
