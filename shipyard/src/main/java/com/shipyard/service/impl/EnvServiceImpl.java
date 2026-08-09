@@ -18,6 +18,7 @@ package com.shipyard.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shipyard.common.BeanUtils;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
 import com.shipyard.crypto.Encrypter;
@@ -26,7 +27,6 @@ import com.shipyard.mapper.EnvMapper;
 import com.shipyard.service.EnvService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -83,8 +83,13 @@ public class EnvServiceImpl implements EnvService {
         Long existingId = envMapper.selectIdByNameRaw(env.getName());
         if (existingId != null) {
             log.info("环境 {} 已存在 (id={}), 走复活+更新流程", env.getName(), existingId);
-            Env existing = envMapper.selectById(existingId);
-            BeanUtils.copyProperties(env, existing, "id", "createdAt", "deleted");
+            Env existing = envMapper.selectByIdIncludeDeleted(existingId);
+            if (existing == null) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+                    "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
+            }
+            existing.setDeleted(0);  // 复活
+            BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
             if (StringUtils.hasText(env.getWorkerTokenEnc())) {
                 existing.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
             }
@@ -120,7 +125,7 @@ public class EnvServiceImpl implements EnvService {
             }
         }
 
-        BeanUtils.copyProperties(env, existing, "id", "createdAt", "deleted");
+        BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
         if (StringUtils.hasText(env.getWorkerTokenEnc())) {
             existing.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
         }

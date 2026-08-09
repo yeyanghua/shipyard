@@ -32,4 +32,7 @@ public interface EnvMapper extends BaseMapper<Env> {
 
     @Select("SELECT id FROM env WHERE name = #{name} LIMIT 1")
     Long selectIdByNameRaw(@Param("name") String name);
+
+    @Select("SELECT * FROM env WHERE id = #{id}")
+    Env selectByIdIncludeDeleted(@Param("id") Long id);
 }

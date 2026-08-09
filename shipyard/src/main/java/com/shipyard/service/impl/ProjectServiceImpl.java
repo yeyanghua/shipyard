@@ -18,6 +18,7 @@ package com.shipyard.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shipyard.common.BeanUtils;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
 import com.shipyard.crypto.Encrypter;
@@ -26,7 +27,6 @@ import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -94,9 +94,15 @@ public class ProjectServiceImpl implements ProjectService {
         if (existingId != null) {
             // 复活 + 更新: 比抛冲突更友好 (用户重新启用项目)
             log.info("项目 {} 已存在 (id={}), 走复活+更新流程", project.getName(), existingId);
-            Project existing = projectMapper.selectById(existingId);
-            // 强制覆盖业务字段, 保留 createdAt
-            BeanUtils.copyProperties(project, existing, "id", "createdAt", "deleted");
+            // 用 raw SQL 绕过 @TableLogic, 拿到 deleted=1 的记录
+            Project existing = projectMapper.selectByIdIncludeDeleted(existingId);
+            if (existing == null) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+                    "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
+            }
+            // 强制覆盖业务字段, 保留 createdAt; 同时把 deleted 重置为 0 (复活)
+            existing.setDeleted(0);
+            BeanUtils.copyNonNullProperties(project, existing, "id", "createdAt", "deleted");
             if (StringUtils.hasText(project.getRepoTokenEnc())) {
                 existing.setRepoTokenEnc(encryptIfPresent(project.getRepoTokenEnc()));
             }
@@ -127,15 +133,15 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
 
-        // 复制可更新字段 (跳过 id, createdAt, deleted)
-        BeanUtils.copyProperties(project, existing, "id", "createdAt", "deleted");
+        // 复制可更新字段 (跳过 null + id/createdAt/deleted)
+        BeanUtils.copyNonNullProperties(project, existing, "id", "createdAt", "deleted");
 
         // token 重新加密 (如果传了新明文)
         if (StringUtils.hasText(project.getRepoTokenEnc())) {
             existing.setRepoTokenEnc(encryptIfPresent(project.getRepoTokenEnc()));
         }
 
-        // 验证更新后的字段
+        // 验证更新后的字段 (name 改了, 其他字段是 null 时已经被 skip)
         validateProject(existing);
 
         projectMapper.updateById(existing);

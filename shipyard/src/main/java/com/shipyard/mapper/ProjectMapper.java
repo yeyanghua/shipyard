@@ -41,4 +41,12 @@ public interface ProjectMapper extends BaseMapper<Project> {
      */
     @Select("SELECT id FROM project WHERE name = #{name} LIMIT 1")
     Long selectIdByNameRaw(@Param("name") String name);
+
+    /**
+     * 按 ID 查 — 不过滤软删 (复活逻辑用).
+     *
+     * <p>对应 SQL: {@code SELECT * FROM project WHERE id = #{id}}.
+     */
+    @Select("SELECT * FROM project WHERE id = #{id}")
+    Project selectByIdIncludeDeleted(@Param("id") Long id);
 }
