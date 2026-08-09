@@ -1,12 +1,13 @@
 # shipyard — 项目进度
 
-> **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。M1 仓库骨架完成,等开始 M2 master 后端骨架。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
+> **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。**M1 + M2 + M3 + M2.5 (SecurityConfig 合并) 已完成**,M4 准备开始(项目/环境 CRUD, 前后端贯通)。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 milestone | **M3 已完成**(M4 准备开始) |
+| 当前 commit | `28fb602` (合并 master/ → shipyard/ + SecurityConfig 提前到 M2.5) |
+| 当前 milestone | **M4 准备开始**(M2 + M3 已完成 + M2.5 Security 合并) |
 | 总 commit | 14 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排) |
 | 上次更新 | 2026-08-08 |
@@ -24,6 +25,9 @@
 - 改名 master → shipyard(480 处替换, 0 残留)
 - 分支 master → main
 - 推 GitHub 成功(SSH 认证走 `yeyanghua`)
+- **M2 shipyard 后端骨架** ✅ (commit `063970a`) - Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway + AesEncrypter + 虚拟线程 4 处
+- **M2.5 合并 Security** ✅ (commit `28fb602`) - 从 master/ 合并 SecurityConfig + JwtAuthFilter + JWT 配置到 shipyard/
+- **M3 shipyard Web 前端骨架** ✅ (commit `5851894`) - Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试
 - **M2 shipyard 后端骨架 ✅** (commit `063970a`) (Spring Boot 3.2.5 + Java 21 LTS + MyBatis-Plus 3.5.5 + Flyway 9.22.3 + MySQL 8 + Lombok + JUnit 5)
   - 13 张表 Flyway V1 migration 落库(spec 标的 12 是 typo,实际 13)
   - `AesEncrypter` (AES-256-GCM,带 12 字节随机 IV + 16 字节认证标签) + Encrypter interface
@@ -74,6 +78,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `6fbbf6c` | docs: 加 PROGRESS.md(换设备无缝继续的接力棒) |
 | `063970a` | M2: shipyard 后端骨架 (Spring Boot 3.2.5 + Java 21 + 13 张表 Flyway V1 + AesEncrypter 9 测试 + 虚拟线程) |
 | `5851894` | M3: shipyard Web 前端骨架 (Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试) |
+| `28fb602` | 合并 master/ → shipyard/ + SecurityConfig/JwtAuthFilter(JWT 白名单) + 删 1182 行重复 |
 
 ---
 
@@ -246,7 +251,7 @@ make master-dev
 
 新电脑/新会话打开 Mavis, **第一句话** 引用本文 + 当前 commit:
 
-> "回到 shipyard 项目, 仓库在 yeyanghua/shipyard, 当前 commit `fb0b57b` (改名 shipyard), M1 完成, M2 待开始。PROGRESS.md 是接力棒。"
+> "回到 shipyard 项目, 仓库在 yeyanghua/shipyard, 当前 commit `28fb602` (合并 Security 到 shipyard), M1 + M2 + M3 已完成, M4 准备开始 (项目/环境 CRUD)。"
 
 Mavis 会自动:
 - 读 `PROGRESS.md` 知道进度
