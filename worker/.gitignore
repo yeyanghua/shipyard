@@ -3,7 +3,9 @@
 # ============================================================
 
 # Go build artifacts
-worker
+# 坑: 之前写 `worker` 会递归匹配, 把 `worker/cmd/worker/` 整个 ignore 掉,
+# 导致 main.go 一直进不了 git. 改成具体路径 `worker/worker` + `worker.exe` 只 ignore 根下的 binary.
+worker/worker
 worker.exe
 *.exe
 *.dll
