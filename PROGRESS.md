@@ -1,19 +1,19 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M8.1 worker 骨架**。
-> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。M8.2 准备开始 (shipyard 后端 WorkerController 调 worker)。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M8.1 (worker 骨架) + M8.2 (shipyard 调 worker) 全部完成**。
+> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步 M8.3 k3d 部署 + 接 client-go 调真 k8s API。
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `0482355` (M8.1 worker 骨架) |
-| 当前 milestone | **M8.1 ✅ 完成, M8.2 准备开始** |
-| 总 commit | 27 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 55% 完成 |
-| 上次更新 | 2026-08-10 (Mac 本机开发, M8.1 worker 骨架, Go 1.23.4 装好) |
+| 当前 commit | `xxxxxxx` (M8.2 shipyard 调 worker) |
+| 当前 milestone | **M8.2 ✅ 完成, M8.3 准备开始** |
+| 总 commit | 29 |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 60% 完成 |
+| 上次更新 | 2026-08-10 (Mac 本机开发, M8.2 shipyard 后端调 worker, 端到端真 HTTP 跑通) |
 
 ---
 
@@ -76,6 +76,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `1e1d9cb` | **M5 5**:环境变量注入 drone (EnvVariableService.resolveAll 进 build 流程) |
 | `376f40e` | **M5 6**:Web BuildDetail 实时日志 UI + ProjectDetail 触发构建 + build 历史 |
 | `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
+| `xxxxxxx` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
 
 ---
 
@@ -178,44 +179,106 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 - shipyard application.yml 之前被改成 `${MYSQL_PASSWORD:zaige806}` (真密码入 git 风险) → 改回空默认
 - web/package-lock.json 跟 pnpm-lock.yaml 冲突 → web/.gitignore 加 package-lock.json
 
+### M8.2 — shipyard 后端调 worker (commit xxxxxxx, 2026-08-10 Mac 本机开发)
+
+**关键决策** (沿用 M8.1 方向): shipyard Java 端 → worker (Go) HTTP 调, shipyard 完全不知道 k8s 存在。
+
+**代码** (shipyard/ 新增 worker/ package):
+- `worker/entity/Worker.java` — 实体, 13 张表里 worker 表 (V1__init.sql 已建)
+- `worker/mapper/WorkerMapper.java` — BaseMapper + `updateHeartbeat(id, ts, status)` 原子 SQL
+- `worker/dto/WorkerRegisterRequest.java` + `WorkerRegisterResponse.java` + `WorkerHeartbeatRequest.java` + `WorkerResponse.java`
+- `worker/client/WorkerClient.java` — JDK 11+ `java.net.http.HttpClient` 调 worker, **5s 超时 + 2 次重试** (总 3 次尝试, 指数退避 100ms/300ms), 4xx 不重试, 5xx 重试
+- `worker/service/WorkerService.java` (interface) + `WorkerServiceImpl.java` — register (幂等, 按 env+url 查重) / heartbeat (单条 UPDATE 不走 ORM 全字段) / list 分页 / get / delete + 3 个 cluster 代理方法
+- `worker/controller/WorkerController.java` — 8 个 REST 端点
+  - `POST /api/workers/register` — worker 主动注册, 返 ID + heartbeat interval
+  - `POST /api/workers/{id}/heartbeat` — 更新 last_heartbeat_at + status
+  - `GET /api/workers` — 分页列表 (envId 可选过滤)
+  - `GET /api/workers/{id}` — 详情 (含 `heartbeatFresh: boolean` 供 UI 标色)
+  - `DELETE /api/workers/{id}` — 软删
+  - `GET /api/workers/{id}/cluster/namespaces` — 代理 worker
+  - `GET /api/workers/{id}/cluster/pods?namespace=xxx` — 代理 worker
+  - `GET /api/workers/{id}/cluster/deployments?namespace=xxx` — 代理 worker
+- 测试:
+  - `worker/client/WorkerClientTest.java` — **9 测试, 用 JDK `com.sun.net.httpserver.HttpServer` 起本地 mock server, 真跑 HTTP** (覆盖: happy / 4xx 不重试 / 5xx 重试 3 次 / 连接拒绝重试 / 重试后恢复)
+  - `worker/service/WorkerServiceImplTest.java` — **15 测试, Mockito mock WorkerMapper/EnvMapper/WorkerClient** (覆盖: register 幂等 / token 哈希入库 / heartbeat SQL 调 / status 校验 / 4 个 cluster 代理)
+
+**端到端真跑** (shipyard :8080 + worker :8888 同 Mac):
+```bash
+# 1. 建 dev env
+curl -X POST http://localhost:8080/api/envs -d '{"name":"dev","displayName":"开发环境",...}'
+
+# 2. 启动 worker (M8.1 已能跑)
+go run ./cmd/worker
+
+# 3. worker 自动注册 (M8.1 时是 500, M8.2 后 200)
+# → shipyard worker 表 1 行, status=online, token hash 入库
+
+# 4. 测心跳 + cluster 代理
+curl /api/workers/{id}/heartbeat           # 200
+curl /api/workers/{id}/cluster/namespaces  # 200, 返 mock ns
+curl /api/workers/{id}/cluster/pods?ns=shipyard  # 200, 返 mock pods
+curl /api/workers/{id}/cluster/deployments  # 200, 返 mock deployments
+```
+
+**验收** (本机):
+- `mvn test` **47/47 通过** (24 个新增, M4+M5 之前 23 个回归)
+- `mvn spring-boot:run` 起服 2s
+- worker (Mac) + shipyard (Mac) 同跑, 8 个 REST 端点全 200
+- worker 主动注册: 返 workerId (雪花 ID 字符串), heartbeatIntervalSec=30
+- heartbeat: 1 次 SQL UPDATE 原子更新 last_heartbeat_at + status
+- cluster 代理: 透传 worker 响应 (List<Map>), 字段全 camelCase (跟 shipyard Java 端 Jackson 对齐)
+- 5xx 重试 3 次 (WorkerClientTest 验证), 4xx 不重试
+
+**踩坑留底**:
+- WorkerClient 加了两个构造 (默认 + 测试用), Spring 启动报 `NoSuchMethodException: <init>()` → 给默认构造加 `@Autowired` 显式标记
+- WorkerClientTest 用 JDK `com.sun.net.httpserver.HttpServer` (比 mockito 真), 测试 0.97s 跑完 9 个 case
+- spring-boot:run 启动时 `nohup mvn` 不会保留 export 的 JAVA_HOME → 包成 `/tmp/run-shipyard.sh` 脚本跑
+- 启动时需要先建一个 dev env (env_id NOT NULL 约束), 用 POST /api/envs 一次建好
+
+**未做** (M8 后续):
+- ❌ worker 真调 k8s API (M8.1 + M8.2 全 mock 数据) → **M8.3** 接 client-go
+- ❌ k3d 单节点部署 + 镜像 push → M8.3
+- ❌ 真 apply deployment yaml → M8.4
+- ❌ 持续 pod 状态上报 → M8.5
+- ❌ shipyard 自动选 worker (load balance / 故障转移) → M9+
+- ❌ Frontend Worker 列表页 (用户说前端先不着急)
+
 ---
 
-## 4. 下一步: M8.2 — shipyard 后端 WorkerController 调 worker
+## 4. 下一步: M8.3 — worker 切真 client-go + k3d 部署
 
-**目标**: shipyard 后端实现 WorkerController (POST /api/workers/register, POST /api/workers/{id}/heartbeat, GET /api/workers/{id}/cluster/*), 用 OkHttp 调 worker HTTP。worker 仍在 Mac 本地跑(不进 k3s)。
+**目标**:
+- worker 不再返 mock, 接 client-go 调真 k8s API (in-cluster ServiceAccount 鉴权)
+- k3d 起单节点集群, worker 镜像 build + k3d image import + apply manifest
+- shipyard → worker (在 k3s pod 里) 端到端真打
 
-**M8.2 1 — WorkerController** (shipyard 后端)
-- `POST /api/workers/register` — 接收 worker 注册请求, 写 `worker` 表 (V1__init.sql 13 张已有), 返 worker ID + 心跳间隔
-- `POST /api/workers/{id}/heartbeat` — 更新 `last_heartbeat_at` + `status` + `cpu/memory/pods_count`
-- `GET /api/workers` — 列表
-- `GET /api/workers/{id}` — 详情
-- `GET /api/workers/{id}/cluster/namespaces` — 调 worker 拿真 ns 列表
-- `GET /api/workers/{id}/cluster/pods?namespace=xxx` — 调 worker 拿 pod 列表
-- `GET /api/workers/{id}/cluster/deployments?namespace=xxx` — 调 worker 拿 deployment 列表
+**M8.3 1 — k3d 集群起**
+- `brew install k3d` (Mac 客户端)
+- `k3d cluster create shipyard --agents 1 --port 8080:80@loadbalancer` (单节点, Mac 端口映射)
+- `kubectl get nodes` 验证
 
-**M8.2 2 — WorkerService + WorkerClient**
-- WorkerService: 业务逻辑 (find by name / create / update heartbeat)
-- WorkerClient (OkHttp): 调 worker HTTP, 超时 5s + 重试 2 次
-- WorkerHealthChecker: 启动时校验, 30s 内没心跳的 worker 标 unhealthy
+**M8.3 2 — worker 改 client-go**
+- worker `internal/k8sclient/` 目录, 起 `clientset` (in-cluster 模式读 ServiceAccount token)
+- 改 cluster handler 调 `CoreV1().Namespaces().List()` / `Pods(ns).List()` / `AppsV1().Deployments(ns).List()`
+- token 不再 hardcode "unknown", 真拿 Discovery().Version()
 
-**M8.2 3 — EnvController 加 worker_url 字段**
-- env 表加 worker_url (e.g. http://shipyard-worker.shipyard.svc.cluster.local:8888) — M8.3 k3d 部署后真正用
-- M8.2 阶段先在 env 表里 hardcode 本机 worker URL (http://localhost:8888), 让端到端通
+**M8.3 3 — worker 镜像 build + push**
+- `docker build -t shipyard-worker:dev -f worker/Dockerfile worker/`
+- `k3d image import shipyard-worker:dev -c shipyard`
+- 或用 k3d 自带 registry: `k3d registry create` + tag push
 
-**M8.2 4 — E2E 验证**
-- 启动 shipyard 后端 (8080) + worker (8888) (两个 Mac 本机进程)
-- worker 启动 → 自动调 shipyard /api/workers/register 拿 ID
-- worker 30s 心跳 → shipyard `worker` 表 last_heartbeat_at 更新
-- 浏览器 shipyard Web → 看 worker 列表 (新页 / workers)
-- shipyard Web → 点 worker → 看 cluster/namespaces (mock 数据从 worker 来)
+**M8.3 4 — apply worker manifest**
+- `kubectl apply -f k8s/dev/worker-deployment.yaml` (M8.1 已建)
+- `kubectl get pods -n shipyard` 看到 worker-xxx Running
+- `kubectl logs -f .../shipyard-worker-xxx` 看 worker 启动日志
 
-**工时**: 1 天
+**M8.3 5 — 端到端**
+- shipyard 后端: `worker` 表更新 env_id 对应的 workerUrl → `http://shipyard-worker.shipyard.svc.cluster.local:8888`
+- shipyard Web (或 curl) → 调 worker 拿 ns → 真拿 k3d 集群 ns (default / kube-system / kube-public 等)
 
-**之前 M6 — Pipeline 编辑 + AI 改/生成** (暂停, 跟 M8 并行, M8 完成后回头看)
-- **M6 1 — pipeline_template 表** + Entity + Mapper + Service
-- **M6 2 — AI 集成** (MockLLMAdapter 默认)
-- **M6 3 — PipelineEdit 页** (前端)
-- **M6 4 — BuildService 集成** (后端)
+**工时**: 1-2 天
+
+**之前 M6 — Pipeline 编辑 + AI 改/生成** (暂停, M8.3 后回头看)
 
 **M6 5 — M12 接入真实 LLM** (略, 跟 M6 并行)
 
