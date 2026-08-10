@@ -9,31 +9,35 @@
  */
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { projectsApi, envsApi, type Project, type Env, ApiError } from '@/api';
+import { projectsApi, envsApi, workersApi, type Project, type Env, type Worker, ApiError } from '@/api';
 
 const projects = ref<Project[]>([]);
 const envs = ref<Env[]>([]);
+const workers = ref<Worker[]>([]);
 const loading = ref(true);
 
 const stats = ref({
   projects: 0,
   envs: 0,
-  buildsToday: 0,
+  workersOnline: 0,
   successRate: 0,
 });
 
 onMounted(async () => {
   try {
-    const [pResp, eResp] = await Promise.all([
+    const [pResp, eResp, wResp] = await Promise.all([
       projectsApi.list({ page: 1, size: 100 }),
       envsApi.list({ page: 1, size: 100 }),
+      workersApi.list({ page: 1, size: 100 }).catch(() => ({ records: [], total: 0 })),
     ]);
     projects.value = pResp.records;
     envs.value = eResp.records;
+    workers.value = wResp.records;
     stats.value.projects = pResp.total;
     stats.value.envs = eResp.total;
-    // builds today V1 demo: 0 (没后端聚合接口)
-    stats.value.buildsToday = 0;
+    // 在线 worker: 90s 内有心跳的
+    stats.value.workersOnline = workers.value.filter((w) => w.heartbeatFresh).length;
+    // success rate V1 demo: 0 (没后端聚合接口)
     stats.value.successRate = 0;
   } catch (e) {
     // 静默失败, 展示 0
@@ -48,6 +52,7 @@ const IconFolder = 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9
 const IconServer = 'M2 3h20v8H2z M2 13h20v8H2z M6 7h.01 M6 17h.01';
 const IconRocket = 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0 M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5';
 const IconAlert = 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01';
+const IconCpu = 'M4 4h16v16H4z M9 9h6v6H9z M2 9h2 M2 15h2 M20 9h2 M20 15h2 M9 2v2 M15 2v2 M9 20v2 M15 20v2';
 const IconPlus = 'M12 5v14 M5 12h14';
 const IconArrow = 'M5 12h14 M12 5l7 7-7 7';
 
@@ -56,6 +61,7 @@ const quickLinks = [
   { to: '/projects/new',     label: '新建项目',    desc: '从 GitLab / Gitee 仓库开始', icon: IconPlus },
   { to: '/projects',         label: '管理项目',    desc: '查看所有项目 / 触发构建',  icon: IconFolder },
   { to: '/envs',             label: '管理环境',    desc: 'Dev / Staging / Prod 配置',  icon: IconServer },
+  { to: '/workers',          label: 'Worker 管理', desc: '查看注册的部署执行器',      icon: IconCpu },
   { to: '/ai/diagnosis',     label: 'AI 诊断',     desc: '智能分析构建失败原因',      icon: IconAlert },
 ];
 </script>
@@ -102,12 +108,12 @@ const quickLinks = [
       </div>
 
       <div class="stat-card slide-up" style="animation-delay: 0.15s">
-        <div class="stat-label">今日构建</div>
+        <div class="stat-label">在线 Worker</div>
         <div class="stat-value">
           <span v-if="loading" class="skeleton" style="width: 60px; height: 32px; display: inline-block;"></span>
-          <span v-else>{{ stats.buildsToday }}</span>
+          <span v-else>{{ stats.workersOnline }}<span class="stat-unit">/{{ workers.length }}</span></span>
         </div>
-        <div class="stat-trend">V1.5 接 Prometheus</div>
+        <div class="stat-trend">90s 内有心跳</div>
       </div>
 
       <div class="stat-card slide-up" style="animation-delay: 0.2s">
@@ -124,7 +130,7 @@ const quickLinks = [
     <section class="quick-section">
       <div class="section-header">
         <h2>快捷入口</h2>
-        <span class="muted">4 项</span>
+        <span class="muted">{{ quickLinks.length }} 项</span>
       </div>
       <div class="quick-grid">
         <RouterLink

@@ -10,3 +10,4 @@ export * from './builds';
 export * from './auth';
 export * from './pipelines';
 export * from './dockerfileTemplates';
+export * from './workers';

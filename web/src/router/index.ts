@@ -86,6 +86,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '通知', milestone: 'M13' },
   },
   {
+    path: '/workers',
+    name: 'workers',
+    component: () => import('@/views/Workers.vue'),
+    meta: { title: 'Worker 管理', milestone: 'M13' },
+  },
+  {
     // 404 兜底
     path: '/:pathMatch(.*)*',
     name: 'not-found',
