@@ -9,7 +9,7 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `xxxxxxx` (M8.2 shipyard 调 worker) |
+| | 当前 commit | `616a968` (M8.2 shipyard 调 worker) |
 | 当前 milestone | **M8.2 ✅ 完成, M8.3 准备开始** |
 | 总 commit | 29 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 60% 完成 |
@@ -76,7 +76,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `1e1d9cb` | **M5 5**:环境变量注入 drone (EnvVariableService.resolveAll 进 build 流程) |
 | `376f40e` | **M5 6**:Web BuildDetail 实时日志 UI + ProjectDetail 触发构建 + build 历史 |
 | `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
-| `xxxxxxx` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
+| `616a968` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
 
 ---
 
