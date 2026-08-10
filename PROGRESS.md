@@ -77,6 +77,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `376f40e` | **M5 6**:Web BuildDetail 实时日志 UI + ProjectDetail 触发构建 + build 历史 |
 | `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
 | `616a968` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
+| `xxxxxxx` | **M8.3a**:worker 接 client-go 真调 k8s API (3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc) |
 
 ---
 
@@ -236,49 +237,77 @@ curl /api/workers/{id}/cluster/deployments  # 200, 返 mock deployments
 - 启动时需要先建一个 dev env (env_id NOT NULL 约束), 用 POST /api/envs 一次建好
 
 **未做** (M8 后续):
-- ❌ worker 真调 k8s API (M8.1 + M8.2 全 mock 数据) → **M8.3** 接 client-go
-- ❌ k3d 单节点部署 + 镜像 push → M8.3
+- ❌ k3d 单节点部署 + 镜像 push → **M8.3b** (Mac 已装 k3d, 直接跳到 build+import)
 - ❌ 真 apply deployment yaml → M8.4
 - ❌ 持续 pod 状态上报 → M8.5
 - ❌ shipyard 自动选 worker (load balance / 故障转移) → M9+
 - ❌ Frontend Worker 列表页 (用户说前端先不着急)
 
+### M8.3a — worker 接 client-go 真调 k8s API (commit xxxxxxx, 2026-08-10 Mac 本机开发)
+
+**关键决策** (用户 2026-08-10 拍板 "A1 + B"):
+- A1: fake client 数据 "真实化" — 返 4 个真 k8s 默认 ns (default / kube-public / kube-system / kube-node-lease) + 真实镜像名 (coredns / local-path-provisioner)
+- B: in-cluster mode 缺 SA token 时优雅降级 fake + WARN 日志, 不 panic
+
+**代码** (worker/ 新增 internal/k8sclient/):
+- `k8sclient/client.go`: K8sClient interface (ListNamespaces / ListPods / ListDeployments / ClusterInfo)
+- `k8sclient/incluster.go`: InClusterClient — `k8s.io/client-go/kubernetes` 真调 k8s API
+  - 优先级: in-cluster (ServiceAccount token) → kubeconfig (`~/.kube/config` 或 `$KUBECONFIG`) → 失败返 error
+  - ClusterInfo 调 `Discovery().ServerVersion()` 拿版本
+  - nodeName 优先从 `NODE_NAME` env (downward API 注入) 拿
+- `k8sclient/fake.go`: FakeClient — 4 个真 ns + shipyard/kube-system 各自 pod/deployment
+- `k8sclient/util.go`: age 格式化 (含未来时间兜底) + pod ready/restarts 提取 + labels 转 KV
+- `k8sclient/fake_test.go`: 9 测试 — 4 ns 验证 / shipyard 3 pod / kube-system 2 pod / empty ns 返空
+- `k8sclient/util_test.go`: age 格式化 6 case (含 future 兜底)
+- `cmd/worker/main.go` 改: 3 模式自动 fallback + WARN 日志 (in-cluster 失败 → kubeconfig → fake) + ClusterInfo 调用拿 version + nodeName
+- `handler/cluster.go` 改: 删硬编码 mock, 注入 K8sClient, k8s API 失败返 500
+- `handler/cluster_test.go` 改: 改用 fake client + 加 k8s API 失败测 (mockFailingClient)
+
+**端到端真打 (Mac 本机 k3d 集群 `k3d-shipyard-server-0`, v1.35.5+k3s1)**:
+- worker 启动日志: `K8sClient 初始化: kubeconfig  {"path":"","version":"v1.35.5+k3s1","node":"unknown"}`
+- shipyard → worker → 真 k3s 集群, 返 4 个真 ns (default / kube-node-lease / kube-public / kube-system) + coredns/local-path-provisioner deployments
+- **惊喜发现**: 用户 Mac 已经装了 k3d (`k3d-shipyard-server-0`), 不需要再装!M8.3a 实际上已经打通了真 k3s
+
+**验收**:
+- `go test ./...` 全过 (handler 86.1% / k8sclient 33.3% 覆盖 — InClusterClient 部分靠真 k3s 集成验证)
+- `go vet` 0 错
+- `go build` 单二进制 ~14MB (M8.1 13MB, 加 client-go + apimachinery 涨 ~1MB)
+- worker 启动 1s, shipyard 代理 worker 拿真 k3s 数据 (default / kube-system / kube-public / kube-node-lease 4 个 ns + coredns deployment + helm-install-traefik pods)
+
+**踩坑留底**:
+- `formatAgeSince` 未来时间返负数 (`-3599s`) → 加 `if d < 0 { d = 0 }` 兜底
+- `client.(*k8sclient.InClusterClient).NodeName()` type assertion 编译失败 (interface vs concrete) → 改用单独 `ic` 变量避免 type assert
+- go.mod 没列 `k8s.io/api/core/v1` 详细子包 → `go mod tidy` 拉
+- 后台跑 worker 用 `nohup ... < /dev/null &` (切断 stdin, 避免 bash 关闭时 panic 拉走进程; setsid 在 Mac bash 没装)
+- kubeconfig 模式自动从 `~/.kube/config` 读 (空字符串), 不用显式指定 path
+
+**部署指南**: `worker/M8.3-deploy.md` (2 种模式 + 3 步 fallback + k3d 镜像导入备选 + 验证清单)
+
+**未做** (M8.3b 待做):
+- ❌ worker 镜像 build (`docker build -t shipyard-worker:dev -f worker/Dockerfile worker/`)
+- ❌ k3d image import + apply manifest (`kubectl apply -f k8s/dev/worker-deployment.yaml`)
+- ❌ in-cluster mode 端到端验证 (需 worker 跑在 k3d pod 里)
+- ❌ 多副本 (replicas=2) 全注册 + 心跳
+
 ---
 
-## 4. 下一步: M8.3 — worker 切真 client-go + k3d 部署
+## 4. 下一步: M8.3b — worker 部署到 k3d pod
 
-**目标**:
-- worker 不再返 mock, 接 client-go 调真 k8s API (in-cluster ServiceAccount 鉴权)
-- k3d 起单节点集群, worker 镜像 build + k3d image import + apply manifest
-- shipyard → worker (在 k3s pod 里) 端到端真打
+**目标**: worker 跑在 k3d pod 里 (in-cluster mode), 端到端跨 pod 网络真打
 
-**M8.3 1 — k3d 集群起**
-- `brew install k3d` (Mac 客户端)
-- `k3d cluster create shipyard --agents 1 --port 8080:80@loadbalancer` (单节点, Mac 端口映射)
-- `kubectl get nodes` 验证
+**4 步** (M8.3-deploy.md 详):
+1. `docker build -t shipyard-worker:dev -f worker/Dockerfile worker/`
+2. `k3d image import shipyard-worker:dev -c shipyard`
+3. `kubectl apply -f k8s/dev/worker-deployment.yaml`
+4. 端到端: shipyard → k3d service DNS → worker pod → 真 k3s
 
-**M8.3 2 — worker 改 client-go**
-- worker `internal/k8sclient/` 目录, 起 `clientset` (in-cluster 模式读 ServiceAccount token)
-- 改 cluster handler 调 `CoreV1().Namespaces().List()` / `Pods(ns).List()` / `AppsV1().Deployments(ns).List()`
-- token 不再 hardcode "unknown", 真拿 Discovery().Version()
+**shipyard 端配套改动**:
+- env.worker_url 改成 `http://shipyard-worker.shipyard.svc.cluster.local:8888`
+- 删旧 worker 行 (URL 还是 localhost:8888)
 
-**M8.3 3 — worker 镜像 build + push**
-- `docker build -t shipyard-worker:dev -f worker/Dockerfile worker/`
-- `k3d image import shipyard-worker:dev -c shipyard`
-- 或用 k3d 自带 registry: `k3d registry create` + tag push
+**工时**: 半天-1 天
 
-**M8.3 4 — apply worker manifest**
-- `kubectl apply -f k8s/dev/worker-deployment.yaml` (M8.1 已建)
-- `kubectl get pods -n shipyard` 看到 worker-xxx Running
-- `kubectl logs -f .../shipyard-worker-xxx` 看 worker 启动日志
-
-**M8.3 5 — 端到端**
-- shipyard 后端: `worker` 表更新 env_id 对应的 workerUrl → `http://shipyard-worker.shipyard.svc.cluster.local:8888`
-- shipyard Web (或 curl) → 调 worker 拿 ns → 真拿 k3d 集群 ns (default / kube-system / kube-public 等)
-
-**工时**: 1-2 天
-
-**之前 M6 — Pipeline 编辑 + AI 改/生成** (暂停, M8.3 后回头看)
+**之前 M6 — Pipeline 编辑 + AI 改/生成** (暂停, M8.3b 后回头看)
 
 **M6 5 — M12 接入真实 LLM** (略, 跟 M6 并行)
 

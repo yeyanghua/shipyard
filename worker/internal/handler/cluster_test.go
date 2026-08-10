@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/yeyanghua/shipyard/worker/internal/k8sclient"
 	"github.com/yeyanghua/shipyard/worker/internal/types"
 )
 
@@ -24,8 +26,13 @@ func newTestRouter(h *ClusterHandler) *gin.Engine {
 	return r
 }
 
+// 用 fake client 做测试 (M8.3 起, 替硬编码 mock)
+func newHandlerWithFake() *ClusterHandler {
+	return NewClusterHandler(zap.NewNop(), k8sclient.NewFakeClient())
+}
+
 func TestClusterHandler_ListNamespaces(t *testing.T) {
-	h := NewClusterHandler(zap.NewNop())
+	h := newHandlerWithFake()
 	r := newTestRouter(h)
 
 	w := httptest.NewRecorder()
@@ -41,19 +48,21 @@ func TestClusterHandler_ListNamespaces(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, 0, resp.Code)
-	assert.NotEmpty(t, resp.Data, "should return at least one mock namespace")
+	assert.NotEmpty(t, resp.Data, "fake client should return namespaces")
 
-	// 验证一定有 default / kube-system / shipyard
+	// fake 返 4 个真 k8s 默认 ns
 	names := make(map[string]bool)
 	for _, ns := range resp.Data {
 		names[ns.Name] = true
 	}
 	assert.True(t, names["default"], "should include default namespace")
 	assert.True(t, names["kube-system"], "should include kube-system namespace")
+	assert.True(t, names["kube-public"], "should include kube-public namespace")
+	assert.True(t, names["kube-node-lease"], "should include kube-node-lease namespace")
 }
 
 func TestClusterHandler_ListPods_DefaultNamespace(t *testing.T) {
-	h := NewClusterHandler(zap.NewNop())
+	h := newHandlerWithFake()
 	r := newTestRouter(h)
 
 	w := httptest.NewRecorder()
@@ -68,16 +77,16 @@ func TestClusterHandler_ListPods_DefaultNamespace(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, 0, resp.Code)
-	assert.NotEmpty(t, resp.Data, "should return at least one mock pod")
+	assert.NotEmpty(t, resp.Data, "should return at least one fake pod")
 	for _, p := range resp.Data {
 		assert.Equal(t, "shipyard", p.Namespace)
 		assert.Equal(t, "Running", p.Phase)
 	}
 }
 
-func TestClusterHandler_ListPods_DefaultQueryParam(t *testing.T) {
-	// 不传 namespace 走默认 default
-	h := NewClusterHandler(zap.NewNop())
+func TestClusterHandler_ListPods_AllNamespaces(t *testing.T) {
+	// 不传 namespace → 跨 ns, fake client 默认返 shipyard
+	h := newHandlerWithFake()
 	r := newTestRouter(h)
 
 	w := httptest.NewRecorder()
@@ -87,8 +96,48 @@ func TestClusterHandler_ListPods_DefaultQueryParam(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestClusterHandler_ListPods_KubeSystem(t *testing.T) {
+	h := newHandlerWithFake()
+	r := newTestRouter(h)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/cluster/pods?namespace=kube-system", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp struct {
+		Code int         `json:"code"`
+		Data []types.Pod `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 0, resp.Code)
+	// kube-system 应该返 coredns + local-path-provisioner
+	assert.Equal(t, 2, len(resp.Data))
+}
+
+func TestClusterHandler_ListPods_EmptyNamespace(t *testing.T) {
+	// default / kube-public / kube-node-lease fake client 返空
+	h := newHandlerWithFake()
+	r := newTestRouter(h)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/cluster/pods?namespace=default", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp struct {
+		Code int         `json:"code"`
+		Data []types.Pod `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 0, resp.Code)
+	assert.Empty(t, resp.Data)
+}
+
 func TestClusterHandler_ListDeployments(t *testing.T) {
-	h := NewClusterHandler(zap.NewNop())
+	h := newHandlerWithFake()
 	r := newTestRouter(h)
 
 	w := httptest.NewRecorder()
@@ -109,4 +158,45 @@ func TestClusterHandler_ListDeployments(t *testing.T) {
 		assert.Greater(t, d.Replicas, int32(0))
 		assert.NotEmpty(t, d.Image)
 	}
+}
+
+// mockFailingClient 用于测 k8s API 失败时 handler 返 500 兜底.
+type mockFailingClient struct{}
+
+func (m *mockFailingClient) ListNamespaces(ctx context.Context) ([]types.Namespace, error) {
+	return nil, errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) ListPods(ctx context.Context, ns string) ([]types.Pod, error) {
+	return nil, errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) ListDeployments(ctx context.Context, ns string) ([]types.Deployment, error) {
+	return nil, errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) ClusterInfo(ctx context.Context) (string, string, error) {
+	return "?", "?", errFake("fake k8s unreachable")
+}
+
+type simpleErr struct{ msg string }
+
+func (e *simpleErr) Error() string { return e.msg }
+
+func errFake(msg string) error { return &simpleErr{msg: msg} }
+
+func TestClusterHandler_K8sAPIFails_Returns500(t *testing.T) {
+	h := NewClusterHandler(zap.NewNop(), &mockFailingClient{})
+	r := newTestRouter(h)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/cluster/namespaces", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var resp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 500, resp.Code)
+	assert.Contains(t, resp.Message, "fake k8s unreachable")
 }
