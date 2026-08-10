@@ -27,7 +27,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
-        <mysql-connector.version>8.3.0</mysql-connector.version>
+        <mysql-connector.version>26.7.0</mysql-connector.version>
         <flyway.version>9.22.3</flyway.version>
     </properties>
 
