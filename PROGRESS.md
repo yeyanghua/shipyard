@@ -9,7 +9,7 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| | 当前 commit | `616a968` (M8.2 shipyard 调 worker) |
+| | 当前 commit | `27cd9ca` (M8.3a worker 接 client-go) |
 | 当前 milestone | **M8.2 ✅ 完成, M8.3 准备开始** |
 | 总 commit | 29 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 60% 完成 |
@@ -77,7 +77,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `376f40e` | **M5 6**:Web BuildDetail 实时日志 UI + ProjectDetail 触发构建 + build 历史 |
 | `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
 | `616a968` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
-| `xxxxxxx` | **M8.3a**:worker 接 client-go 真调 k8s API (3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc) |
+| `27cd9ca` | **M8.3a**:worker 接 client-go 真调 k8s API (3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc) |
 
 ---
 
@@ -243,7 +243,7 @@ curl /api/workers/{id}/cluster/deployments  # 200, 返 mock deployments
 - ❌ shipyard 自动选 worker (load balance / 故障转移) → M9+
 - ❌ Frontend Worker 列表页 (用户说前端先不着急)
 
-### M8.3a — worker 接 client-go 真调 k8s API (commit xxxxxxx, 2026-08-10 Mac 本机开发)
+### M8.3a — worker 接 client-go 真调 k8s API (commit `27cd9ca`, 2026-08-10 Mac 本机开发)
 
 **关键决策** (用户 2026-08-10 拍板 "A1 + B"):
 - A1: fake client 数据 "真实化" — 返 4 个真 k8s 默认 ns (default / kube-public / kube-system / kube-node-lease) + 真实镜像名 (coredns / local-path-provisioner)
