@@ -1,19 +1,19 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M8.1 (worker 骨架) + M8.2 (shipyard 调 worker) 全部完成**。
-> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步 M8.3 k3d 部署 + 接 client-go 调真 k8s API。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M8.1 (worker 骨架) + M8.2 (shipyard 调 worker) + M8.3a (worker 接 client-go) + M8.3b (worker 部署到 k3d + string bug fix) 全部完成**。
+> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步 M8.3c shipyard → k3d worker 端到端互调 + pause 镜像问题。
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| | 当前 commit | `27cd9ca` (M8.3a worker 接 client-go) |
-| 当前 milestone | **M8.2 ✅ 完成, M8.3 准备开始** |
-| 总 commit | 29 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 60% 完成 |
-| 上次更新 | 2026-08-10 (Mac 本机开发, M8.2 shipyard 后端调 worker, 端到端真 HTTP 跑通) |
+| | 当前 commit | `16907f5` (M8.3b worker 部署 k3d + string bug fix) |
+| 当前 milestone | **M8.3b ✅ 完成, M8.3c 准备开始** |
+| 总 commit | 30 |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 65% 完成 |
+| 上次更新 | 2026-08-10 (Mac 本机开发, M8.3b worker pod 跑在 k3d 集群里 + 向 shipyard 注册成功, shipyard DB worker 表有记录) |
 
 ---
 
@@ -30,9 +30,13 @@
 - **M3** Web 端骨架 (commit `5851894`) - Vue 3.4 + TS 5.5 + Vite 5.4 + 8 页面占位 + 6 测试
 - **M4** 前后端贯通 (commits `81f4c99` `1e0f7cd` `88a22e2` `25e37ea`) - 4 Entity + 4 Mapper + 4 Service + 4 Controller + 10 DTO + 公共异常 + Hard-coded JWT 鉴权; 14 业务端点 + /api/auth/demo-token; E2E 20/20 通过
 - **M5** 端到端可演示 (commits `3fac032` `fe17315` `2cf2b44` `bcb69c4` `6be779e` `1e1d9cb` `376f40e`) - drone 集成 mock + SSE 实时日志 + 环境变量注入 + 前端 BuildDetail 实时 UI
+- **M8.1** worker 骨架 (commit `0482355`) - Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整
+- **M8.2** shipyard 调 worker (commit `616a968`) - WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通
+- **M8.3a** worker 接 client-go (commit `27cd9ca`) - 3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc
+- **M8.3b** worker 部署 k3d + string bug fix (commit `16907f5`) - docker build 51.9MB, k3d image import, pod Running, K8sClient in-cluster 模式连真 k3s, shipyard DB worker 表落库, heartbeat 正常
 - **D 盘验证**: mvn test 23/23 + test-m5-2.ps1 13/13 + test-m5-5.ps1 8/8 + pnpm typecheck 0 errors + pnpm build 729ms
 
-⏳ **下一步**: M6 Pipeline 编辑 + AI 改/生成 (mock LLM 默认开启)
+⏳ **下一步**: M8.3c — shipyard 调 k3d worker 端到端(当前卡 shipyard 在 Mac 主机不在 k3d 里,走 cluster DNS 不通,要 NodePort/hostPort 打通) + pause 镜像源问题(2 replicas 第二个 pod 卡 pause:3.6 拉 docker.io 超时)
 
 ---
 
@@ -45,7 +49,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 克隆:    git clone git@github.com:yeyanghua/shipyard.git
 ```
 
-### 25 个 commit 历史 (M1 → M5)
+### 30 个 commit 历史 (M1 → M8.3b)
 
 | SHA | 说明 |
 |---|---|
@@ -78,6 +82,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
 | `616a968` | **M8.2**:shipyard 后端调 worker (WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通) |
 | `27cd9ca` | **M8.3a**:worker 接 client-go 真调 k8s API (3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc) |
+| `16907f5` | **M8.3b**:worker 部署 k3d + string bug fix (WorkerID int64 → string 接 shipyard Jackson String 序列化, Dockerfile 1.22→1.23, go.mod 1.26→1.23+toolchain, k3d 集群里 1/2 pod Running, shipyard DB 落库成功) |
 
 ---
 
@@ -127,6 +132,36 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 - EnvVariable 启动时全量校验 (CryptoHealthCheck) - 损坏变量阻止启动
 - 前端 5 页面 + 2 组件 + 3 store + 4 API + 鉴权自动注入
 - E2E 20/20 通过 (`logs/test-m4.ps1`)
+
+### M8 — worker 真生产部署 (5 commit, 8/9 ~ 8/10)
+
+> **方向调整**: V1 不再走 demo + 面试剧本, **真生产部署**。worker 是 shipyard 在 k8s 里的代理,
+> shipyard 通过 worker 调 k8s API (listNamespaces / listPods / listDeployments), 后续 M9+ 再做 apply/deploy。
+> M8.1 / M8.2 / M8.3a 详见下面子段。
+
+**M8.3b** (commit `16907f5`) ← **本会话**
+- **核心 bug fix**: `WorkerID int64` → `string` (5 个文件: types.go / register.go / health.go + 2 test)
+  根因: shipyard Jackson 把雪花 ID (Long) 序列化成 String 防 JS 19 位精度丢失, Go int64 接不上报
+  `cannot unmarshal string into Go struct field RegisterResponse.data.workerId of type int64`
+- Dockerfile 升 `1.22-alpine` → `1.23-alpine` (跟 go.mod 对齐) + 加 `GOPROXY=goproxy.cn`
+- go.mod `go 1.26.0` → `go 1.23.0` + `toolchain go1.23.4` (跟 Go 工具链一致)
+- k3d 集群 `shipyard` (v1.35.5+k3s1) 部署:
+  - `docker build` 51.9MB scratch 镜像
+  - `k3d image import shipyard-worker:dev` 注入本地镜像
+  - `kubectl apply` Namespace/SA/ClusterRole/ConfigMap/Secret/Deployment(replicas=2)/Service
+  - **1/2 pod Running**: `K8sClient 初始化: in-cluster {"version":"v1.35.5+k3s1","node":"k3d-shipyard-server-0"}`
+  - **向 shipyard 注册成功**: `workerId=2086742343905460226, status=online`
+  - **shipyard DB `worker` 表落库**: id/env_id/worker_url/last_heartbeat_at 全有
+
+**M8.3b 已知问题** (留给 M8.3c)
+- **pause 镜像**: 2 replicas 第二个 pod 卡 `rancher/mirrored-pause:3.6` 拉 `docker.io` 超时
+  (根因: brew/docker 网络慢同源)。3 选 1: 配 docker registry mirror / import pause 镜像到 k3d 节点 / 改 k3s `--pause-image` 用阿里云源
+- **shipyard → k3d worker 互调**: shipyard 在 Mac 主机不在 k3d 里,走 cluster DNS `shipyard-worker.shipyard.svc.cluster.local:8888` 不通
+  (返回 `worker 不可达 cause=null`)。需 NodePort / hostPort / 把 shipyard 也搞进 k3d 选一个
+
+**M8.3c 准备开始**:
+- pause 镜像: 改 k3s `--pause-image` 用阿里云源,或配 docker registry mirror,或 import pause 镜像
+- shipyard → k3d worker 互调: 把 shipyard 部署到 k3d 里 (同一集群走 cluster DNS),或 worker 暴露 NodePort/hostPort
 
 ### M3 — Web 前端骨架 (commit `5851894`)
 
