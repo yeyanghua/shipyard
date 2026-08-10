@@ -8,6 +8,8 @@ lerna-debug.log*
 node_modules/
 .pnp
 .pnp.js
+# npm 锁文件 — shipyard web 用 pnpm,留 pnpm-lock.yaml 即可
+package-lock.json
 
 # Build
 dist/

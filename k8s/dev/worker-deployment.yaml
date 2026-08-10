@@ -1,0 +1,180 @@
+# ============================================================
+# shipyard worker — k3d dev 单节点部署
+# ============================================================
+# M8.3 阶段用,k3d 起单节点集群后:
+#   k3d image import shipyard-worker:dev -c shipyard   (导入本地镜像)
+#   kubectl apply -f k8s/dev/worker-deployment.yaml
+# ============================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shipyard
+  labels:
+    app.kubernetes.io/part-of: shipyard
+---
+# ============================================================
+# ServiceAccount + ClusterRole (最小权限: 只读 cluster/pods/deployments)
+# ============================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shipyard-worker
+  namespace: shipyard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: shipyard-worker-readonly
+rules:
+  # 读所有 namespace (cluster info 列出)
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  # 读 pods / deployments
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  # M8.4+ 真 apply 时再扩:
+  # - apiGroups: ["apps"]
+  #   resources: ["deployments"]
+  #   verbs: ["create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: shipyard-worker-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: shipyard-worker-readonly
+subjects:
+  - kind: ServiceAccount
+    name: shipyard-worker
+    namespace: shipyard
+---
+# ============================================================
+# ConfigMap: worker 配置 (env 注入,避免硬编码)
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipyard-worker-config
+  namespace: shipyard
+data:
+  WORKER_ENV: "dev"
+  WORKER_VERSION: "dev"
+  SHIPYARD_URL: "http://host.docker.internal:8080"
+  # k3d 集群外访问 shipyard (Mac 主机): 用 host.docker.internal
+  # 或用 k3d 集群内 service name (如果 shipyard 也在 k3s 里跑)
+  K8S_IN_CLUSTER: "true"
+  WORKER_HEARTBEAT_INTERVAL_SEC: "30"
+---
+# ============================================================
+# Secret: worker token (跟 shipyard 共享, HMAC 验签)
+# ============================================================
+# TODO M8.2: 实际从 shipyard 拿 / 生成,这里先用空 secret 占位
+apiVersion: v1
+kind: Secret
+metadata:
+  name: shipyard-worker-token
+  namespace: shipyard
+type: Opaque
+stringData:
+  SHIPYARD_WORKER_TOKEN: "dev-worker-token-please-rotate"
+---
+# ============================================================
+# Deployment: worker (replicas=2 高可用, spec §5.1 要求)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipyard-worker
+  namespace: shipyard
+  labels:
+    app: shipyard-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shipyard-worker
+  template:
+    metadata:
+      labels:
+        app: shipyard-worker
+    spec:
+      serviceAccountName: shipyard-worker
+      containers:
+        - name: worker
+          image: shipyard-worker:dev       # k3d image import 注入
+          imagePullPolicy: Never           # 本地镜像,不拉远程
+          ports:
+            - containerPort: 8888
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shipyard-worker-config
+            - secretRef:
+                name: shipyard-worker-token
+          env:
+            # pod 所在节点名 (心跳上报用)
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # k3s 集群内访问本 pod 用
+            - name: WORKER_PUBLIC_URL
+              value: "http://shipyard-worker.shipyard.svc.cluster.local:8888"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+# ============================================================
+# Service: ClusterIP (集群内访问)
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipyard-worker
+  namespace: shipyard
+  labels:
+    app: shipyard-worker
+spec:
+  type: ClusterIP
+  selector:
+    app: shipyard-worker
+  ports:
+    - port: 8888
+      targetPort: http
+      name: http
