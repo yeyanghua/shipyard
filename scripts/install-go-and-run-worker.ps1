@@ -31,6 +31,7 @@ $GOPROXY_CN = 'https://goproxy.cn,direct'
 $WORKER_NAME_DEFAULT = 'pc-worker-1'
 $WORKER_ENV_DEFAULT = 'dev'
 $WORKER_PORT_DEFAULT = 8888
+$WORKER_TOKEN_DEFAULT = 'test-token'  # V1 demo 默认, V1.5 接真鉴权后必填
 $KUBECONFIG_DEFAULT = Join-Path $env:USERPROFILE '.kube\config'
 
 # 仓库根
@@ -144,17 +145,19 @@ if (-not $useKubeconfig) {
 }
 
 # === 7. 询问 / 应用 worker 配置 ===
-if (-not $env:WORKER_NAME) { $env:WORKER_NAME = $WORKER_NAME_DEFAULT }
-if (-not $env:WORKER_ENV)  { $env:WORKER_ENV  = $WORKER_ENV_DEFAULT }
-if (-not $env:WORKER_PORT) { $env:WORKER_PORT = $WORKER_PORT_DEFAULT }
+if (-not $env:WORKER_NAME)  { $env:WORKER_NAME  = $WORKER_NAME_DEFAULT }
+if (-not $env:WORKER_ENV)   { $env:WORKER_ENV   = $WORKER_ENV_DEFAULT }
+if (-not $env:WORKER_PORT)  { $env:WORKER_PORT  = $WORKER_PORT_DEFAULT }
+if (-not $env:WORKER_TOKEN) { $env:WORKER_TOKEN = $WORKER_TOKEN_DEFAULT }
 
 Write-Host ''
 Write-Step "最终配置:"
-Write-Host "  WORKER_NAME = $env:WORKER_NAME"
-Write-Host "  WORKER_ENV  = $env:WORKER_ENV"
-Write-Host "  WORKER_PORT = $env:WORKER_PORT"
-Write-Host "  KUBECONFIG  = $env:KUBECONFIG"
-Write-Host "  GOPROXY     = $env:GOPROXY"
+Write-Host "  WORKER_NAME  = $env:WORKER_NAME"
+Write-Host "  WORKER_ENV   = $env:WORKER_ENV"
+Write-Host "  WORKER_PORT  = $env:WORKER_PORT"
+Write-Host "  WORKER_TOKEN = $env:WORKER_TOKEN  (V1 demo 默认 test-token)"
+Write-Host "  KUBECONFIG   = $env:KUBECONFIG"
+Write-Host "  GOPROXY      = $env:GOPROXY"
 Write-Host ''
 
 # === 8. go mod tidy ===

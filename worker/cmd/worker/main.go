@@ -89,6 +89,15 @@ func main() {
 		// 默认: 同一台机器 + 监听端口 (shipyard 注册时回填)
 		workerURL = fmt.Sprintf("http://localhost:%d", cfg.Port)
 	}
+
+	// WORKER_TOKEN: V1 demo 默认 "test-token" (V1.5 接真鉴权时改)
+	// shipyard 后端 @NotBlank 强校验, 空字符串直接 400 拒.
+	workerToken := os.Getenv("WORKER_TOKEN")
+	if workerToken == "" {
+		workerToken = "test-token"
+		logger.Warn("WORKER_TOKEN 未设, 走 V1 demo 默认值 'test-token' (V1.5 接真鉴权后必填)")
+	}
+
 	registerCfg := handler.RegisterConfig{
 		ShipyardURL:       cfg.ShipyardURL,
 		WorkerName:        cfg.WorkerName,
@@ -96,6 +105,7 @@ func main() {
 		K8sVersion:        k8sVer,
 		NodeName:          nodeName,
 		WorkerURL:         workerURL,
+		WorkerToken:       workerToken,
 		Version:           cfg.Version,
 		HeartbeatInterval: cfg.HeartbeatInterval,
 	}
