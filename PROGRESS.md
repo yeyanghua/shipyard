@@ -1,18 +1,19 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成**。
-> M6 (Pipeline 编辑 + AI 改) 准备开始。**换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
+> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 全部完成 + M8.1 worker 骨架**。
+> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。M8.2 准备开始 (shipyard 后端 WorkerController 调 worker)。
+> **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| 当前 commit | `376f40e` (M5 6 前端 BuildDetail 完成, V1 demo 端到端跑通) |
-| 当前 milestone | **M5 ✅ 全部完成, M6 准备开始** |
-| 总 commit | 25 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 50% 完成 |
-| 上次更新 | 2026-08-09 (D 盘开发, M5 端到端验收) |
+| 当前 commit | `0482355` (M8.1 worker 骨架) |
+| 当前 milestone | **M8.1 ✅ 完成, M8.2 准备开始** |
+| 总 commit | 27 |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 55% 完成 |
+| 上次更新 | 2026-08-10 (Mac 本机开发, M8.1 worker 骨架, Go 1.23.4 装好) |
 
 ---
 
@@ -74,6 +75,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `6be779e` | **M5 3**:SSE 实时日志接口 (BuildLogNotifier + /api/builds/{id}/stream) |
 | `1e1d9cb` | **M5 5**:环境变量注入 drone (EnvVariableService.resolveAll 进 build 流程) |
 | `376f40e` | **M5 6**:Web BuildDetail 实时日志 UI + ProjectDetail 触发构建 + build 历史 |
+| `0482355` | **M8.1**:worker 骨架 (Go 1.23 + gin + zap, 5 mock 接口, 16 测试, k3d manifest, M8 真生产方向调整) |
 
 ---
 
@@ -145,29 +147,75 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 
 - 16 个文件: LICENSE (Apache 2.0) + 双语 README + CONTRIBUTING + CODE_OF_CONDUCT + SECURITY + CHANGELOG + Makefile + docker-compose + docs/architecture + 5 个 .github 模板
 
+### M8.1 — worker 骨架 (commit `0482355`, 2026-08-10 Mac 本机开发)
+
+**关键决策** (用户 2026-08-10 拍板): 不再走 V1 demo + 面试剧本, **真生产部署**。架构: shipyard Java 端零 k8s 依赖,所有集群操作走 worker (Go) 代理。
+
+**代码**:
+- `worker/cmd/worker/main.go` — 入口 (gin engine + 注册 + 优雅关闭)
+- `worker/internal/config/config.go` — env var 加载 (WORKER_PORT / WORKER_NAME / SHIPYARD_URL / K8S_IN_CLUSTER 等)
+- `worker/internal/log/log.go` — zap logger 封装 (dev console / prod JSON)
+- `worker/internal/types/types.go` — 共享类型 + shipyard↔worker DTO
+- `worker/internal/handler/cluster.go` — 3 个 mock 端点 (/api/v1/cluster/{namespaces,pods,deployments})
+- `worker/internal/handler/health.go` — /healthz + /readyz + /api/v1/tasks/echo
+- `worker/internal/handler/register.go` — worker 主动调 shipyard /api/workers/register 拿 ID + 30s 心跳
+- `worker/internal/server/server.go` — gin engine + access log 中间件
+- `worker/internal/handler/*_test.go` — 16 单元测试 (handler 88.8% 覆盖 / config 87.0% 覆盖)
+- `worker/Dockerfile` — multi-stage golang:1.22-alpine → scratch (CGO_ENABLED=0, USER 65532, ~13MB)
+- `k8s/dev/worker-deployment.yaml` — Namespace + ServiceAccount + ClusterRole (只读) + ConfigMap + Secret + Deployment (replicas=2) + Service
+- `docs/M8-detail.md` — M8 详细方案 (架构图 + 决策 + 5 阶段计划)
+
+**验收** (本机, 不调 k8s API):
+- `go test ./...` 16/16 通过, `go vet` 0 错
+- `go build` 单二进制 13MB (spec §5.1 目标 <15MB)
+- `go run ./cmd/worker` 起服 1s
+- 5 端点 curl 全 200: healthz / readyz / cluster/namespaces / cluster/pods / cluster/deployments / tasks/echo
+- worker 主动调 shipyard `/api/workers/register` 拿 500 NoResourceFoundException (M8.2 端点待实现, 符合预期, 后续心跳重试)
+
+**踩坑留底**:
+- brew install go 极慢 (ghcr.io 1.26.5 35 分钟没下完 75MB) → 改 go.dev 官方二进制 1.23.4 71MB 1 分钟下完
+- go mod 默认 GOPROXY 慢 → 配 goproxy.cn + sum.golang.google.cn
+- shipyard application.yml 之前被改成 `${MYSQL_PASSWORD:zaige806}` (真密码入 git 风险) → 改回空默认
+- web/package-lock.json 跟 pnpm-lock.yaml 冲突 → web/.gitignore 加 package-lock.json
+
 ---
 
-## 4. 下一步: M6 — Pipeline 编辑 + AI 改/生成
+## 4. 下一步: M8.2 — shipyard 后端 WorkerController 调 worker
 
-**目标**: shipyard 端存 pipeline_template, Vue 端 PipelineEdit 页可改, AI (mock LLM 默认) 一键生成.
+**目标**: shipyard 后端实现 WorkerController (POST /api/workers/register, POST /api/workers/{id}/heartbeat, GET /api/workers/{id}/cluster/*), 用 OkHttp 调 worker HTTP。worker 仍在 Mac 本地跑(不进 k3s)。
 
-**M6 1 — pipeline_template 表** + Entity + Mapper + Service
-- V1__init.sql 已有 `pipeline_template` 表, 落 13 张时已建
-- 字段: id / project_id / version / yaml_content / generated_by / created_at / deleted
+**M8.2 1 — WorkerController** (shipyard 后端)
+- `POST /api/workers/register` — 接收 worker 注册请求, 写 `worker` 表 (V1__init.sql 13 张已有), 返 worker ID + 心跳间隔
+- `POST /api/workers/{id}/heartbeat` — 更新 `last_heartbeat_at` + `status` + `cpu/memory/pods_count`
+- `GET /api/workers` — 列表
+- `GET /api/workers/{id}` — 详情
+- `GET /api/workers/{id}/cluster/namespaces` — 调 worker 拿真 ns 列表
+- `GET /api/workers/{id}/cluster/pods?namespace=xxx` — 调 worker 拿 pod 列表
+- `GET /api/workers/{id}/cluster/deployments?namespace=xxx` — 调 worker 拿 deployment 列表
 
-**M6 2 — AI 集成** (MockLLMAdapter 默认)
-- 3 capability: pipeline_gen (生成) / diagnosis (诊断) / decision (发布决策)
-- 默认 mock, 真 LLM 走 TONGYI_API_KEY / DEEPSEEK_API_KEY env var
-- ai_interaction 表记录所有调用 (留痕)
+**M8.2 2 — WorkerService + WorkerClient**
+- WorkerService: 业务逻辑 (find by name / create / update heartbeat)
+- WorkerClient (OkHttp): 调 worker HTTP, 超时 5s + 重试 2 次
+- WorkerHealthChecker: 启动时校验, 30s 内没心跳的 worker 标 unhealthy
 
-**M6 3 — PipelineEdit 页** (前端)
-- YAML 编辑器 (textarea + 实时校验) + AI 改按钮 + diff 展示
-- Web AI 页面占位先, M12 接真 LLM
+**M8.2 3 — EnvController 加 worker_url 字段**
+- env 表加 worker_url (e.g. http://shipyard-worker.shipyard.svc.cluster.local:8888) — M8.3 k3d 部署后真正用
+- M8.2 阶段先在 env 表里 hardcode 本机 worker URL (http://localhost:8888), 让端到端通
 
-**M6 4 — BuildService 集成** (后端)
-- `POST /api/projects/{id}/pipeline` 触发 AI 生成
-- `PUT /api/projects/{id}/pipeline/{versionId}` 更新
-- `GET /api/projects/{id}/pipeline` 当前版本
+**M8.2 4 — E2E 验证**
+- 启动 shipyard 后端 (8080) + worker (8888) (两个 Mac 本机进程)
+- worker 启动 → 自动调 shipyard /api/workers/register 拿 ID
+- worker 30s 心跳 → shipyard `worker` 表 last_heartbeat_at 更新
+- 浏览器 shipyard Web → 看 worker 列表 (新页 / workers)
+- shipyard Web → 点 worker → 看 cluster/namespaces (mock 数据从 worker 来)
+
+**工时**: 1 天
+
+**之前 M6 — Pipeline 编辑 + AI 改/生成** (暂停, 跟 M8 并行, M8 完成后回头看)
+- **M6 1 — pipeline_template 表** + Entity + Mapper + Service
+- **M6 2 — AI 集成** (MockLLMAdapter 默认)
+- **M6 3 — PipelineEdit 页** (前端)
+- **M6 4 — BuildService 集成** (后端)
 
 **M6 5 — M12 接入真实 LLM** (略, 跟 M6 并行)
 
