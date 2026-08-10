@@ -58,14 +58,17 @@ type RegisterRequest struct {
 }
 
 // RegisterResponse shipyard 返回 worker ID + 下次心跳间隔.
+//
+// WorkerID 是 string 而不是 int64: shipyard 后端 Jackson 把雪花 ID (Long) 序列化成 String
+// 防止 JS 19 位精度丢失, Go 端直接用 string 接 + 调 path 时转回.
 type RegisterResponse struct {
-	WorkerID             int64 `json:"workerId"`
-	HeartbeatIntervalSec int   `json:"heartbeatIntervalSec"`
+	WorkerID             string `json:"workerId"`
+	HeartbeatIntervalSec int    `json:"heartbeatIntervalSec"`
 }
 
 // HeartbeatRequest worker 定期上报.
 type HeartbeatRequest struct {
-	WorkerID    int64  `json:"workerId"`
+	WorkerID    string `json:"workerId"`
 	Status      string `json:"status"` // online / unhealthy
 	CPULoad     string `json:"cpuLoad,omitempty"`
 	MemoryUsage string `json:"memoryUsage,omitempty"`
@@ -86,7 +89,7 @@ type EchoRequest struct {
 // EchoResponse 原样返回 + worker 标识.
 type EchoResponse struct {
 	WorkerName  string      `json:"workerName"`
-	WorkerID    int64       `json:"workerId,omitempty"`
+	WorkerID    string      `json:"workerId,omitempty"`
 	Received    EchoRequest `json:"received"`
 	ProcessedAt time.Time   `json:"processedAt"`
 }

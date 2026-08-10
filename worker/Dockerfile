@@ -6,10 +6,14 @@
 # ============================================================
 
 # --- Stage 1: build ---
-FROM golang:1.22-alpine AS build
+FROM golang:1.23-alpine AS build
 
 # 装 git (go mod download 可能要)
 RUN apk add --no-cache git ca-certificates
+
+# 国内代理 (Mac 本机配过, build 容器里也要, 否则 proxy.golang.org 超时)
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.google.cn
 
 WORKDIR /src
 

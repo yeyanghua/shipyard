@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func TestRegisterHandler_Start_RetryWhenShipyardDown(t *testing.T) {
 
 	// 状态: 还没注册成功
 	assert.False(t, reg.IsRegistered(), "should not be registered")
-	assert.Equal(t, int64(0), reg.WorkerID(), "worker ID should be 0")
+	assert.Equal(t, "", reg.WorkerID(), "worker ID should be empty string")
 
 	reg.Stop()
 }
@@ -47,7 +48,8 @@ func TestRegisterHandler_Start_RegisterAndHeartbeat(t *testing.T) {
 	// mock shipyard: 收 register + heartbeat
 	var registerCalls int32
 	var heartbeatCalls int32
-	var lastWorkerID int64
+	var lastWorkerIDMu sync.Mutex
+	var lastWorkerID string
 
 	mockShipyard := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -61,14 +63,16 @@ func TestRegisterHandler_Start_RegisterAndHeartbeat(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"code":    0,
 				"message": "ok",
-				"data":    types.RegisterResponse{WorkerID: 100, HeartbeatIntervalSec: 1},
+				"data":    types.RegisterResponse{WorkerID: "100", HeartbeatIntervalSec: 1},
 			})
 		default:
 			// /api/workers/{id}/heartbeat
 			var req types.HeartbeatRequest
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			atomic.AddInt32(&heartbeatCalls, 1)
-			atomic.StoreInt64(&lastWorkerID, req.WorkerID)
+			lastWorkerIDMu.Lock()
+			lastWorkerID = req.WorkerID
+			lastWorkerIDMu.Unlock()
 			w.WriteHeader(http.StatusOK)
 		}
 	}))
@@ -94,8 +98,11 @@ func TestRegisterHandler_Start_RegisterAndHeartbeat(t *testing.T) {
 
 	// 验证
 	assert.True(t, reg.IsRegistered(), "should be registered after first call")
-	assert.Equal(t, int64(100), reg.WorkerID(), "worker ID should match mock response")
-	assert.Equal(t, int64(100), atomic.LoadInt64(&lastWorkerID), "heartbeat should use correct worker ID")
+	assert.Equal(t, "100", reg.WorkerID(), "worker ID should match mock response")
+	lastWorkerIDMu.Lock()
+	gotID := lastWorkerID
+	lastWorkerIDMu.Unlock()
+	assert.Equal(t, "100", gotID, "heartbeat should use correct worker ID")
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&registerCalls), int32(1), "should have called register at least once")
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&heartbeatCalls), int32(1), "should have called heartbeat at least once")
 }
@@ -107,7 +114,7 @@ func TestEchoHandler_SetWorkerID(t *testing.T) {
 	assert.Nil(t, h.workerID)
 
 	// 显式 set 后
-	h.SetWorkerID(999)
+	h.SetWorkerID("999")
 	assert.NotNil(t, h.workerID)
-	assert.Equal(t, int64(999), *h.workerID)
+	assert.Equal(t, "999", *h.workerID)
 }

@@ -52,7 +52,7 @@ func (h *HealthHandler) Readiness(c *gin.Context) {
 type EchoHandler struct {
 	logger     *zap.Logger
 	workerName string
-	workerID   *int64 // 启动后从 shipyard 注册拿到
+	workerID   *string // 启动后从 shipyard 注册拿到 (shipyard 返 string)
 }
 
 // NewEchoHandler 创建 handler.
@@ -64,7 +64,7 @@ func NewEchoHandler(logger *zap.Logger, workerName string) *EchoHandler {
 }
 
 // SetWorkerID 注册成功后调用.
-func (h *EchoHandler) SetWorkerID(id int64) {
+func (h *EchoHandler) SetWorkerID(id string) {
 	h.workerID = &id
 }
 

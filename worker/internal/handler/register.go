@@ -20,7 +20,7 @@ type RegisterHandler struct {
 	logger      *zap.Logger
 	cfg         RegisterConfig
 	mu          sync.RWMutex
-	workerID    int64
+	workerID    string
 	registered  bool
 	echoHandler *EchoHandler // 拿到 ID 后回填
 	httpClient  *http.Client
@@ -56,7 +56,10 @@ func NewRegisterHandler(
 }
 
 // WorkerID 拿到 shipyard 分配的 worker ID.
-func (r *RegisterHandler) WorkerID() int64 {
+//
+// 返回 string: shipyard Jackson 把雪花 ID (Long) 序列化成 String 防 JS 19 位精度丢失,
+// worker 端统一用 string 接,调 path / log 时无需再转.
+func (r *RegisterHandler) WorkerID() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.workerID
@@ -139,7 +142,7 @@ func (r *RegisterHandler) registerOnce(ctx context.Context) error {
 
 	r.logger.Info("registered to shipyard",
 		zap.String("worker", r.cfg.WorkerName),
-		zap.Int64("workerId", envelope.Data.WorkerID),
+		zap.String("workerId", envelope.Data.WorkerID),
 		zap.String("shipyard", r.cfg.ShipyardURL),
 	)
 	return nil
@@ -182,7 +185,7 @@ func (r *RegisterHandler) sendHeartbeat(ctx context.Context) {
 	}
 
 	body, _ := json.Marshal(req)
-	url := fmt.Sprintf("%s/api/workers/%d/heartbeat", r.cfg.ShipyardURL, id)
+	url := fmt.Sprintf("%s/api/workers/%s/heartbeat", r.cfg.ShipyardURL, id)
 	httpReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
 

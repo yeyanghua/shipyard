@@ -56,7 +56,7 @@ func TestEchoHandler_Echo_HappyPath(t *testing.T) {
 
 func TestEchoHandler_Echo_WithWorkerID(t *testing.T) {
 	h := NewEchoHandler(zap.NewNop(), "worker-test-02")
-	h.SetWorkerID(42)
+	h.SetWorkerID("42")
 	r := newEchoRouter(h)
 
 	reqBody := types.EchoRequest{Message: "test"}
@@ -73,7 +73,7 @@ func TestEchoHandler_Echo_WithWorkerID(t *testing.T) {
 		Data types.EchoResponse `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Equal(t, int64(42), resp.Data.WorkerID)
+	assert.Equal(t, "42", resp.Data.WorkerID)
 }
 
 func TestEchoHandler_Echo_BadJSON(t *testing.T) {
