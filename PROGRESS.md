@@ -1,19 +1,19 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 (SecurityConfig 合并) + M3 + M4 + M5 + M8.1 (worker 骨架) + M8.2 (shipyard 调 worker) + M8.3a (worker 接 client-go) + M8.3b (worker 部署到 k3d + string bug fix) + M13 Phase 1~5 (前端重设计: Element Plus + 暗色主题 + 命令面板 + 监控/活动/通知/Workers 4 新页面 + Dashboard 完整重设计 + 在线 Worker 卡片) 全部完成**。
-> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步: PC 端真集群跑 worker (`go run ./cmd/worker` + KUBECONFIG) → shipyard 调通 → 进 M9 snapshot+回滚 / M11 监控告警 二选一。
+> **M1 + M2 + M2.5 + M3 + M4 + M5 + M8.1 + M8.2 + M8.3a + M8.3b + M8.3c (PC 端真集群跑通端到端: worker → shipyard register + 30s 心跳 + UI /workers 看到 1 个在线) + M13 Phase 1~5 全部完成**。
+> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步: M9 (snapshot + 回滚, 跟 worker 集成姊妹能力, 把"启动"变成"真部署")。
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| | 当前 commit | `a0ee1f7` (M13 Phase 5 — Workers 管理页 + Dashboard 联动) |
-| 当前 milestone | **M13 Phase 5 ✅ 完成, PC 端真集群验证 M8.3c 准备开始** |
-| 总 commit | 30 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 65% 完成 |
-| 上次更新 | 2026-08-10 (D 盘 Mavis sandbox 开发, M13 Phase 5 Workers 管理页 + Dashboard 联动完工, 待 PC 端真集群跑 worker 验 M8.3c) |
+| | 当前 commit | `366b4c3` (fix: add WORKER_TOKEN support — M8.3c 端到端跑通) |
+| 当前 milestone | **M8.3c ✅ 完成, M9 准备开始** |
+| 总 commit | 35 |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 70% 完成 |
+| 上次更新 | 2026-08-10 (PC 端真集群 M8.3c 端到端跑通: worker 起来 + 向 shipyard 注册 + 30s 心跳 + 浏览器 /workers 看到 1 个在线) |
 
 ---
 
@@ -34,15 +34,16 @@
 - **M8.2** shipyard 调 worker (commit `616a968`) - WorkerController 8 端点 + WorkerClient HttpClient 5s+2 重试 + 24 单元测试, 端到端真 HTTP 跑通
 - **M8.3a** worker 接 client-go (commit `27cd9ca`) - 3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc
 - **M8.3b** worker 部署 k3d + string bug fix (commit `16907f5`) - docker build 51.9MB, k3d image import, pod Running, K8sClient in-cluster 模式连真 k3s, shipyard DB worker 表落库, heartbeat 正常
+- **M8.3c** worker 端到端跑通 (commits `c624fd3` `1b58ca0` `366b4c3`) - 补 cmd/worker/main.go (M8.1 entry 漏进 git 修了, 根因 worker/.gitignore 写 `worker` 递归匹配把 cmd/worker/ 整个屏蔽) + 一键装 Go + 跑脚本 (install-go-and-run-worker.ps1) + WORKER_TOKEN 支持; PC 端真集群 192.168.91.138 KUBECONFIG 跑起来, shipyard 后端 register 端点收到, DB 落库, 浏览器 /workers 强刷看到 1 个在线
 - **M13 Phase 1** Element Plus 集成 + 暗色主题深度覆盖 (commit `30aa294`) - 引入 element-plus + 自定义 main.css 700 行, 全部设计 token 双写 light/dark
 - **M13 Phase 2a** 全局命令面板 (commit `c37c17d`) - Cmd+K 调出, fuse.js 模糊搜索, 顶栏 trigger
 - **M13 Phase 2b** 3 个新页面 (commit `fc6df2e`) - Monitoring (5 chart.js 图) / Activity 时间线 / Notifications 通知中心
 - **M13 Phase 2c** 明暗主题切换 (commit `49f532b`) - Pinia store + localStorage + auto 跟随系统
 - **Dashboard 完整重设计** (commit `f87e2f6`) - Hero + 4 stat + 4 快捷入口 + 最近构建
 - **M13 Phase 5** Workers 管理页 + Dashboard 联动 (commit `a0ee1f7`) - 8 端点 API + Workers.vue (4 KPI + 表格 + Drawer + 集群代理测试) + /workers 路由 + App.vue nav + Dashboard "在线 Worker" 卡片 + .gitignore 修 .trash/ 大小写
-- **D 盘验证**: mvn test 137/137 (含 M8 worker 集成测试 24 个) + pnpm typecheck 0 errors + pnpm lint 0 errors
+- **D 盘验证**: mvn test 137/137 (含 M8 worker 集成测试 24 个) + pnpm typecheck 0 errors + pnpm lint 0 errors + worker 60MB binary build/run OK (fake + kubeconfig mode 端点响应全过)
 
-⏳ **下一步**: PC 端真集群 (家里 192.168.91.138~140) 跑 worker — `cd worker; go run ./cmd/worker` + KUBECONFIG 指向真集群 → shipyard 后端启起来 → 浏览器开 /workers 看在线列表 + 集群代理测试. M8.3c 验通后再进 M9 (snapshot+回滚) 或 M11 (监控告警).
+⏳ **下一步**: M9 (snapshot + 回滚) - 跟 worker 集成姊妹能力, 把"启动"变成"真部署". 计划: shipyard 后端新增 deploy_snapshot 表 + record + 一键回滚接口; worker 补 /api/v1/tasks/{deploy,rollback,stop} 真端点 (M8.1 mock 占位); UI snapshot 列表 + diff + 一键回滚. 工时 1-2 天.
 
 ---
 
@@ -55,7 +56,7 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 克隆:    git clone git@github.com:yeyanghua/shipyard.git
 ```
 
-### 31 个 commit 历史 (M1 → M13 Phase 5)
+### 35 个 commit 历史 (M1 → M8.3c)
 
 | SHA | 说明 |
 |---|---|
@@ -90,6 +91,10 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 | `27cd9ca` | **M8.3a**:worker 接 client-go 真调 k8s API (3 模式 in-cluster/kubeconfig/fake 自动 fallback, 端到端真打 k3d cluster, deploy doc) |
 | `16907f5` | **M8.3b**:worker 部署 k3d + string bug fix (WorkerID int64 → string 接 shipyard Jackson String 序列化, Dockerfile 1.22→1.23, go.mod 1.26→1.23+toolchain, k3d 集群里 1/2 pod Running, shipyard DB 落库成功) |
 | `a0ee1f7` | **M13 Phase 5**:Workers 管理页 (8 端点 API + Workers.vue 4 KPI/表格/Drawer/集群代理测试) + Dashboard "在线 Worker" stat 卡片 + 快捷入口 + /workers 路由 + .gitignore 修 .trash/ 小写 |
+| `c624fd3` | **M8.3c 1**:PC 端一键装 Go 1.23 + 跑 worker 脚本 (install-go-and-run-worker.ps1, 国内镜像, 不用管理员权限) |
+| `1b58ca0` | **M8.3c 2**:补 cmd/worker/main.go (M8.1 entry 漏进 git 修了, 根因 worker/.gitignore 写 `worker` 递归匹配把 cmd/worker/ 整个屏蔽) |
+| `c0ff4b9` | docs: PROGRESS.md 反映 M13 Phase 5 完成 |
+| `366b4c3` | **M8.3c 3**:加 WORKER_TOKEN 支持 (shipyard 后端 register @NotBlank 强校验, V1 demo 默认 'test-token') |
 
 ---
 
@@ -166,9 +171,32 @@ remote:  git@github.com:yeyanghua/shipyard.git (SSH)
 - **shipyard → k3d worker 互调**: shipyard 在 Mac 主机不在 k3d 里,走 cluster DNS `shipyard-worker.shipyard.svc.cluster.local:8888` 不通
   (返回 `worker 不可达 cause=null`)。需 NodePort / hostPort / 把 shipyard 也搞进 k3d 选一个
 
-**M8.3c 准备开始**:
-- pause 镜像: 改 k3s `--pause-image` 用阿里云源,或配 docker registry mirror,或 import pause 镜像
-- shipyard → k3d worker 互调: 把 shipyard 部署到 k3d 里 (同一集群走 cluster DNS),或 worker 暴露 NodePort/hostPort
+**M8.3c** (commits `c624fd3` `1b58ca0` `366b4c3`) ← **本会话 (D 盘 Mavis sandbox + PC 端真集群)**
+
+PC 端家里 192.168.91.138 真集群, 用 kubeconfig 模式跑 worker (不走 k3d), 直接 host 网络层 调 k8s API. 比 M8.3b 的 k3d 链路短一截, 把 pause 镜像 + cluster DNS 问题都绕开了。
+
+- **`c624fd3` 一键装 Go 1.23 + 跑 worker 脚本** (install-go-and-run-worker.ps1):
+  - 国内镜像 (阿里云 go.dev + goproxy.cn), 不用管理员权限, 不污染系统 PATH
+  - 自动 fallback: 国内镜像挂 → go.dev 官方
+  - 检测现有 Go, 1.23+ 跳过
+- **`1b58ca0` 补 cmd/worker/main.go**:
+  - 根因: `worker/.gitignore` 写 `worker` 递归匹配, 把 `worker/cmd/worker/` 整个屏蔽了, 3 个月 M8.1 commit `0482355` message 写了 main.go 但实际没 add
+  - 修法: .gitignore 改 `worker/worker` (具体路径, 只 ignore 根下 binary, 不影响 cmd 目录)
+  - main.go 装配: config.Load() → log.New() → K8sClient 3 模式 fallback (in-cluster/kubeconfig/fake) → wire 4 handler (cluster/health/echo/register) → register goroutine (注册 + 30s 心跳) → gin HTTP server 优雅关闭
+  - D 盘验证: `go build` 60MB binary OK, 跑起来 `/healthz` 200, `/api/v1/cluster/namespaces` 返 4 个 fake ns (D 盘没真集群走 fake)
+- **`366b4c3` 加 WORKER_TOKEN 支持**:
+  - 根因: shipyard 后端 `WorkerRegisterRequest.workerToken` `@NotBlank` 强校验, worker 不发就被 400 拒
+  - 修法: main.go 读 `WORKER_TOKEN` env, 默认 "test-token" (V1 demo 模式, 跟 shipyard.security.demo-mode 对齐, V1.5 接真鉴权后改必填)
+  - install 脚本同步加 `$WORKER_TOKEN_DEFAULT = 'test-token'`
+
+**PC 端真集群端到端验证** (2026-08-10 晚):
+1. `git pull origin main` (拿 main.go + WORKER_TOKEN 修复)
+2. 浏览器 UI /envs 建一个 env: name="dev", displayName="开发环境", k8sNamespace="default", workerUrl="http://localhost:8888", workerToken="test-token"
+3. 跑 install 脚本: `powershell -ExecutionPolicy Bypass -File scripts\install-go-and-run-worker.ps1`
+4. worker 起来 → 自动向 shipyard `/api/workers/register` (env=dev, workerToken=test-token) → shipyard 按 env="dev" 查 env_id 成功, token hash 入库, 返回 workerId
+5. shipyard `/api/workers` 返 1 个 worker (id=2086813729567166466, envId=2086275475138842626, status=online, heartbeatFresh=true)
+6. 浏览器 `/workers` (Ctrl+F5 强刷) → 4 stat 卡片: 在线 1 / 心跳新鲜 1/1 / 离线 0 / 总 1; 表格 1 行
+
 
 ### M3 — Web 前端骨架 (commit `5851894`)
 
@@ -333,42 +361,42 @@ curl /api/workers/{id}/cluster/deployments  # 200, 返 mock deployments
 
 ---
 
-## 4. 下一步: PC 端跑 worker 验 M8.3c
+## 4. 下一步: M9 (snapshot + 回滚)
 
-**当前状态**: M13 Phase 5 已完工 (commit `a0ee1f7`), D 盘 Mavis sandbox 端到端
-(typecheck + lint 双 0 error, Workers.vue + Dashboard 联动, 7 个文件 +540 行)。
-**D 盘 sandbox 没真集群** (docker-desktop, kubectl 连 127.0.0.1:60912), 真生产
-验证留给 PC 端。
+**当前状态**: M8.3c ✅ 完成 (commit `366b4c3`), PC 端真集群 192.168.91.138
+跑通端到端: worker 起来 → 向 shipyard register 成功 → 30s 心跳 fresh →
+浏览器 /workers 强刷看到 1 个在线 (dev env, status=online, envId 已落库)。
 
-**PC 端 (家里 192.168.91.138~140 真集群) 计划**:
+M9 跟 M8 worker 集成是姊妹能力, 一鼓作气把"启动 worker"变成"真部署"。
 
-1. **拉代码**: `cd D:\Projects\shipyard; git pull origin main` (拿 M13 Phase 5)
-2. **本地跑 worker (方式 B - kubeconfig 模式)**:
-   ```powershell
-   cd D:\Projects\shipyard\worker
-   $env:KUBECONFIG = "$HOME\.kube\config"   # 配好指向 192.168.91.138
-   $env:WORKER_NAME = "pc-worker-1"
-   $env:WORKER_ENV = "dev"
-   go run ./cmd/worker
-   # 监听 :8888, K8sClient 走 kubeconfig 模式连真集群
-   ```
-3. **端到端验**:
-   - `curl http://localhost:8888/healthz` 200
-   - `curl http://localhost:8888/api/v1/cluster/namespaces` 列出真 ns
-4. **起 shipyard 后端**: `cd shipyard; $env:MYSQL_PASSWORD='123456'; mvn spring-boot:run`
-5. **浏览器验**: `http://localhost:5173/workers` (需先 `vite` 起 web) → 在线 worker
-   1 个 + 集群代理测试按钮点击能列出真 namespaces
+**M9 计划 (1-2 天)**:
 
-**PC 端可选第二步** (M8.3c 完整): `k8s/dev/worker-deployment.yaml` apply 到真集群,
-worker 走 in-cluster ServiceAccount 模式 (不需要 KUBECONFIG), shipyard 端配 env_id
-指 cluster DNS `shipyard-worker.shipyard.svc.cluster.local:8888`。
+1. **后端 schema (新增表)**:
+   - `deploy_snapshot` 表: 每次部署成功的 spec 快照 (id/env_id/project_id/deploy_yaml_sha256/manifest_json/created_by/created_at)
+   - `deploy_record` 加 `current_snapshot_id` 外键
+2. **后端接口 (ShipyardController + WorkerClient 调用)**:
+   - `POST /api/projects/{id}/deployments` — 创建部署任务, 走 BuildService 流水线
+   - `GET /api/deployments/{id}/snapshots` — 列出历史 snapshot
+   - `POST /api/deployments/{id}/rollback/{snapshotId}` — 一键回滚
+3. **Worker 端 (Go, M8.1 mock 占位补真端点)**:
+   - `POST /api/v1/tasks/deploy` — shipyard 调 worker 真正 apply deployment yaml
+   - `POST /api/v1/tasks/rollback` — 调 `kubectl rollout undo`
+   - `POST /api/v1/tasks/stop` — 调 `kubectl scale --replicas=0`
+4. **前端**:
+   - `/projects/{id}/deployments` 页: 历史部署列表 + 当前运行状态
+   - snapshot diff 视图 (YAML 行级 LCS, 跟 M6 3 PipelineEdit 复用)
+   - 一键回滚按钮 (ElMessageBox 二次确认)
+5. **E2E**: `test-m9-1.ps1` 端到端真 apply 一个 nginx deployment 到家里集群, 验可访问 + 一键回滚到前一版本
 
-**M8.3c 验通后, 候选**:
-- **M9** (snapshot + 回滚, 1-2 天) — 跟 worker apply deployment yaml 整合, 补 worker
-  `/api/v1/tasks/{deploy,rollback,stop}` 真端点
+**暂不做的 (留 V1.5)**:
+- helm/kustomize 模板渲染 (M9 走纯 YAML)
+- 多集群部署 (M9 单集群, M9.5 多集群)
+- 自动快照策略 (M9 手动 trigger, M9.5 接 git push 触发)
+
+**待选项**:
 - **M11** (监控告警, 1-2 天) — Prometheus + AlertManager hook 进 shipyard
-
-**之前暂停**: M6 5 (接入真实 LLM) / M12 5 (模板推送 Gitea) — 跟 M9 选哪个不冲突。
+- **M6 5** (接入真实 LLM) — 现有 MockLlmAdapter 换 Tongyi/Deepseek
+- **M12 5** (模板推送 Gitea) — V1.5 走 Gitee adapter, 不阻塞 M9
 
 ---
 
