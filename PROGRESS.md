@@ -1,16 +1,16 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 + M3 + M4 + M5 + M8.1 + M8.2 + M8.3a + M8.3b + M8.3c (PC 端真集群跑通端到端: worker → shipyard register + 30s 心跳 + UI /workers 看到 1 个在线) + M13 Phase 1~5 全部完成**。
-> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。下一步: M9 (snapshot + 回滚, 跟 worker 集成姊妹能力, 把"启动"变成"真部署")。
+> **M1 + M2 + M2.5 + M3 + M4 + M5 + M8.1 + M8.2 + M8.3a + M8.3b + M8.3c (PC 端真集群跑通端到端: worker → shipyard register + 30s 心跳 + UI /workers 看到 1 个在线) + M13 Phase 1~5 + M9 (15 commit 完成) 全部完成**。
+> 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。M9 把 shipyard 升级为"真部署系统"(server-side 渲染 yaml + worker 真 apply + snapshot + 一键回滚)。
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
 | 字段 | 值 |
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| | 当前 commit | `366b4c3` (fix: add WORKER_TOKEN support — M8.3c 端到端跑通) |
-| 当前 milestone | **M8.3c ✅ 完成, M9 准备开始** |
+| | 当前 commit | HEAD (M9 commit-15 即将落地) — 详看 git log --oneline |
+| 当前 milestone | **M9 ✅ 完成 (15 commit), M10/M14 计划中** |
 | 总 commit | 35 |
 | V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 70% 完成 |
 | 上次更新 | 2026-08-10 (PC 端真集群 M8.3c 端到端跑通: worker 起来 + 向 shipyard 注册 + 30s 心跳 + 浏览器 /workers 看到 1 个在线) |
@@ -42,8 +42,18 @@
 - **Dashboard 完整重设计** (commit `f87e2f6`) - Hero + 4 stat + 4 快捷入口 + 最近构建
 - **M13 Phase 5** Workers 管理页 + Dashboard 联动 (commit `a0ee1f7`) - 8 端点 API + Workers.vue (4 KPI + 表格 + Drawer + 集群代理测试) + /workers 路由 + App.vue nav + Dashboard "在线 Worker" 卡片 + .gitignore 修 .trash/ 大小写
 - **D 盘验证**: mvn test 137/137 (含 M8 worker 集成测试 24 个) + pnpm typecheck 0 errors + pnpm lint 0 errors + worker 60MB binary build/run OK (fake + kubeconfig mode 端点响应全过)
+- **M9** 真部署系统 (commits `af260d7` `d9f5176` `b45392b` `3439c7e` `f6c25f0` `9478472` `b46085b` `71c86a6` `fba2b8c` `bbd12ad` `a55b5e3` `87acba3` `f7d867f` `c0a4f6f` + 本 commit) - 15 commit. shipyard 升级为"真部署系统":
+  - V2 SQL: deploy_record + deploy_snapshot + worker.health/healthDetail + pipeline_template 4 deploy 字段
+  - fix 决策 6/7/8: worker 自治 + WorkerSelector 抽象 (3 实现) + health 自检 (shipyard 扫心跳 passive + worker 自检 active)
+  - DeployTemplateRenderer (server-side 拼 yaml) + DeployService (6 公共方法) + DeployController (8 REST 端点)
+  - WorkerClient 5 deploy 方法 (HMAC Bearer 鉴权) + WorkerHealthScanner @Scheduled 30s
+  - worker 端: K8sClient 4 deploy 方法 (DynamicClient + unstructured) + deploy handler 3 端点 + Go health 自检 (3 项: k8s API + mem + disk, 30s cache)
+  - ClusterRole 扩 shipyard-* ns 写权限 (4 个 Role + RoleBinding)
+  - 前端: api/deployments (8 端点封装) + Deployments.vue 列表 + DeployDetail.vue (简单/高级模式 diff) + Workers.vue health badge + Dashboard 联
+  - E2E: test-m9-1.ps1 8 步 (PC 端真集群端到端)
+  - 测试覆盖: 70+ case (DeployStatus + DeployRecordMapper + DeployTemplateRenderer + DeployServiceImpl + WorkerHealthScanner + WorkerClient + DeployController + WorkerSelector + worker k8sclient + handler + health)
 
-⏳ **下一步**: M9 (snapshot + 回滚) - 跟 worker 集成姊妹能力, 把"启动"变成"真部署". 计划: shipyard 后端新增 deploy_snapshot 表 + record + 一键回滚接口; worker 补 /api/v1/tasks/{deploy,rollback,stop} 真端点 (M8.1 mock 占位); UI snapshot 列表 + diff + 一键回滚. 工时 1-2 天.
+⏳ **下一步**: M10 (通知 + AI 增强回滚决策) / M14 (UI polish) / M15 (端到端 demo 编排). 工时视优先级.
 
 ---
 
@@ -361,44 +371,48 @@ curl /api/workers/{id}/cluster/deployments  # 200, 返 mock deployments
 
 ---
 
-## 4. 下一步: M9 (snapshot + 回滚)
+## 4. M9 ✅ 完成 (15 commit, 2026-08-11)
 
-**当前状态**: M8.3c ✅ 完成 (commit `366b4c3`), PC 端真集群 192.168.91.138
-跑通端到端: worker 起来 → 向 shipyard register 成功 → 30s 心跳 fresh →
-浏览器 /workers 强刷看到 1 个在线 (dev env, status=online, envId 已落库)。
+**当前状态**: M8.3c ✅ → M9 ✅ 全部完成 (15 commit). shipyard 从"CD 平台 dashboard"升级为"真部署系统".
 
-M9 跟 M8 worker 集成是姊妹能力, 一鼓作气把"启动 worker"变成"真部署"。
+**15 个 commit** (详看 git log --oneline):
 
-**M9 计划 (1-2 天)**:
+| # | hash | 说明 |
+|---|---|---|
+| 1 | `af260d7` | V2 SQL (deploy_record + deploy_snapshot + worker.health + pipeline_template 4 字段) |
+| 2 | `d9f5176` | Entity + Mapper |
+| fix-3 | `b45392b` | 删 worker.role + WorkerSelector 抽象 (3 实现) |
+| 4 | `3439c7e` | DeployTemplateRenderer + DeployService |
+| 5 | `f6c25f0` | shipyard 端 health + WorkerHealthScanner |
+| 6 | `9478472` | WorkerClient 5 deploy 方法 |
+| 7 | `b46085b` | DeployController 8 端点 |
+| 8 | `71c86a6` | worker K8sClient 4 deploy 方法 |
+| 9 | `fba2b8c` | worker deploy handler 3 端点 + heartbeat health |
+| 10 | `bbd12ad` | worker Go health 自检 |
+| 11 | `a55b5e3` | ClusterRole 扩 shipyard-* ns 写 |
+| 12 | `87acba3` | 前端 api/deployments + Deployments/DeployDetail |
+| 13 | `f7d867f` | Workers.vue health badge + Dashboard 联 |
+| 14 | `c0a4f6f` | E2E test-m9-1.ps1 (8 步 PC 端真集群) |
+| 15 | (本 commit) | PROGRESS.md + M9-detail.md 收尾 |
 
-1. **后端 schema (新增表)**:
-   - `deploy_snapshot` 表: 每次部署成功的 spec 快照 (id/env_id/project_id/deploy_yaml_sha256/manifest_json/created_by/created_at)
-   - `deploy_record` 加 `current_snapshot_id` 外键
-2. **后端接口 (ShipyardController + WorkerClient 调用)**:
-   - `POST /api/projects/{id}/deployments` — 创建部署任务, 走 BuildService 流水线
-   - `GET /api/deployments/{id}/snapshots` — 列出历史 snapshot
-   - `POST /api/deployments/{id}/rollback/{snapshotId}` — 一键回滚
-3. **Worker 端 (Go, M8.1 mock 占位补真端点)**:
-   - `POST /api/v1/tasks/deploy` — shipyard 调 worker 真正 apply deployment yaml
-   - `POST /api/v1/tasks/rollback` — 调 `kubectl rollout undo`
-   - `POST /api/v1/tasks/stop` — 调 `kubectl scale --replicas=0`
-4. **前端**:
-   - `/projects/{id}/deployments` 页: 历史部署列表 + 当前运行状态
-   - snapshot diff 视图 (YAML 行级 LCS, 跟 M6 3 PipelineEdit 复用)
-   - 一键回滚按钮 (ElMessageBox 二次确认)
-5. **E2E**: `test-m9-1.ps1` 端到端真 apply 一个 nginx deployment 到家里集群, 验可访问 + 一键回滚到前一版本
+**M9 决策固化** (决策 6/7/8 fix, 仔哥 2026-08-11 拍板):
+- **决策 6 (worker 自治)**: 删 worker.role/roleHint 字段. shipyard 不 promote. K8s Deployment controller / Consul service registry 设计哲学
+- **决策 7 (WorkerSelector 抽象)**: 独立 service package. 3 实现 (RoundRobinSelector 默认 / FirstAvailableSelector / RandomSelector) + yml 切 `shipyard.worker.selector: ROUND_ROBIN`
+- **决策 8 (health 自检)**: shipyard 扫心跳 (passive, 30s 周期) + worker 自检 (active, 3 项: k8s API + mem + disk, 30s cache). DeployServiceImpl.selectDeployWorker 过滤 health=HEALTHY
 
-**暂不做的 (留 V1.5)**:
-- helm/kustomize 模板渲染 (M9 走纯 YAML)
-- 多集群部署 (M9 单集群, M9.5 多集群)
-- 自动快照策略 (M9 手动 trigger, M9.5 接 git push 触发)
+**E2E 端到端 (test-m9-1.ps1, 8 步)**:
+1. shipyard health UP
+2. worker ACTIVE + HEALTHY
+3. 触发 deploy (POST /api/projects/{id}/deployments)
+4. 等 deploy SUCCESS (60s timeout)
+5. kubectl 验证 k8s 真有 Deployment + replicas 跟请求一致
+6. 列 snapshot (≥1)
+7. 触发回滚 (POST /api/deployments/{id}/rollback/{snapshotId})
+8. 验证回滚后 k8s 资源稳定
 
-**待选项**:
-- **M11** (监控告警, 1-2 天) — Prometheus + AlertManager hook 进 shipyard
-- **M6 5** (接入真实 LLM) — 现有 MockLlmAdapter 换 Tongyi/Deepseek
-- **M12 5** (模板推送 Gitea) — V1.5 走 Gitee adapter, 不阻塞 M9
-
----
+**测试覆盖**: 70+ 单元测试
+- shipyard: DeployStatus + DeployRecordMapper (6) + DeployTemplateRenderer + DeployServiceImpl (29) + WorkerHealthScanner (4) + WorkerClient (7) + DeployController (4) + WorkerSelector (10)
+- worker: k8sclient (含 4 deploy) + handler deploy (7) + health (11)
 
 ## 5. 关键决策速查 (23 条)
 

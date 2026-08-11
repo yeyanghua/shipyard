@@ -1,8 +1,9 @@
 # M9 — shipyard snapshot + 回滚 (worker apply 集成)
 
-> **作者**: Mavis (Mavis Code) · **日期**: 2026-08-11 · **状态**: 实施中
-> 关联: M8.3c ✅ 完成(commit `366b4c3`),M9 把 shipyard 跟 worker 集成的 read-only 阶段(读 ns/pods/deployments)推到 apply 阶段
+> **作者**: Mavis (Mavis Code) · **日期**: 2026-08-11 · **状态**: ✅ 完成 (15 commit)
+> 关联: M8.3c ✅ 完成(commit `b502179`),M9 把 shipyard 跟 worker 集成的 read-only 阶段(读 ns/pods/deployments)推到 apply 阶段
 > 上游: PROGRESS.md §4 下一步 M9 计划
+> 决策 fix: 2026-08-11 仔哥拍板 (决策 6/7/8 重写, 详见 §1 决策表)
 
 ---
 
@@ -10,19 +11,20 @@
 
 把 shipyard 从"CD 平台 dashboard"升级为"真部署系统" — 跟 build_record 平级新增 **deploy_record** + **deploy_snapshot** 实体,
 shipyard 后端走 worker (`client-go` DynamicClient) 调 k8s API 真 apply 资源,snapshot 落库支持一键回滚。
-1 环境支持 1 primary + 1 standby worker 高可用(self-elect + 故障自动转移)。
+**多 worker 模式**: worker 自治 + WorkerSelector 抽象,shipyard 走 passive 选 worker (跟 K8s Deployment controller / Consul service registry 设计哲学一致)。
 
 ```
 [shipyard web]  --POST /api/projects/{id}/deployments-->  [shipyard 后端]
                                                           │
                                                           ├─ 1. 渲染 yaml (DeployTemplateRenderer, 简单模式)
-                                                          ├─ 2. 选 worker (env_id 过滤 + role=PRIMARY + status=online)
+                                                          ├─ 2. 选 worker (WorkerSelector, envId + status=online + health=HEALTHY)
                                                           ├─ 3. 写 deploy_record (PENDING) + deploy_snapshot (渲染完 yaml + sha256)
                                                           ├─ 4. 调 worker POST /api/v1/tasks/deploy (HMAC + body 含 yaml)
                                                           │
 [shipyard 后端]                                            ▼
                 <--200 / 500--                       [worker Go (in k8s pod)]
                                                           │
+                                                          ├─ health 自检 (k8s API + mem + disk, 30s cache)
                                                           ├─ DynamicClient unstructured → apply 资源
                                                           └─ 返 shipyard {phase, message, manifest}
 ```
@@ -37,15 +39,38 @@ shipyard 后端走 worker (`client-go` DynamicClient) 调 k8s API 真 apply 资�
 | 2 | yaml 来源 | **shipyard server-side 渲染**(pipeline_template + image_tag + env vars) | 用户填业务字段,平台管 K8s 编排细节 |
 | 3 | 高级模式 | **预览 + diff 只读** (用户改的能力 V1.5) | 防错 + 减少 shipyard 验证责任 |
 | 4 | snapshot 抓取 | **只存 shipyard 渲染完的 yaml + sha256** | 简版,live_manifest 留 V1.5 |
-| 5 | 部署 namespace | **`shipyard-{env_name}` 一对一** | 天然 RBAC 隔离,ClusterRole resourceNames 限定 |
-| 6 | 多 worker 模式 | **1 primary + N standby**(N≥0,推荐 1) | primary 跑 deploy,standby 备机 + 故障接管 |
-| 7 | worker 角色判定 | **启动 self-elect** | shipyard 看同 env 已有 online 数,0→PRIMARY / ≥1→STANDBY |
-| 8 | 故障转移 | **shipyard `@Scheduled` 扫心跳**(90s 阈值) | primary unhealthy → 升级同 env 第一个 STANDBY |
-| 9 | 渲染器实现 | **Go `text/template`** (跟 M5 BuildLog 渲染对齐) | 模板 shipyard 端 hardcode,用户填 struct |
+| 5 | 部署 namespace | **`shipyard-{env_name}` 一对一** | 天然 RBAC 隔离,Role + RoleBinding 限定 |
+| **6** | **多 worker 模式 (FIX 2026-08-11)** | **worker 自治**(shipyard 不 promote) | K8s Deployment controller / Consul service registry 设计哲学. 删 role/roleHint 字段 |
+| **7** | **选 worker (FIX 2026-08-11)** | **WorkerSelector 抽象** (独立 service package) | 3 实现: RoundRobinSelector (默认) / FirstAvailableSelector / RandomSelector. yml 切 `shipyard.worker.selector: ROUND_ROBIN` |
+| **8** | **健康检查 (FIX 2026-08-11)** | **shipyard 扫心跳 (passive) + worker 自检 (active HEALTHY/UNHEALTHY)** | 3 项: k8s API + mem + disk. 30s cache. shipyard 不 promote, 只是调度时过滤 health=HEALTHY |
+| 9 | 渲染器实现 | **Java `String.format` + 字母序 env vars** (替代 Go text/template) | 跟 shipyard 后端 Java 生态对齐 |
 | 10 | worker apply 工具 | **client-go `DynamicClient` + `unstructured`** | 不写死 schema,任意 K8s 资源可 apply |
-| 11 | 回滚机制 | **worker 存历史 manifest list** + shipyard 选 snapshot 重 apply | 不依赖 `kubectl rollout undo`,自己管 |
-| 12 | K8s 写权限 | **ClusterRole 扩 `shipyard-*` ns 写** + `ResourceNames` 限定 | 严格,不污染其他 ns |
-| 13 | 工时 | **3-4 天**(2 天 shipyard 后端 + 1 天 worker Go + 1 天前端/E2E) | 比 PROGRESS.md 估的 1-2 天多,deploy 链路是 M9 大头 |
+| 11 | 回滚机制 | **worker Apply 重发历史 yaml**(shipyard 端拿 snapshot 重发) | worker 端不存历史, 简化 worker 责任 |
+| 12 | K8s 写权限 | **4 个 shipyard-* ns 各 Role + RoleBinding** (不用 ClusterRole) | 一 env 一套, V1 固定 4 env. M9.5 收 Role 到 1 套 (动态 ns) |
+| 13 | 工时 | **实际 15 commit** (后端 7 + worker 4 + 前端 2 + k8s 1 + E2E 1) | 跟 PROGRESS.md 估的 1-2 天差不少, deploy + health 自检 + WorkerSelector 抽象是 M9 大头 |
+
+### 1.1 决策 6/7/8 fix 说明 (2026-08-11 仔哥拍板)
+
+**原方案问题**: M9 早期想照 "1 PRIMARY + N STANDBY" 主备模式, 跟传统 RDBMS 的 primary-replica 类似.
+仔哥拍板: "不应该把 worker 的主从放到 shipyard 去管理, 如果后续环境非常多导致 worker 非常多呢"
+—— 跟 K8s Deployment controller / Consul service registry 设计哲学一致: worker 实例自治, shipyard 端做服务发现 + 选路由.
+
+**新方案**:
+- **决策 6 (worker 自治)**: 删 worker 表 role/roleHint 字段. shipyard 不 promote. 多个 worker 走 select 算法选
+- **决策 7 (WorkerSelector 抽象)**: shipyard.service.selector.WorkerSelector interface + 3 实现, 独立 service package. yml 配置
+  - RoundRobinSelector (V1 默认, 进程内 ConcurrentHashMap<envId, AtomicLong> 计数轮询)
+  - FirstAvailableSelector (M9.5 高可用备机用)
+  - RandomSelector (V1.5 调试用)
+- **决策 8 (health 自检)**: 双向
+  - shipyard 端: WorkerHealthScanner @Scheduled 30s 周期扫 stale (heartbeat > 90s) 标 offline
+  - worker 端: health.Checker 30s cache 跑 3 项自检 (k8s API + mem + disk), 走 heartbeat 上报 HEALTHY/UNHEALTHY + detail
+  - DeployServiceImpl.selectDeployWorker 过滤 health='HEALTHY' — 不健康的不派活, 但仍接受心跳
+
+**对比原方案改进**:
+- worker 端逻辑减半, 不再管 self-elect / 角色判定
+- shipyard 端逻辑集中, WorkerSelector 抽象好测试 (10 case test) + yml 切算法
+- health 跟 shipyard 解耦, worker 自我报告 + shipyard 自我扫描, 谁都不依赖对方
+- 多 env 多 worker 场景下 shipyard 不需要为每个 env 维护 primary 状态
 
 ---
 
@@ -513,3 +538,67 @@ PC 端家里真集群,验证:
 3. **image pull policy**: shipyard 默认 `IfNotPresent`,但 PC 端家里集群没 harbor,本地镜像要 `Never` — V1 demo 用 `Never`
 4. **port 冲突**: 同一 dev 环境多次 deploy 同名 service 会冲突 — V1 shipyard 强制 deploy name = `{project_name}-{env_name}`
 5. **sha256 算 yaml 字符串**: shipyard 渲染完存字符串,sha256 算字符串,V1.5 加排序去重
+
+---
+
+## 11. 实际落地 (2026-08-11, 15 commit)
+
+M9 实际 15 个 commit (跟 §8 计划 14 commit 多 1 个, 多出 commit-10 worker Go health 自检):
+
+| commit | hash | 说明 |
+|---|---|---|
+| 1 | `af260d7` | V2 SQL (deploy_record + deploy_snapshot + worker.health + pipeline_template 4 字段) |
+| 2 | `d9f5176` | Entity + Mapper (DeployRecord/DeploySnapshot/DeployStatus 枚举 + worker.health 字段) |
+| fix-3 | `b45392b` | 删 worker.role/roleHint + WorkerSelector 抽象包 (3 实现 + yml 配置) |
+| 4 | `3439c7e` | DeployTemplateRenderer + DeployService (29 case test) |
+| 5 | `f6c25f0` | shipyard 端 health 自检 + WorkerHealthScanner @Scheduled (4 case test) |
+| 6 | `9478472` | WorkerClient 5 deploy 方法 (7 case test) |
+| 7 | `b46085b` | DeployController 8 端点 (4 case controller test) |
+| 8 | `71c86a6` | worker K8sClient 4 deploy 方法 (Apply/Rollback/Scale/GetManifest, 13 case test) |
+| 9 | `fba2b8c` | worker deploy handler 3 端点 + heartbeat health 字段 (7 case test) |
+| 10 | `bbd12ad` | worker Go health 自检 (health.go + 11 case test + 集成 main.go + register) |
+| 11 | `a55b5e3` | ClusterRole 扩 shipyard-* ns 写权限 (4 个 ns Role + RoleBinding) |
+| 12 | `87acba3` | 前端 api/deployments + Deployments.vue + DeployDetail.vue + router |
+| 13 | `f7d867f` | Workers.vue health badge + Dashboard 联 |
+| 14 | `c0a4f6f` | E2E test-m9-1.ps1 (8 步 PC 端真集群端到端) |
+| 15 | (本 commit) | PROGRESS.md 标 M9 done + M9-detail.md 决策 6/7/8 补齐 |
+
+测试覆盖:
+- shipyard 后端: DeployStatus enum + DeployRecordMapper (6 case) + DeployTemplateRenderer (多 case) + DeployServiceImpl (29 case) + WorkerHealthScanner (4 case) + WorkerClient (7 case) + DeployController (4 case) + WorkerSelector (10 case)
+- worker: k8sclient (含 4 deploy 方法) + handler (deploy 7 case) + health (11 case)
+- 总数: 70+ 单元测试, shipyard 后端 0 失败 + worker 全套 0 失败
+
+E2E 链路 (test-m9-1.ps1, 8 步):
+1. shipyard health UP
+2. worker ACTIVE + HEALTHY
+3. 触发 deploy
+4. 等 deploy SUCCESS (60s timeout)
+5. kubectl 验证 k8s 真有 Deployment + replicas 跟请求一致
+6. 列 snapshot (≥1)
+7. 触发回滚
+8. 验证回滚后 k8s 资源稳定
+
+---
+
+## 12. 跟 §8 计划的差异
+
+| 项 | §8 计划 | 实际 | 原因 |
+|---|---|---|---|
+| 决策 6/7/8 | PRIMARY/STANDBY + 1 standby | worker 自治 + WorkerSelector + health | 仔哥拍板 fix, 跟 K8s/Consul 一致 |
+| commit 数 | 14 | 15 | 多 1 个 worker Go health 自检 (跟 shipyard 端 health scanner 对齐) |
+| ClusterRole 写 | ClusterRole + resourceNames | 4 个 Role + RoleBinding (单 ns) | RBAC resourceNames 是资源名限定不是 ns, 用 Role 才正确 |
+| worker 启动 | 走 self-elect 拿 role | 完全自治, 不报 role | 删 role 字段连带 |
+| shipyard 心跳处理 | self-elect + promote standby | passive 扫 stale + 调度过滤 health | shipyard 不 promote |
+| E2E 验证 | 真集群端到端 (8 步) | 一致 | PC 端 192.168.91.138 |
+
+---
+
+## 13. 已知遗留 (留 V1.5)
+
+- helm/kustomize 模板渲染
+- 多集群部署 (RoundRobin 已支持, 但 shipyard 没真验过多 cluster)
+- 自动快照策略 (M9 手动 trigger, V1.5 接 git push)
+- "高级模式"可编辑 yaml (M9 只读预览 + diff)
+- live_manifest snapshot 化 (M9 存 shipyard 渲染完的, V1.5 加 k8s 真生效的)
+- worker 端 image tag 强制校验 (M9 直接信 shipyard 传的 image_tag)
+- worker Apply 错误重试 (M9 失败一次就返 FAILED, V1.5 加指数退避)
