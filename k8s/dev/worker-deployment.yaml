@@ -27,21 +27,139 @@ kind: ClusterRole
 metadata:
   name: shipyard-worker-readonly
 rules:
-  # 读所有 namespace (cluster info 列出)
+  # 读所有 namespace (cluster info 列出) — shipyard-worker 需要 ListNamespaces 做 health check
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "watch"]
-  # 读 pods / deployments
+  # 读 pods / deployments (列表页用)
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources: ["deployments", "replicasets"]
     verbs: ["get", "list", "watch"]
-  # M8.4+ 真 apply 时再扩:
-  # - apiGroups: ["apps"]
-  #   resources: ["deployments"]
-  #   verbs: ["create", "update", "patch", "delete"]
+---
+# ============================================================
+# ClusterRole: M9 commit-10 扩写权限 (限定 shipyard-* namespace)
+# ============================================================
+# V1 简版: 用 Role + RoleBinding (单 namespace 限定) 而不是 ClusterRole.
+# 一个 env 一个 Role: shipyard-{env} ns 一一对应, worker 只能动这个 ns.
+# M9.5 收 Role 到 1 套 (动态 ns), V2 改 Operator pattern.
+#
+# 跟 M9 决策对齐:
+#   namespace_pattern = "shipyard-{env_name}" (deploy_template 表里配置)
+#   4 个 env: dev / test / staging / prod → 4 个 ns
+#
+# 写权限覆盖:
+#   - apps/deployments + statefulsets (主 deploy 对象)
+#   - core/services + configmaps + secrets (deploy yaml 多文档常见配套)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: shipyard-worker-write
+subjects:
+  - kind: ServiceAccount
+    name: shipyard-worker
+    namespace: shipyard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-test
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: shipyard-worker-write
+subjects:
+  - kind: ServiceAccount
+    name: shipyard-worker
+    namespace: shipyard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-staging
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: shipyard-worker-write
+subjects:
+  - kind: ServiceAccount
+    name: shipyard-worker
+    namespace: shipyard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-prod
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shipyard-worker-write
+  namespace: shipyard-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: shipyard-worker-write
+subjects:
+  - kind: ServiceAccount
+    name: shipyard-worker
+    namespace: shipyard
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
