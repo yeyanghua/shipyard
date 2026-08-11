@@ -10,7 +10,7 @@
  *   <li>全局 Cmd+K 调出命令面板 (类似 Linear / GitHub)</li>
  * </ul>
  */
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import CommandPalette from '@/components/CommandPalette.vue';
@@ -19,8 +19,26 @@ import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 const auth = useAuthStore();
 const route = useRoute();
 
-// sidebar hover 展开
-const sidebarHovered = ref(false);
+// M9 commit-21: sidebar 改成"默认展开 + 按钮切换"模式 (M13 改),
+// 不再用 hover 展开. localStorage 保留用户偏好 (key=shipyard-sidebar-expanded).
+// 默认 expanded=true (仔哥要求 '不要默认收起').
+const SIDEBAR_KEY = 'shipyard-sidebar-expanded';
+const sidebarExpanded = ref(true);
+
+function toggleSidebar() {
+  sidebarExpanded.value = !sidebarExpanded.value;
+}
+
+// 读 localStorage 初始化 + 监听变化回写
+onMounted(() => {
+  const stored = localStorage.getItem(SIDEBAR_KEY);
+  if (stored !== null) {
+    sidebarExpanded.value = stored === 'true';
+  }
+});
+watch(sidebarExpanded, (v) => {
+  localStorage.setItem(SIDEBAR_KEY, String(v));
+});
 
 // --- SVG 路径 (Feather 风格, 24x24) ---
 const IconHome = 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10';
@@ -69,9 +87,7 @@ onMounted(async () => {
     <!-- ===== Sidebar ===== -->
     <aside
       class="sidebar"
-      :class="{ expanded: sidebarHovered }"
-      @mouseenter="sidebarHovered = true"
-      @mouseleave="sidebarHovered = false"
+      :class="{ expanded: sidebarExpanded }"
     >
       <RouterLink to="/" class="brand" :title="'shipyard'">
         <svg class="brand-mark" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
@@ -112,6 +128,22 @@ onMounted(async () => {
     <div class="main">
       <!-- Topbar -->
       <header class="topbar">
+        <button
+          class="sidebar-toggle"
+          :title="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'"
+          :aria-label="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'"
+          @click="toggleSidebar"
+        >
+          <!-- 收起态: 左箭头, 展开态: 右箭头 (跟 sidebar 移动方向一致) -->
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path v-if="sidebarExpanded"
+              d="M15 18l-6-6 6-6"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path v-else
+              d="M9 18l6-6-6-6"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
         <div class="breadcrumb">
           <span class="crumb-root">shipyard</span>
           <span class="crumb-sep">/</span>
@@ -357,6 +389,26 @@ onMounted(async () => {
   color: var(--color-text-primary);
 }
 
+/* M9 commit-21: sidebar 折叠/展开 toggle 按钮 (topbar 最左) */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--space-3);
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.sidebar-toggle:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+}
+
 .status-pill {
   display: flex;
   align-items: center;
@@ -383,9 +435,12 @@ onMounted(async () => {
   overflow-x: auto;
 }
 
-/* 响应式: 小屏 sidebar 默认展开 */
+/* 响应式: 小屏 sidebar 强制展开 (mobile 没 hover 空间) */
 @media (max-width: 768px) {
-  .sidebar { width: var(--height-sidebar-expanded); }
-  .brand-text, .nav-label, .nav-shortcut { opacity: 1; }
+  .sidebar { width: var(--height-sidebar-expanded) !important; }
+  .sidebar .brand-text,
+  .sidebar .nav-label,
+  .sidebar .nav-shortcut { opacity: 1; }
+  .sidebar-toggle { display: none; } /* 小屏直接展开, 按钮隐藏 */
 }
 </style>
