@@ -41,7 +41,10 @@ public enum ErrorCode {
     RESOURCE_CONFLICT(409, "资源冲突"),
 
     CRYPTO_ERROR(500, "加密失败"),
-    INTERNAL_ERROR(500, "服务器内部错误");
+    INTERNAL_ERROR(500, "服务器内部错误"),
+
+    /** M9 新增 — 功能未实现 (commit 阶段 placeholder 用, 留到后续 commit 接) */
+    NOT_IMPLEMENTED(501, "功能未实现");
 
     private final int code;
     private final String message;
