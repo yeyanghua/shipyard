@@ -49,6 +49,17 @@
   --color-accent-soft: rgba(6, 182, 212, 0.10);
   --color-accent-strong: #0e7490;
 
+  /* ---- M4 兼容别名 (M13 重命名为 --color-*, 旧 var 仍可用) ----
+     V1 demo 阶段: 老页面 (EnvList.vue / EnvVars.vue / M4 时代) CSS 仍用 --primary / --text-muted / --text-soft / --border / --card
+     不重写老页面, 走 var 别名 forward-compat 链到 M13 var
+     V1.5 收口: 重写 EnvList.vue 走 Element Plus + 删 M4 老 CSS
+  */
+  --primary: var(--color-accent);
+  --text-muted: var(--color-text-secondary);
+  --text-soft: var(--color-text-muted);
+  --border: var(--color-border);
+  --card: var(--color-bg-surface);
+
   /* ---- 状态 ---- */
   --color-success: #059669;
   --color-success-soft: rgba(5, 150, 105, 0.10);
