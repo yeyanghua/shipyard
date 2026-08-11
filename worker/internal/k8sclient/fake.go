@@ -228,3 +228,29 @@ func (f *FakeClient) formatAge(d time.Duration) string {
 	}
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
+
+// ============================================================
+// M9 commit-7: deploy 写动作 — fake 模式 mock 返 OK
+// ============================================================
+// (V1 demo fake 不真 apply, 只返 phase=created 让 shipyard 链路跑通;
+//  worker 真正 apply 资源走 inClusterClient.DynamicClient)
+
+// Apply fake 模式: 不真调 k8s, 返 phase=created + mock manifest.
+func (f *FakeClient) Apply(ctx context.Context, namespace, yamlStr string) (string, string, string, error) {
+	return "created", "fake apply: " + namespace, "fake-manifest-for-" + namespace, nil
+}
+
+// Rollback fake 模式: 跟 Apply 一样返.
+func (f *FakeClient) Rollback(ctx context.Context, namespace, yamlStr string) (string, string, string, error) {
+	return "rolled-back", "fake rollback: " + namespace, "fake-manifest-for-" + namespace, nil
+}
+
+// Scale fake 模式: 返 phase=scaled.
+func (f *FakeClient) Scale(ctx context.Context, namespace, kind, name string, replicas int) (string, string, error) {
+	return "scaled", fmt.Sprintf("fake scale %s/%s/%s to %d", namespace, kind, name, replicas), nil
+}
+
+// GetManifest fake 模式: 返固定 fake manifest.
+func (f *FakeClient) GetManifest(ctx context.Context, namespace, kind, name string) (string, error) {
+	return fmt.Sprintf("apiVersion: v1\nkind: %s\nmetadata:\n  name: %s\n  namespace: %s\n# fake manifest", kind, name, namespace), nil
+}

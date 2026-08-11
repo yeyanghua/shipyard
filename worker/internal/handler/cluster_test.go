@@ -176,6 +176,20 @@ func (m *mockFailingClient) ClusterInfo(ctx context.Context) (string, string, er
 	return "?", "?", errFake("fake k8s unreachable")
 }
 
+// M9 commit-7: 4 deploy 方法都返 fake err
+func (m *mockFailingClient) Apply(ctx context.Context, namespace, yamlStr string) (string, string, string, error) {
+	return "", "", "", errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) Rollback(ctx context.Context, namespace, yamlStr string) (string, string, string, error) {
+	return "", "", "", errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) Scale(ctx context.Context, namespace, kind, name string, replicas int) (string, string, error) {
+	return "", "", errFake("fake k8s unreachable")
+}
+func (m *mockFailingClient) GetManifest(ctx context.Context, namespace, kind, name string) (string, error) {
+	return "", errFake("fake k8s unreachable")
+}
+
 type simpleErr struct{ msg string }
 
 func (e *simpleErr) Error() string { return e.msg }
