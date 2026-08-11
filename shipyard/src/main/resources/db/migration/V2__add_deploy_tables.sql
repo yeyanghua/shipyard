@@ -54,15 +54,10 @@ CREATE TABLE `deploy_snapshot` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部署 yaml 快照 (回滚源)';
 
 -- ============================================================
--- 3. worker 表加 role 字段
--- ============================================================
-ALTER TABLE `worker`
-  ADD COLUMN `role` VARCHAR(16) NOT NULL DEFAULT 'PRIMARY'
-  COMMENT 'PRIMARY (跑 deploy) / STANDBY (备机, 故障接管)'
-  AFTER `version`;
-
--- ============================================================
--- 4. pipeline_template 表加 deploy 字段
+-- 3. pipeline_template 表加 deploy 字段
+-- (worker.role 字段在 fix-commit "M9 worker 自治 + WorkerSelector 抽象" 移除 —
+-- 仔哥 2026-08-11 拍板: worker 是自治服务, 不在 shipyard 里管主备, shipyard 只
+-- 被动路由. 决策 6/7/8 全改, WorkerSelector 抽象包代替)
 -- ============================================================
 ALTER TABLE `pipeline_template`
   ADD COLUMN `container_port` INT NULL

@@ -89,18 +89,12 @@ public class Worker extends BaseEntity {
      */
     private String version;
 
-    /**
-     * worker 角色 (M9 新增, V2 加字段):
-     * <ul>
-     *   <li>{@code PRIMARY} — 跑 deploy 任务 (1 env 最多 1 个, 推荐)</li>
-     *   <li>{@code STANDBY} — 备机, 只 heartbeat + 故障接管</li>
-     * </ul>
-     *
-     * <p>角色由 shipyard 端在 worker register 时 self-elect 决定:
-     * 同 env 已有 0 个 online worker → 新 worker 给 PRIMARY;
-     * 已 ≥1 个 → 给 STANDBY.
-     *
-     * <p>M9.5+ 考虑:加 {@code weight} 字段做 round-robin, 暂不实现.
-     */
-    private String role;
+    // ============================================================
+    // M9 fix-commit: 删除 role 字段 (worker 自治模式)
+    // ============================================================
+    // 仔哥 2026-08-11 拍板: worker 是自治服务, 不在 shipyard 里管主备.
+    // 选 worker 由 WorkerSelector 抽象包 (ROUND_ROBIN / FIRST_AVAILABLE / RANDOM)
+    // 决定, 跟 K8s Deployment controller / Consul service registry 设计哲学一致 —
+    // worker 多了不爆炸, shipyard 是被动路由层.
+    // 详细见 docs/M9-detail.md §1 决策 6/7/8.
 }

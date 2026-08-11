@@ -54,26 +54,37 @@ public interface WorkerMapper extends BaseMapper<Worker> {
                        @Param("status") String status);
 
     /**
-     * 按 env_id + role + status 查 worker — M9 选 deploy worker 用.
+     * 按 env_id + status 查 worker 列表 — M9 选 deploy worker 用 (WorkerSelector 抽象).
      *
-     * <p>按 last_heartbeat_at DESC 选最新心跳的 1 个, 适配 M9.5 round-robin 加 weight 字段.
+     * <p>不限定 role (M9 fix-commit 后 worker 不再分 PRIMARY/STANDBY):
+     * WorkerSelector 实现 (RoundRobinSelector / FirstAvailableSelector / RandomSelector)
+     * 从这个列表里按各自策略选 1 个.
      *
-     * <p>当前调用场景:
-     * <ul>
-     *   <li>DeployService.selectDeployWorker: env_id + role='PRIMARY' + status='online'</li>
-     *   <li>WorkerHeartbeatScanner: env_id + role='STANDBY' + status='online' (升级备用)</li>
-     * </ul>
+     * <p>按 last_heartbeat_at DESC 排序, "最新心跳在前", 跟 V1.5 加 weight 字段兼容.
+     *
+     * <p>调用场景: DeployService.selectDeployWorker → WorkerSelector.select(envId)
      */
     @Select("SELECT * FROM worker "
-            + "WHERE env_id = #{envId} AND role = #{role} AND status = #{status} AND deleted = 0 "
-            + "ORDER BY last_heartbeat_at DESC LIMIT 1")
-    Worker selectByEnvAndRole(@Param("envId") Long envId,
-                              @Param("role") String role,
-                              @Param("status") String status);
+            + "WHERE env_id = #{envId} AND status = #{status} AND deleted = 0 "
+            + "ORDER BY last_heartbeat_at DESC")
+    List<Worker> selectByEnvAndStatus(@Param("envId") Long envId,
+                                      @Param("status") String status);
 
     /**
-     * 查某 env 下所有 online worker — M9 self-elect 时算同 env 已有数量用.
+     * 查某 env 下所有 online worker — M9 self-elect / Workers.vue 列表 / 调度 debug 用.
      */
     @Select("SELECT * FROM worker WHERE env_id = #{envId} AND status = 'online' AND deleted = 0")
     List<Worker> selectOnlineByEnv(@Param("envId") Long envId);
+
+    /**
+     * 查某 env 下所有 unhealthy worker (last_heartbeat_at < 阈值) — M9 WorkerHealthScanner 用.
+     *
+     * <p>Shipyard @Scheduled 30s 扫一次, 找出心跳超时的 worker, 标 status=offline,
+     * 从 WorkerSelector 候选池剔除.
+     */
+    @Select("SELECT * FROM worker "
+            + "WHERE env_id = #{envId} AND status = 'online' "
+            + "AND last_heartbeat_at < #{threshold} AND deleted = 0")
+    List<Worker> selectStaleOnlineByEnv(@Param("envId") Long envId,
+                                        @Param("threshold") java.time.LocalDateTime threshold);
 }

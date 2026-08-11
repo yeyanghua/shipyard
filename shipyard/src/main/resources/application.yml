@@ -108,6 +108,15 @@ shipyard:
   security:
     demo-mode: true
 
+  # Worker 调度配置 (M9 fix-commit 新增)
+  # 调度策略可插拔, 选哪个 WorkerSelector 实现:
+  #   FIRST_AVAILABLE — 取最新心跳的 1 个 (1 env 1 worker 直接命中)
+  #   RANDOM          — 随机 (简单负载均)
+  #   ROUND_ROBIN     — 轮询 (进程内计数器, shipyard 单实例够用) — 默认
+  # 跟 worker 主备无关, shipyard 是被动路由层, 不会主动 promote 角色
+  worker:
+    selector: ${SHIPYARD_WORKER_SELECTOR:ROUND_ROBIN}
+
   # drone 集成配置 (M5 2 新增)
   drone:
     # drone webhook HMAC-SHA256 验签 secret — V1 demo 用固定值, V1.5 接真实 drone 时改用 env var

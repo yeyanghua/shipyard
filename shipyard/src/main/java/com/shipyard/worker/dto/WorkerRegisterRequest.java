@@ -55,13 +55,9 @@ public class WorkerRegisterRequest {
     /** (M8.3+) 节点名, M8.2 阶段不存. */
     private String nodeName;
 
-    /**
-     * (M9+) 角色自荐 — worker 启动时自己希望当什么角色.
-     * <ul>
-     *   <li>{@code PRIMARY} (默认) — 想当主, 跑 deploy 任务</li>
-     *   <li>{@code STANDBY} — 想当备, 只 heartbeat + 故障接管</li>
-     * </ul>
-     * shipyard 端会按同 env 已有 online worker 数 self-elect, 不一定接受 hint.
-     */
-    private String roleHint;
+    // ============================================================
+    // M9 fix-commit: 删除 roleHint 字段 (worker 自治模式)
+    // ============================================================
+    // 仔哥 2026-08-11 拍板: worker 是自治服务, 不在 shipyard 里管主备.
+    // shipyard 只被动接 worker 注册 + 路由 deploy 任务, 不参与角色分配.
 }
