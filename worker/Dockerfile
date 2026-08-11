@@ -6,7 +6,12 @@
 # ============================================================
 
 # --- Stage 1: build ---
-FROM golang:1.23-alpine AS build
+# 国内 build 镜像 (docker hub 拉不动, 走 mirror.gcr.io / 国内 mirror 优先)
+#   改镜像源: FROM mirror.gcr.io/library/golang:1.23-alpine AS build
+#   备选:      docker.m.daocloud.io/library/golang:1.23-alpine
+#   默认:      docker.io/library/golang:1.23-alpine (海外 PC 用)
+ARG GOLANG_BASE_IMAGE=mirror.gcr.io/library/golang:1.23-alpine
+FROM ${GOLANG_BASE_IMAGE} AS build
 
 # 装 git (go mod download 可能要)
 RUN apk add --no-cache git ca-certificates
