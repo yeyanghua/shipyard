@@ -20,6 +20,7 @@ const stats = ref({
   projects: 0,
   envs: 0,
   workersOnline: 0,
+  workersHealthy: 0,
   successRate: 0,
 });
 
@@ -37,6 +38,8 @@ onMounted(async () => {
     stats.value.envs = eResp.total;
     // 在线 worker: 90s 内有心跳的
     stats.value.workersOnline = workers.value.filter((w) => w.heartbeatFresh).length;
+    // 健康 worker: 自检 HEALTHY (M9 commit-12)
+    stats.value.workersHealthy = workers.value.filter((w) => w.health === 'HEALTHY').length;
     // success rate V1 demo: 0 (没后端聚合接口)
     stats.value.successRate = 0;
   } catch (e) {
@@ -111,9 +114,12 @@ const quickLinks = [
         <div class="stat-label">在线 Worker</div>
         <div class="stat-value">
           <span v-if="loading" class="skeleton" style="width: 60px; height: 32px; display: inline-block;"></span>
-          <span v-else>{{ stats.workersOnline }}<span class="stat-unit">/{{ workers.length }}</span></span>
+          <span v-else>
+            {{ stats.workersOnline }}<span class="stat-unit">/{{ workers.length }}</span>
+            <span class="stat-sub">· {{ stats.workersHealthy }} 健康</span>
+          </span>
         </div>
-        <div class="stat-trend">90s 内有心跳</div>
+        <div class="stat-trend">90s 内有心跳 + 自检 HEALTHY</div>
       </div>
 
       <div class="stat-card slide-up" style="animation-delay: 0.2s">

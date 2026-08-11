@@ -17,7 +17,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, Delete, Search, Cpu, View } from '@element-plus/icons-vue';
-import { workersApi, workerStatusBadge, relativeTime, type Worker } from '@/api';
+import { workersApi, workerStatusBadge, workerHealthBadge, relativeTime, type Worker } from '@/api';
 
 const loading = ref(false);
 const workers = ref<Worker[]>([]);
@@ -55,11 +55,14 @@ const stats = computed(() => {
   const total = workers.value.length;
   const active = workers.value.filter((w) => w.status === 'ACTIVE').length;
   const fresh = workers.value.filter((w) => w.heartbeatFresh).length;
+  const healthy = workers.value.filter((w) => w.health === 'HEALTHY').length;
   return {
     total,
     active,
     fresh,
+    healthy,
     freshRate: total ? Math.round((fresh / total) * 100) : 0,
+    healthyRate: total ? Math.round((healthy / total) * 100) : 0,
   };
 });
 
@@ -174,7 +177,17 @@ function fmtTime(iso: string | null): string {
         <div class="kpi-label">心跳新鲜</div>
         <div class="kpi-value">{{ stats.fresh }}<span class="unit">/{{ stats.total }}</span></div>
         <div class="kpi-trend" :class="stats.freshRate >= 80 ? 'up' : stats.freshRate >= 50 ? 'muted' : 'down'">
-          {{ stats.freshRate }}% 健康
+          {{ stats.freshRate }}% 在线
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Worker 健康</div>
+        <div class="kpi-value">
+          <span class="status-dot success" v-if="stats.healthy === stats.total && stats.total > 0"></span>
+          {{ stats.healthy }}<span class="unit">/{{ stats.total }}</span>
+        </div>
+        <div class="kpi-trend" :class="stats.healthyRate >= 80 ? 'up' : stats.healthyRate >= 50 ? 'muted' : 'down'">
+          {{ stats.healthyRate }}% 自检过
         </div>
       </div>
       <div class="kpi-card">
@@ -222,6 +235,24 @@ function fmtTime(iso: string | null): string {
             <el-tag :type="statusBadge(row.status).severity" size="small" effect="dark">
               <span class="status-dot" :class="row.status === 'ACTIVE' ? 'success' : 'muted'"></span>
               {{ statusBadge(row.status).label }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="health" label="健康" width="140">
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.healthDetail"
+              :content="row.healthDetail"
+              placement="top"
+            >
+              <el-tag :type="workerHealthBadge(row.health).severity" size="small" effect="plain">
+                <span class="status-dot" :class="row.health === 'HEALTHY' ? 'success' : 'warning'"></span>
+                {{ workerHealthBadge(row.health).label }}
+              </el-tag>
+            </el-tooltip>
+            <el-tag v-else :type="workerHealthBadge(row.health).severity" size="small" effect="plain">
+              <span class="status-dot" :class="row.health === 'HEALTHY' ? 'success' : 'warning'"></span>
+              {{ workerHealthBadge(row.health).label }}
             </el-tag>
           </template>
         </el-table-column>
@@ -283,6 +314,24 @@ function fmtTime(iso: string | null): string {
               <el-tag :type="statusBadge(detailWorker.status).severity" size="small" effect="dark">
                 {{ statusBadge(detailWorker.status).label }}
               </el-tag>
+            </dd>
+            <dt>健康</dt>
+            <dd>
+              <el-tooltip
+                v-if="detailWorker.healthDetail"
+                :content="detailWorker.healthDetail"
+                placement="top"
+              >
+                <el-tag :type="workerHealthBadge(detailWorker.health).severity" size="small" effect="plain">
+                  {{ workerHealthBadge(detailWorker.health).label }}
+                </el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="workerHealthBadge(detailWorker.health).severity" size="small" effect="plain">
+                {{ workerHealthBadge(detailWorker.health).label }}
+              </el-tag>
+              <span v-if="detailWorker.healthDetail" class="muted text-xs" style="margin-left: 8px;">
+                {{ detailWorker.healthDetail }}
+              </span>
             </dd>
             <dt>版本</dt><dd><code class="text-sm">{{ detailWorker.version || 'dev' }}</code></dd>
             <dt>最后心跳</dt>
