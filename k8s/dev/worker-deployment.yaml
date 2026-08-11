@@ -185,10 +185,12 @@ metadata:
 data:
   WORKER_ENV: "dev"
   WORKER_VERSION: "dev"
-  # k3d 5.x 默认不注入 host.docker.internal, 用 host.k3d.internal (= docker host gateway 192.168.65.254)
-  # 跟 V1 demo 的区别: M8.3b 验证时用 host.docker.internal 走通, 但 M9 commit-11 重做 RBAC 时
-  # 同时调整了 SHIPYARD_URL 为 k3d 5.x 兼容的 host.k3d.internal. (k3d 5.9+ 行为变化)
-  SHIPYARD_URL: "http://host.k3d.internal:8080"
+  # PC 开发机部署 (M8.3c 完整链路):
+  #   shipyard 跑 PC 主机 (192.168.10.29:8080), 跨网段到 k8s 集群 (192.168.91.138~140)
+  #   worker pod 调 shipyard /api/workers/register 走 host IP, 跨网段 + 防火墙已通
+  # 历史: M8.3b 验证时用 host.k3d.internal (k3d 5.x 域名), Mac 主机 shipyard + k3d 同机器
+  #       现在换真集群跨网段, 改 192.168.10.29 (PC 主机内网 IP)
+  SHIPYARD_URL: "http://192.168.10.29:8080"
   K8S_IN_CLUSTER: "true"
   WORKER_HEARTBEAT_INTERVAL_SEC: "30"
 ---
@@ -244,9 +246,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # k3s 集群内访问本 pod 用
+            # shipyard 调 worker 用的 URL — PC 主机走 NodePort 30080
+            # 改: 从 cluster DNS 改 NodePort, 跨网段 PC 主机能调
+            # 多个 node 任意一个都行 (NodePort 在所有 node 上开), 选 master 192.168.91.138
             - name: WORKER_PUBLIC_URL
-              value: "http://shipyard-worker.shipyard.svc.cluster.local:8888"
+              value: "http://192.168.91.138:30080"
+            # V1 demo 默认 token, V1.5 接真鉴权时改必填
+            - name: WORKER_TOKEN
+              value: "test-token"
           resources:
             requests:
               cpu: 50m
@@ -280,7 +287,7 @@ spec:
               drop: ["ALL"]
 ---
 # ============================================================
-# Service: ClusterIP (集群内访问)
+# Service: ClusterIP (集群内访问 — 留给 V1.5 跟 shipyard 一起部署在 k8s 时用)
 # ============================================================
 apiVersion: v1
 kind: Service
@@ -296,4 +303,29 @@ spec:
   ports:
     - port: 8888
       targetPort: http
+      name: http
+---
+# ============================================================
+# Service: NodePort (PC 主机跨网段访问 worker 用)
+# ============================================================
+# M8.3c PC 端部署: shipyard 在 192.168.10.29 (PC 主机), worker pod 在 192.168.91.138~140 (家里集群).
+# 跨网段调 worker 走 NodePort 30080, shipyard env.workerUrl = http://192.168.91.138:30080.
+#
+# NodePort 范围 30000-32767, 选 30080 (避开常见 3000x 服务, 跟 8888 容器端口区分)
+# 所有 k8s node 节点都开 30080, shipyard 调任一节点 IP 都能路由到 pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipyard-worker-nodeport
+  namespace: shipyard
+  labels:
+    app: shipyard-worker
+spec:
+  type: NodePort
+  selector:
+    app: shipyard-worker
+  ports:
+    - port: 8888
+      targetPort: http
+      nodePort: 30080
       name: http
