@@ -370,17 +370,21 @@ function fmtTime(iso: string | null): string {
             <code class="text-mono text-sm">{{ row.version || 'dev' }}</code>
           </template>
         </el-table-column>
-        <el-table-column label="心跳" width="160">
+        <el-table-column label="心跳" width="120">
           <template #default="{ row }">
-            <span :class="row.heartbeatFresh ? 'heartbeat-ok' : 'heartbeat-stale'">
-              <span class="status-dot" :class="row.heartbeatFresh ? 'success' : 'warning'"></span>
-              {{ fmtTime(row.lastHeartbeatAt) }}
-            </span>
+            <el-tooltip :content="row.lastHeartbeatAt || '-'" placement="top" :show-after="200">
+              <span :class="row.heartbeatFresh ? 'heartbeat-ok' : 'heartbeat-stale'">
+                <span class="status-dot" :class="row.heartbeatFresh ? 'success' : 'warning'"></span>
+                {{ fmtTime(row.lastHeartbeatAt) }}
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="注册时间" width="180">
+        <el-table-column prop="createdAt" label="注册时间" width="120">
           <template #default="{ row }">
-            <span class="muted text-sm">{{ row.createdAt }}</span>
+            <el-tooltip :content="row.createdAt || '-'" placement="top" :show-after="200">
+              <span class="muted text-sm">{{ fmtTime(row.createdAt) }}</span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
@@ -589,8 +593,9 @@ function fmtTime(iso: string | null): string {
 .kpi-trend.down { color: var(--color-danger); }
 .kpi-trend.muted { color: var(--color-text-muted); }
 
-.list-card { padding: 0; }
-:deep(.el-table) { background: transparent; }
+.list-card { padding: 0; overflow-x: auto; }
+:deep(.el-table) { background: transparent; min-width: 1180px; table-layout: fixed; }
+:deep(.el-table .cell) { word-break: break-all; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :deep(.clickable-row) { cursor: pointer; }
 
 .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
