@@ -27,16 +27,17 @@
 -- 迁移规则: append-only, V1/V2 已 applied 不改.
 -- ============================================================
 
--- 老数据兜底: 给历史 worker row 补唯一 name (避免加 UNIQUE 时 1062 冲突)
-UPDATE `worker`
-  SET `worker_name` = CONCAT('legacy-', `id`)
-  WHERE `deleted` = 0 AND (`worker_name` IS NULL OR `worker_name` = '');
-
 -- 加列 (假定未 apply 过; 已 apply 时会 1060 错, dev 阶段手动 DROP COLUMN + 标 V3 success=1)
 ALTER TABLE `worker`
   ADD COLUMN `worker_name` VARCHAR(128) NOT NULL DEFAULT ''
   COMMENT 'worker 唯一名 (env 下唯一, register SELECT 主键之一)'
   AFTER `env_id`;
+
+-- 老数据兜底: 给历史 worker row 补唯一 name (避免加 UNIQUE 时 1062 冲突)
+-- 顺序: 先 ADD COLUMN (列已建, 默认 '') 再 UPDATE 老 row (空字符串会 UPDATE 成 'legacy-{id}')
+UPDATE `worker`
+  SET `worker_name` = CONCAT('legacy-', `id`)
+  WHERE `deleted` = 0 AND `worker_name` = '';
 
 -- 联合唯一索引 — 同 env 下 worker name 唯一
 ALTER TABLE `worker`

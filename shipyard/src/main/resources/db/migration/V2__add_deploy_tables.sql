@@ -13,6 +13,11 @@
 -- ============================================================
 -- 1. deploy_record — 一次部署任务
 -- ============================================================
+-- V1 老的 deploy_record (字段 deploy_status / snapshot_yaml / k8s_deployment_name / log_url)
+-- 跟 M9 V2 新设计 (字段 status / deploy_yaml_sha256 / current_snapshot_id / error_message / trigger_type
+-- + 独立 deploy_snapshot 表) 不兼容, V2 彻底重写. 老 deploy_record 数据丢失 (V1 demo 数据, M5 测试
+-- 数据, 重新创建环境即可, 不影响生产).
+DROP TABLE IF EXISTS `deploy_record`;
 CREATE TABLE `deploy_record` (
   `id`                BIGINT       NOT NULL AUTO_INCREMENT,
   `project_id`        BIGINT       NOT NULL COMMENT '关联 project.id',
@@ -62,7 +67,7 @@ CREATE TABLE `deploy_snapshot` (
 ALTER TABLE `pipeline_template`
   ADD COLUMN `container_port` INT NULL
   COMMENT '主容器监听端口 (deploy 用, V1.5 必填)'
-  AFTER `template_yaml`;
+  AFTER `yaml_content`;
 
 ALTER TABLE `pipeline_template`
   ADD COLUMN `replicas` INT NOT NULL DEFAULT 1
