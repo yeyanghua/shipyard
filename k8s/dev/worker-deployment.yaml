@@ -247,10 +247,15 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             # shipyard 调 worker 用的 URL — PC 主机走 NodePort 30080
-            # 改: 从 cluster DNS 改 NodePort, 跨网段 PC 主机能调
-            # 多个 node 任意一个都行 (NodePort 在所有 node 上开), 选 master 192.168.91.138
+            # 选 worker node 1 (192.168.91.139) 而非 master (192.168.91.138):
+            #   - 语义对齐: 跟实际跑 pod 的 node 通信
+            #   - 流量不走 control plane 带宽
+            #   - 跟 KUBECONFIG 默认 IP 解耦 (KUBECONFIG 仍指 master 是为 kubectl 操作)
+            # ⚠️ NodePort 30080 在所有 node 上都暴露, 任一 node IP 都能调 (kube-proxy 转发),
+            #   选 139 / 140 / 138 都行, 选 139 是"跟实际跑 pod 的 node 通信" 的最直接体现.
+            # 想知道 pod 实际跑哪个 node: kubectl get pods -n shipyard -o wide (看 NODE 列)
             - name: WORKER_PUBLIC_URL
-              value: "http://192.168.91.138:30080"
+              value: "http://192.168.91.139:30080"
             # V1 demo 默认 token, V1.5 接真鉴权时改必填
             - name: WORKER_TOKEN
               value: "test-token"
