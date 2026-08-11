@@ -1,7 +1,7 @@
 # shipyard — 项目进度
 
 > **TL;DR**: V1 横向 demo 阶段。已推 GitHub (`yeyanghua/shipyard`)。
-> **M1 + M2 + M2.5 + M3 + M4 + M5 + M8.1 + M8.2 + M8.3a + M8.3b + M8.3c (PC 端真集群跑通端到端: worker → shipyard register + 30s 心跳 + UI /workers 看到 1 个在线) + M13 Phase 1~5 + M9 (15 commit 完成) 全部完成**。
+> **M1 + M2 + M2.5 + M3 + M4 + M5 + M8.1 + M8.2 + M8.3a + M8.3b + M8.3c (PC 端真集群跑通端到端: worker → shipyard register + 30s 心跳 + UI /workers 看到 1 个在线) + M13 Phase 1~5 + M9 (21 commit 完成, 含 Mac 端 shipyard + k3d 集群 worker 端到端真部署验证) 全部完成**。
 > 方向调整: 不再走 V1 demo + 面试剧本, **真生产部署**。M9 把 shipyard 升级为"真部署系统"(server-side 渲染 yaml + worker 真 apply + snapshot + 一键回滚)。
 > **换电脑/换设备** → 看本文 §6「换设备恢复步骤」。
 
@@ -9,11 +9,11 @@
 |---|---|
 | GitHub | https://github.com/yeyanghua/shipyard |
 | 当前分支 | `main` |
-| | 当前 commit | HEAD (M9 commit-15 即将落地) — 详看 git log --oneline |
-| 当前 milestone | **M9 ✅ 完成 (15 commit), M10/M14 计划中** |
-| 总 commit | 35 |
-| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 70% 完成 |
-| 上次更新 | 2026-08-10 (PC 端真集群 M8.3c 端到端跑通: worker 起来 + 向 shipyard 注册 + 30s 心跳 + 浏览器 /workers 看到 1 个在线) |
+| 当前 commit | HEAD (M9 commit-21 落地, 准备 push) — 详看 git log --oneline |
+| 当前 milestone | **M9 ✅ 完成 (21 commit, 真部署链路全通), M9.5 first task 收尾 + M10/M14 计划中** |
+| 总 commit | 41 (M1-M8.3c 35 + M9 15 原始 + commit-16~21 UI/API 收尾 6) |
+| V1 整体 | 5-6 周(3-4 周主体 + 1-2 周 demo 编排), 主体约 75% 完成 |
+| 上次更新 | 2026-08-11 (Mac 端 shipyard + k3d 集群 worker 端到端真部署: register/heartbeat/cluster proxy/deploy 4 端点全通, 2 pod 1 worker DB row 共享模型落地, M9 UI 收尾 6 commit) |
 
 ---
 
@@ -42,7 +42,7 @@
 - **Dashboard 完整重设计** (commit `f87e2f6`) - Hero + 4 stat + 4 快捷入口 + 最近构建
 - **M13 Phase 5** Workers 管理页 + Dashboard 联动 (commit `a0ee1f7`) - 8 端点 API + Workers.vue (4 KPI + 表格 + Drawer + 集群代理测试) + /workers 路由 + App.vue nav + Dashboard "在线 Worker" 卡片 + .gitignore 修 .trash/ 大小写
 - **D 盘验证**: mvn test 137/137 (含 M8 worker 集成测试 24 个) + pnpm typecheck 0 errors + pnpm lint 0 errors + worker 60MB binary build/run OK (fake + kubeconfig mode 端点响应全过)
-- **M9** 真部署系统 (commits `af260d7` `d9f5176` `b45392b` `3439c7e` `f6c25f0` `9478472` `b46085b` `71c86a6` `fba2b8c` `bbd12ad` `a55b5e3` `87acba3` `f7d867f` `c0a4f6f` + 本 commit) - 15 commit. shipyard 升级为"真部署系统":
+- **M9** 真部署系统 (commits `af260d7` `d9f5176` `b45392b` `3439c7e` `f6c25f0` `9478472` `b46085b` `71c86a6` `fba2b8c` `bbd12ad` `a55b5e3` `87acba3` `f7d867f` `c0a4f6f` `62a4b81` `ab846f1` `d3fd575` `f5de45b` `cbc3513` `eff8742` `30234d1`) - **21 commit**. shipyard 升级为"真部署系统":
   - V2 SQL: deploy_record + deploy_snapshot + worker.health/healthDetail + pipeline_template 4 deploy 字段
   - fix 决策 6/7/8: worker 自治 + WorkerSelector 抽象 (3 实现) + health 自检 (shipyard 扫心跳 passive + worker 自检 active)
   - DeployTemplateRenderer (server-side 拼 yaml) + DeployService (6 公共方法) + DeployController (8 REST 端点)
@@ -52,6 +52,53 @@
   - 前端: api/deployments (8 端点封装) + Deployments.vue 列表 + DeployDetail.vue (简单/高级模式 diff) + Workers.vue health badge + Dashboard 联
   - E2E: test-m9-1.ps1 8 步 (PC 端真集群端到端)
   - 测试覆盖: 70+ case (DeployStatus + DeployRecordMapper + DeployTemplateRenderer + DeployServiceImpl + WorkerHealthScanner + WorkerClient + DeployController + WorkerSelector + worker k8sclient + handler + health)
+
+**M9 commit-16~21 (2026-08-11 Mac 端 shipyard + k3d 集群 worker 端到端)**
+- `ab846f1` **commit-16**: worker `/api/v1/cluster/worker-pods` 端点 + shipyard `WorkerClient.listWorkerPods` + 前端 `Workers.vue` 实例数 banner + Drawer pod 列表 + shipyard `WorkerClientTest` 2 case
+  - 修 shipyard `WorkerServiceImpl.register` SELECT 主键: `workerUrl` → `(env_id, worker_name)` 联合, 复用时**不覆盖 workerUrl**
+  - 2 pod 1 worker DB row 共享模型落地 (k8s Deployment + Service 标准模型, selectOne 复用)
+  - shipyard V3 migration: `worker.worker_name` 字段 + UNIQUE 索引
+  - shipyard `application.yml`: `spring.flyway.validate-on-migrate=false` (dev 阶段手动改 V3 SQL)
+  - Mac 端 shipyard listen `0.0.0.0` IPv4 (避免 IPv6 dual stack 触发 Tomcat RemoteIpValve NPE)
+  - `SHIPYARD_DISABLE_SECURITY=true` 临时 disable Security filter chain (Spring Security 6.2.4 + virtual thread 兼容 bug, V1.5 重启)
+- `d3fd575` **commit-17**: Workers 列表 UI 收尾 1 - 心跳列 width 160→120 + 注册时间列 width 180→120 + 都加 el-tooltip 完整时间 + `table-layout: fixed` 强制列宽 + `.cell` 加 ellipsis nowrap
+- `f5de45b` **commit-18**: Workers 列表 UI 收尾 2 - fixed="right" 操作列 z-index 抬到 4 (`:deep()` scoped style 写法, 实际没生效被覆盖, 但代码落了)
+- `cbc3513` **commit-19**: fixed="right" z-index 修法搬去 main.css 全局 (`:deep()` 没生效根因, 改全局)
+- `eff8742` **commit-20**: **改方案** - z-index 修 4 次没生效, 根因 element-plus 内部 mounted 后注入 inline style 覆盖 !important, 直接:
+  1. 删 `table-layout: fixed` (取消列宽固定)
+  2. 删 `min-width: 1180` (取消最小宽度)
+  3. `list-card` 删 `overflow-x: auto` (不再横滚)
+  4. `workerUrl` min-width 280→180
+  效果: 主表 9 列自适应 viewport 视宽, 不出横滚条, fixed-right 永远在最右边不重叠
+- `30234d1` **commit-21**: App.vue sidebar 改方案 - **默认展开 + 按钮切换**:
+  - 之前 hover 展开 (mouseenter mouseleave), 仔哥觉得不直观
+  - 改成 `sidebarExpanded` 持久 boolean (默认 true, localStorage `shipyard-sidebar-expanded` 持久化)
+  - topbar 最左侧 toggle 按钮 (◀ 收起 / ▶ 展开)
+  - 响应式 < 768px 强制展开 + 隐藏按钮
+
+**Mac 端到端验证** (2026-08-11):
+- shipyard :8080 UP (Mac, Java 21, IPv4 only, Security disabled)
+- k3d 集群 `shipyard` (1 server + 1 agent) — 2/2 pod shipyard-worker Running
+- shipyard → worker register: workerId=2087076437671587841, status=online
+- shipyard DB: 1 个 ONLINE worker row (5 个 OFFLINE 调试脏数据软删, deleted=1)
+- 30s heartbeat 正常, register 主键修复后 DB 不再插新 row
+- shipyard → worker cluster proxy 4 端点全通:
+  - `/api/workers/{id}/cluster/namespaces` → 9 个 ns (default + kube-* + shipyard + shipyard-{env}*4)
+  - `/api/workers/{id}/cluster/worker-pods` → replicas=2 readyReplicas=2 + 2 pod 完整信息 (name, node: server+agent, ip, phase: Running, ready: 1/1)
+- dev 阶段走 `kubectl port-forward svc/shipyard-worker 18888:8888` + `UPDATE worker SET worker_url='http://localhost:18888'`
+
+**M9 部署踩坑** (Mac 真集群 / k3d 容器化部署 / DB schema 冲突 三个非预期):
+1. **k3d pause 镜像 docker.io 拉超时** → 改阿里云源 `k3d cluster create --k3s-arg '--pause-image=registry.cn-hangzhou.aliyuncs.com/rancher/mirrored-pause:3.6@server:0'`
+2. **shipyard IPv6 dual stack 触发 Tomcat RemoteIpValve NPE** (k3d pod 走 `::ffff:` mapped) → shipyard JVM 加 `-Djava.net.preferIPv4Stack=true` + `server.address: 0.0.0.0`
+3. **MySQL V2 migration 字段冲突** (V2 SQL `DROP TABLE deploy_record` 跟 V1 init 里已有 deploy_record 冲突) → 手动 drop + ALTER + 标 V2 success=1 修复
+4. **Spring Security 6.2.4 + virtual thread 兼容 bug** (filter chain 完成后 dispatcher 不下传给 controller) → 临时 disable Security + 注释 VirtualThreadConfig, V1.5 重新接入
+5. **worker register 时上报 svc.cluster.local:8888** (Mac shipyard 调不到) → dev 阶段手动 UPDATE `worker_url='http://localhost:18888'` (port-forward 暴露给 host)
+6. **M9.5 first task 待办** (todo):
+   - V2 SQL 跟 V1 deploy_record schema 合并
+   - Spring Security 6.2.4 鉴权重接
+   - VirtualThread 重启
+   - docs/M9-detail.md §10/§11/§13 部署踩坑补全
+   - WorkerClient 集群读类 token=null 改成读 env token
 
 ⏳ **下一步**: M10 (通知 + AI 增强回滚决策) / M14 (UI polish) / M15 (端到端 demo 编排). 工时视优先级.
 
