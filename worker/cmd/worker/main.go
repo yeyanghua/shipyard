@@ -60,15 +60,21 @@ func main() {
 
 	// 3. K8sClient — 3 模式: in-cluster (ServiceAccount) / kubeconfig (Mac 本地) / fake (无集群)
 	//    任何模式失败都 fallback fake, 保证 worker 起来
-	k8s, k8sMode := initK8sClient(cfg, logger)
+	// M8.3c fix: 加 5s timeout, 避免 token/ca.crt/apiserver 慢响应卡住 main 启动
+	//    (HTTP server 没起 → readiness probe fail → pod 死循环重启)
+	k8sCtx, k8sCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	k8s, k8sMode := initK8sClientWithCtx(cfg, logger, k8sCtx)
+	k8sCancel()
 
-	// 4. 拿集群信息
+	// 4. 拿集群信息 (用 timeout context, 5s 内拿不到走 unknown, 不卡 main)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var k8sVer, nodeName string
 	if k8s != nil {
-		v, n, err := k8s.ClusterInfo(ctx)
+		infoCtx, infoCancel := context.WithTimeout(ctx, 5*time.Second)
+		v, n, err := k8s.ClusterInfo(infoCtx)
+		infoCancel()
 		if err != nil {
 			logger.Warn("ClusterInfo 失败, 走 unknown", zap.Error(err))
 		} else {
@@ -172,36 +178,61 @@ func main() {
 	}
 }
 
-// initK8sClient 初始化 K8sClient, 3 模式按优先级尝试, 失败 fallback fake.
+// initK8sClientWithCtx 初始化 K8sClient, 3 模式按优先级尝试, 失败 fallback fake.
+//
+// 跟原 initK8sClient 区别: 整个初始化包到 ctx (默认 5s) 里, 超时 fallback fake.
+//
+// 为什么: 仔哥 PC 端 kubeadm 集群, ServiceAccount token / ca.crt / apiserver
+// 偶尔慢响应, 原来阻塞的 NewInClusterClient (走 rest.InClusterConfig +
+// kubernetes.NewForConfig) 会卡 30s+, main 没起 HTTP server, readiness probe fail,
+// pod 死循环重启 (M8.3c 现象).
 //
 // 模式选择:
 //   - K8S_IN_CLUSTER=true → in-cluster (ServiceAccount) — 跑 k8s pod
 //   - K8S_IN_CLUSTER=false + KUBECONFIG 存在 → kubeconfig — Mac/PC 本地
 //   - 都不行 → fake — 纯本机开发
-func initK8sClient(cfg *config.Config, logger *zap.Logger) (k8sclient.K8sClient, string) {
-	// 模式 1: in-cluster
-	if cfg.K8sInCluster {
-		c, err := k8sclient.NewInClusterClient("")
-		if err == nil {
-			return c, "in-cluster"
-		}
-		logger.Warn("in-cluster 初始化失败, fallback kubeconfig", zap.Error(err))
+func initK8sClientWithCtx(cfg *config.Config, logger *zap.Logger, ctx context.Context) (k8sclient.K8sClient, string) {
+	type result struct {
+		client k8sclient.K8sClient
+		mode   string
 	}
+	resCh := make(chan result, 1)
 
-	// 模式 2: kubeconfig (Mac/PC 本地)
-	if cfg.KubeConfigPath != "" || os.Getenv("KUBECONFIG") != "" {
-		path := cfg.KubeConfigPath
-		if path == "" {
-			path = os.Getenv("KUBECONFIG")
+	go func() {
+		// 模式 1: in-cluster
+		if cfg.K8sInCluster {
+			c, err := k8sclient.NewInClusterClient("")
+			if err == nil {
+				resCh <- result{c, "in-cluster"}
+				return
+			}
+			logger.Warn("in-cluster 初始化失败, fallback kubeconfig", zap.Error(err))
 		}
-		c, err := k8sclient.NewInClusterClient(path)
-		if err == nil {
-			return c, "kubeconfig"
+
+		// 模式 2: kubeconfig (Mac/PC 本地)
+		if cfg.KubeConfigPath != "" || os.Getenv("KUBECONFIG") != "" {
+			path := cfg.KubeConfigPath
+			if path == "" {
+				path = os.Getenv("KUBECONFIG")
+			}
+			c, err := k8sclient.NewInClusterClient(path)
+			if err == nil {
+				resCh <- result{c, "kubeconfig"}
+				return
+			}
+			logger.Warn("kubeconfig 初始化失败, fallback fake", zap.Error(err))
 		}
-		logger.Warn("kubeconfig 初始化失败, fallback fake", zap.Error(err))
+
+		// 模式 3: fake
+		logger.Info("走 fake mode (无 K8S_IN_CLUSTER 也没 KUBECONFIG)")
+		resCh <- result{k8sclient.NewFakeClient(), "fake"}
+	}()
+
+	select {
+	case r := <-resCh:
+		return r.client, r.mode
+	case <-ctx.Done():
+		logger.Warn("K8sClient 初始化超时, fallback fake (apiserver 慢响应?)", zap.Error(ctx.Err()))
+		return k8sclient.NewFakeClient(), "fake-timeout"
 	}
-
-	// 模式 3: fake
-	logger.Info("走 fake mode (无 K8S_IN_CLUSTER 也没 KUBECONFIG)")
-	return k8sclient.NewFakeClient(), "fake"
 }

@@ -263,12 +263,34 @@ func (c *InClusterClient) ListDeployments(ctx context.Context, namespace string)
 }
 
 // ClusterInfo 调 Discovery().ServerVersion() 拿版本, nodeName 已存.
+//
+// M8.3c fix: 用 ctx 包裹 ServerVersion 调用, 避免 apiserver 慢响应卡 main 启动.
+// (原来调 c.clientset.Discovery().ServerVersion() 没用 ctx, timeout 不生效.)
 func (c *InClusterClient) ClusterInfo(ctx context.Context) (version string, nodeName string, err error) {
-	info, err := c.clientset.Discovery().ServerVersion()
-	if err != nil {
-		return "", c.nodeName, fmt.Errorf("拿 cluster version 失败: %w", err)
+	// 用 goroutine + select 兜底, 因为 client-go 的 Discovery().ServerVersion() 不收 ctx.
+	// 即便上游没传 ctx, 这层强制 5s 上限, 不让慢 apiserver 卡 ClusterInfo 调用方.
+	type verResult struct {
+		ver string
+		err error
 	}
-	return info.GitVersion, c.nodeName, nil
+	resCh := make(chan verResult, 1)
+	go func() {
+		info, gErr := c.clientset.Discovery().ServerVersion()
+		if gErr != nil {
+			resCh <- verResult{"", gErr}
+			return
+		}
+		resCh <- verResult{info.GitVersion, nil}
+	}()
+	select {
+	case r := <-resCh:
+		if r.err != nil {
+			return "", c.nodeName, fmt.Errorf("拿 cluster version 失败: %w", r.err)
+		}
+		return r.ver, c.nodeName, nil
+	case <-ctx.Done():
+		return "", c.nodeName, fmt.Errorf("拿 cluster version 超时: %w", ctx.Err())
+	}
 }
 
 // NodeName 返 worker 跑在哪个节点 (k8s downward API 注入的 env).
