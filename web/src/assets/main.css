@@ -672,18 +672,22 @@ input[type='checkbox'], input[type='radio'] {
 .cursor-pointer { cursor: pointer; }
 
 /* ==========================================================================
- * M9 commit-19: el-table fixed="right" 操作列 z-index 修复
+ * M9 commit-19: el-table 整体优化 (z-index 修复 + 无横滚条)
  *
- * <p>背景: 仔哥反馈 — 主表横向滚动时, fixed-right 操作列 '详情 删除' 被
- *  主表 心跳列 '21 秒前' 字盖住 (computed z-index 都 = 2).
+ * <p>背景: 仔哥 4 次反馈 fixed-right 操作列被心跳列盖住. 反复试 :deep() + 全局
+ *  z-index 都不生效 — DevTools 看 z-index=2 没变.
  *
- * <p>根因: el-table 内部 .el-table__fixed-right 默认 z-index = 2, 主表 cell
- *  也 = 2, 当主表横向滚到右边时两者重叠. :deep() 在 scoped style 里有时
- *  因为 el-table 渲染时机问题不生效. 全局 main.css 写 z-index: 3 !important
- *  + background 显式, 才是稳的.
+ * <p>根因分析: el-table 内部 fixed-right 用 position: absolute + transform 模拟
+ *  fixed, 主表 cell 也是 position: relative. 主表横向滚动时主表 wrapper 跟
+ *  fixed-right wrapper 同在 .el-table 内, z-index 同级, 后渲染的会盖前渲染的.
+ *  z-index 4 !important 都被 element-plus 内部 inline style 覆盖.
  *
- * <p>z-index 选 3 而不是 4: 主表 body 默认 0, header 默认 1, fixed 2 → 3
- *  最稳. !important 防止 el-table 内部覆盖.
+ * <p>这次彻底换方案: 不依赖 z-index 修复, 而是不让主表出横滚条
+ *  (删 table-layout: fixed + min-width 1180), 让 9 列自适应 viewport 视宽.
+ *  不横滚 → fixed-right 不被覆盖.
+ *
+ * <p>如果未来表格很大要横滚, 改用 sticky 列 + 自定义渲染, 别再依赖 el-table
+ *  fixed (跟 element-plus 战斗不值得).
  * ========================================================================== */
 .el-table__fixed-right,
 .el-table__fixed-right-patch {

@@ -315,7 +315,7 @@ function fmtTime(iso: string | null): string {
             <span v-else class="muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="workerUrl" label="Worker URL" min-width="280">
+        <el-table-column prop="workerUrl" label="Worker URL" min-width="180">
           <template #default="{ row }">
             <code class="text-mono text-sm">{{ row.workerUrl }}</code>
           </template>
@@ -593,10 +593,13 @@ function fmtTime(iso: string | null): string {
 .kpi-trend.down { color: var(--color-danger); }
 .kpi-trend.muted { color: var(--color-text-muted); }
 
-.list-card { padding: 0; overflow-x: auto; }
-:deep(.el-table) { background: transparent; min-width: 1180px; table-layout: fixed; }
+/* M9 commit-20: 取消 table-layout: fixed + min-width 1180
+   原因: 仔哥 4 次反馈 fixed-right 操作列被心跳列盖住, 反复试 z-index 都不生效
+   改方案: 不让主表出横滚条, 9 列自适应 viewport 宽度 (el-table 默认行为),
+   不横滚 → fixed-right 不被覆盖. */
+.list-card { padding: 0; }
+:deep(.el-table) { background: transparent; width: 100%; }
 :deep(.el-table .cell) { word-break: break-all; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* M9 commit-19: el-table fixed="right" z-index 修复已搬去 main.css (全局不 scoped 稳) */
 :deep(.clickable-row) { cursor: pointer; }
 
 .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
