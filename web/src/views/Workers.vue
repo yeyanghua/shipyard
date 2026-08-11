@@ -596,14 +596,7 @@ function fmtTime(iso: string | null): string {
 .list-card { padding: 0; overflow-x: auto; }
 :deep(.el-table) { background: transparent; min-width: 1180px; table-layout: fixed; }
 :deep(.el-table .cell) { word-break: break-all; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* M9 commit-18: fixed="right" 列在主表横向滚动时 z-index 跟主表列压在一起
-   (心跳列 '15 分钟前' 字会盖在 操作列 '详情 删除' 上). 抬高 fixed-right 的 z-index + 背景遮挡. */
-:deep(.el-table__fixed-right),
-:deep(.el-table__fixed-right-patch) {
-  background: var(--color-bg-surface, #fff) !important;
-  z-index: 4 !important;
-}
-:deep(.el-table__fixed-right .cell) { z-index: 5; position: relative; }
+/* M9 commit-19: el-table fixed="right" z-index 修复已搬去 main.css (全局不 scoped 稳) */
 :deep(.clickable-row) { cursor: pointer; }
 
 .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
