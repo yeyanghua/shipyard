@@ -25,6 +25,12 @@ export interface Worker {
   createdAt: string;
   updatedAt: string;
   heartbeatFresh: boolean;   // 90s 内算 fresh
+
+  // M9 commit-4/9: worker 自检 (HEALTHY / UNHEALTHY)
+  // HEALTHY = worker 自检通过 (k8s API 通 + mem OK + disk OK), 愿意接 deploy
+  // UNHEALTHY = 自检失败, shipyard 调度时不派活 (但仍接受心跳)
+  health?: string;
+  healthDetail?: string | null;
 }
 
 export interface WorkerListParams {
@@ -71,6 +77,19 @@ export function workerStatusBadge(status: string): { color: string; label: strin
     case 'DRAINING': return { color: 'var(--color-warning)', label: '排空中', severity: 'warning' };
     case 'INACTIVE': return { color: 'var(--color-text-muted)', label: '离线', severity: 'neutral' };
     default:         return { color: 'var(--color-text-muted)', label: status,   severity: 'neutral' };
+  }
+}
+
+/** M9 commit-12: Worker health 颜色 + 标签 (HEALTHY/UNHEALTHY 二态) */
+export function workerHealthBadge(health: string | undefined): {
+  color: string;
+  label: string;
+  severity: 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+} {
+  switch (health) {
+    case 'HEALTHY':   return { color: 'var(--color-success)',     label: '健康', severity: 'success' };
+    case 'UNHEALTHY': return { color: 'var(--color-warning)',     label: '不健康', severity: 'warning' };
+    default:          return { color: 'var(--color-text-muted)',  label: health || '—', severity: 'neutral' };
   }
 }
 

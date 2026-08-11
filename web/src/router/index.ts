@@ -38,6 +38,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '流水线编辑', milestone: 'M6 3' },
   },
   {
+    path: '/projects/:id/deployments',
+    name: 'deployments',
+    component: () => import('@/views/Deployments.vue'),
+    meta: { title: '部署记录', milestone: 'M9' },
+  },
+  {
     path: '/builds/:id',
     name: 'build-detail',
     component: () => import('@/views/BuildDetail.vue'),
@@ -47,7 +53,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/deploys/:id',
     name: 'deploy-detail',
     component: () => import('@/views/DeployDetail.vue'),
-    meta: { title: '发布详情', milestone: 'M14' },
+    meta: { title: '发布详情', milestone: 'M9' },
   },
   {
     path: '/envs',

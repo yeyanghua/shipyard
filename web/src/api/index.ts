@@ -11,3 +11,4 @@ export * from './auth';
 export * from './pipelines';
 export * from './dockerfileTemplates';
 export * from './workers';
+export * from './deployments';
