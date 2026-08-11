@@ -136,6 +136,24 @@ public class EnvServiceImpl implements EnvService {
         envMapper.deleteById(existing.getId());
     }
 
+    @Override
+    public String getDecryptedWorkerToken(Long envId) {
+        Env env = envMapper.selectById(envId);
+        if (env == null) {
+            return null;
+        }
+        if (!StringUtils.hasText(env.getWorkerTokenEnc())) {
+            return null;  // 没配 token, V1 兼容场景
+        }
+        try {
+            return encrypter.decrypt(env.getWorkerTokenEnc());
+        } catch (Exception e) {
+            log.error("env.workerTokenEnc 解密失败 envId={}", envId, e);
+            throw new BusinessException(ErrorCode.CRYPTO_ERROR,
+                    "env workerToken 解密失败: envId=" + envId, e);
+        }
+    }
+
     // ==================== 私有辅助方法 ====================
 
     private void validateEnv(Env e) {

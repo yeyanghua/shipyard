@@ -37,7 +37,10 @@ import com.shipyard.mapper.PipelineTemplateMapper;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.DeployService;
 import com.shipyard.service.DeployTemplateRenderer;
+import com.shipyard.service.EnvService;
 import com.shipyard.service.PipelineTemplateService;
+import com.shipyard.worker.client.WorkerClient;
+import com.shipyard.worker.dto.DeployRequest;
 import com.shipyard.worker.entity.Worker;
 import com.shipyard.worker.mapper.WorkerMapper;
 import com.shipyard.worker.selector.WorkerSelector;
@@ -74,6 +77,8 @@ public class DeployServiceImpl implements DeployService {
     private final PipelineTemplateService pipelineTemplateService;
     private final WorkerMapper workerMapper;
     private final WorkerSelector activeWorkerSelector;
+    private final WorkerClient workerClient;
+    private final EnvService envService;
     private final DeployTemplateRenderer templateRenderer;
 
     // ============================================================
@@ -156,12 +161,62 @@ public class DeployServiceImpl implements DeployService {
         log.info("[DeployService] createDeploy id={} projectId={} envId={} workerId={} imageTag={} sha256={}",
                 record.getId(), projectId, request.getEnvId(), worker.getId(), imageTag, sha256);
 
-        // 10. 调 worker (commit-5 补 WorkerClient.deploy, 当前是 placeholder)
-        //   异步 — 不阻塞 HTTP 响应; worker 返 200 后调 DeployServiceImpl.markRunning,
-        //   worker 返终态后调 markFinished (由 WorkerHeartbeatScanner 链路或 worker 自身回调触发)
-        // TODO commit-5: workerClient.deployAsync(worker.getWorkerUrl(), new DeployRequest(...))
+        // 10. 调 worker 真 apply 资源 (commit-6 整合)
+        //   同步: WorkerClient.deploy 返 data 后标 RUNNING, 然后等 worker 异步回调改终态
+        //   (callback 端点留 M9.5, 当前 commit-6 worker 同步返 status=applied 即 SUCCESS)
+        triggerWorkerDeploy(worker, record, deployYaml, env);
 
         return DeployResponse.from(record);
+    }
+
+    /**
+     * 调 worker 真 apply 资源, 同步等结果改 deploy_record 状态.
+     *
+     * <p>commit-6 实现: 同步调, 拿到 worker 响应后:
+     * <ul>
+     *   <li>phase = "applied/created/updated" → 标 SUCCESS</li>
+     *   <li>worker 返业务错 (code ≠ 0) → 标 FAILED + errorMessage</li>
+     *   <li>worker 不可达 (连接错) → 标 FAILED, 等 user 重试</li>
+     * </ul>
+     *
+     * <p>M9.5 改进: 改异步 — worker 返 200 后 markRunning 立即返前端, worker 完成 apply 后
+     * 回调 shipyard /api/internal/deploy/callback 改终态. commit-6 同步版先用着.
+     */
+    private void triggerWorkerDeploy(Worker worker, DeployRecord record, String deployYaml, Env env) {
+        // PENDING → RUNNING (本地状态机)
+        markRunning(record.getId());
+
+        // 拿 env 级 token (HMAC bearer)
+        String token = envService.getDecryptedWorkerToken(env.getId());
+
+        // 调 worker POST /api/v1/tasks/deploy
+        DeployRequest deployReq = new DeployRequest();
+        deployReq.setDeployRecordId(record.getId());
+        deployReq.setNamespace(record.getNamespace());
+        deployReq.setYaml(deployYaml);
+        deployReq.setResourceName(worker.getWorkerUrl() != null
+                ? worker.getWorkerUrl()  // 占位 — 实际 resourceName 在 record 里
+                : null);
+
+        try {
+            Map<String, Object> data = workerClient.deploy(
+                    worker.getWorkerUrl(), token, deployReq);
+            // worker 返 200 + code=0, 标 SUCCESS
+            String phase = (String) data.getOrDefault("phase", "applied");
+            String message = (String) data.getOrDefault("message", "worker applied successfully");
+            markFinished(record.getId(), "SUCCESS", "phase=" + phase + " " + message);
+            log.info("[DeployService] worker deploy SUCCESS: id={} phase={} message={}",
+                    record.getId(), phase, message);
+        } catch (BusinessException e) {
+            // worker 返 4xx/5xx/不可达 → 标 FAILED, 写 errorMessage, 等 user 重试
+            markFinished(record.getId(), "FAILED", e.getMessage());
+            log.warn("[DeployService] worker deploy FAILED: id={} cause={}",
+                    record.getId(), e.getMessage());
+        } catch (Exception e) {
+            // 兜底 (NPE 等)
+            markFinished(record.getId(), "FAILED", "internal error: " + e.getMessage());
+            log.error("[DeployService] worker deploy 兜底错: id={}", record.getId(), e);
+        }
     }
 
     @Override
@@ -267,7 +322,9 @@ public class DeployServiceImpl implements DeployService {
         log.info("[DeployService] rollback id={} from snapshotId={} workerId={}",
                 record.getId(), snapshotId, worker.getId());
 
-        // TODO commit-5: workerClient.deployAsync(worker.getWorkerUrl(), new DeployRequest(snapshot.getDeployYaml(), ...))
+        // 7. 调 worker 真 apply (commit-6 整合, 复用 createDeploy 触发逻辑)
+        Env env = envMapper.selectById(originalDeploy.getEnvId());
+        triggerWorkerDeploy(worker, record, snapshot.getDeployYaml(), env);
 
         return DeployResponse.from(record);
     }
@@ -293,13 +350,32 @@ public class DeployServiceImpl implements DeployService {
 
     @Override
     public String getLiveManifest(Long deployId) {
-        // TODO commit-5: 查 worker_url + namespace + name, 调 worker getManifest
+        // 1. 查 deploy
         DeployRecord r = deployRecordMapper.selectById(deployId);
         if (r == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "部署不存在: id=" + deployId);
         }
-        throw new BusinessException(ErrorCode.NOT_IMPLEMENTED,
-                "getLiveManifest 留 commit-5 接 WorkerClient 后实现");
+        // 2. 选 worker (用 env 选 healthy online worker, 跟 createDeploy 一样)
+        Worker worker = selectDeployWorker(r.getEnvId());
+        if (worker == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND,
+                    "环境 [" + r.getEnvId() + "] 没有可用的 worker");
+        }
+        // 3. 拿 token + 调 worker GET /api/v1/tasks/manifest
+        String token = envService.getDecryptedWorkerToken(r.getEnvId());
+        // resourceName = "<project>-<env>" 的小写形式 (跟 createDeploy 拼 resourceName 一致)
+        // 实际拿 project name + env name 拼 — 暂时拿 r.imageTag 前的 project id 拼
+        // V1 简版: 用 current_snapshot_id 关联的 snapshot.deploy_yaml 第一行 metadata.name
+        // 临时方案: 拿 deploy_record.imageTag 前的 "namespace" 字段当 resourceName
+        // M9.5 改: deploy_record 加 resourceName 字段存
+        String resourceName = "deploy-" + deployId;  // 临时 placeholder
+        try {
+            return workerClient.getManifest(worker.getWorkerUrl(), token,
+                    "Deployment", resourceName, r.getNamespace());
+        } catch (BusinessException e) {
+            log.warn("[DeployService] getLiveManifest 失败: id={} cause={}", deployId, e.getMessage());
+            throw e;
+        }
     }
 
     // ============================================================

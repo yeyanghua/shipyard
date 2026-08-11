@@ -42,12 +42,15 @@ import com.shipyard.mapper.EnvMapper;
 import com.shipyard.mapper.PipelineTemplateMapper;
 import com.shipyard.mapper.ProjectMapper;
 import com.shipyard.service.DeployTemplateRenderer;
+import com.shipyard.service.EnvService;
 import com.shipyard.service.PipelineTemplateService;
+import com.shipyard.worker.client.WorkerClient;
 import com.shipyard.worker.entity.Worker;
 import com.shipyard.worker.mapper.WorkerMapper;
 import com.shipyard.worker.selector.WorkerSelector;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,6 +91,8 @@ class DeployServiceImplTest {
     @Mock private PipelineTemplateService pipelineTemplateService;
     @Mock private WorkerMapper workerMapper;
     @Mock private WorkerSelector activeWorkerSelector;
+    @Mock private WorkerClient workerClient;
+    @Mock private EnvService envService;
     @Mock private DeployTemplateRenderer templateRenderer;
 
     @InjectMocks
@@ -152,6 +157,10 @@ class DeployServiceImplTest {
         when(templateRenderer.render(any(), any(), any(), any(), any()))
                 .thenReturn("apiVersion: apps/v1\nkind: Deployment\n...");
         when(templateRenderer.renderNamespace(any(), any())).thenReturn("shipyard-dev");
+        // commit-6: worker apply 成功
+        when(envService.getDecryptedWorkerToken(10L)).thenReturn("test-token");
+        when(workerClient.deploy(eq("http://worker-1:8888"), eq("test-token"), any()))
+                .thenReturn(Map.of("phase", "created", "message", "deployment.apps/myapp-dev created"));
         // 自动设 id
         org.mockito.Mockito.doAnswer(invocation -> {
             DeployRecord r = invocation.getArgument(0);
@@ -197,6 +206,9 @@ class DeployServiceImplTest {
         when(templateRenderer.render(any(), any(), any(), any(), any()))
                 .thenReturn("apiVersion: apps/v1\nkind: Deployment");
         when(templateRenderer.renderNamespace(any(), any())).thenReturn("shipyard-dev");
+        when(envService.getDecryptedWorkerToken(10L)).thenReturn("test-token");
+        when(workerClient.deploy(any(), any(), any()))
+                .thenReturn(Map.of("phase", "created"));
         org.mockito.Mockito.doAnswer(inv -> {
             inv.getArgument(0, DeployRecord.class).setId(1234L);
             return 1;
@@ -330,6 +342,9 @@ class DeployServiceImplTest {
         when(templateRenderer.render(any(), any(), any(), any(), any()))
                 .thenReturn("apiVersion: apps/v1\nkind: Deployment");
         when(templateRenderer.renderNamespace(any(), any())).thenReturn("shipyard-dev");
+        when(envService.getDecryptedWorkerToken(10L)).thenReturn("test-token");
+        when(workerClient.deploy(any(), any(), any()))
+                .thenReturn(Map.of("phase", "created"));
         org.mockito.Mockito.doAnswer(inv -> {
             inv.getArgument(0, DeployRecord.class).setId(1234L);
             return 1;
@@ -346,10 +361,7 @@ class DeployServiceImplTest {
         deployService.createDeploy(1L, req);
 
         verify(deployRecordMapper).insert(captor.capture());
-        // 注意: template 被 service 内部改了 replicas=7, 但写入 record 的 imageTag 是
-        // 走 templateRenderer.render 时用的 (即 template.replicas=7)
-        // 这里不直接验 record 字段, 而是验 templateRenderer.render 调用时 template.replicas 已经是 7
-        // 通过 verify template.render 的入参来验证
+        // 通过 verify template.render 的入参验证 template.replicas 已被覆盖
         org.mockito.ArgumentCaptor<PipelineTemplate> templateCaptor =
                 org.mockito.ArgumentCaptor.forClass(PipelineTemplate.class);
         verify(templateRenderer).render(org.mockito.ArgumentMatchers.eq(env),
@@ -386,6 +398,11 @@ class DeployServiceImplTest {
         when(workerMapper.selectByEnvAndStatus(10L, "online"))
                 .thenReturn(List.of(worker));
         when(activeWorkerSelector.select(any())).thenReturn(worker);
+        // commit-6 rollback 也要查 env + 调 worker
+        when(envMapper.selectById(10L)).thenReturn(env);
+        when(envService.getDecryptedWorkerToken(10L)).thenReturn("test-token");
+        when(workerClient.deploy(any(), any(), any()))
+                .thenReturn(Map.of("phase", "updated"));
         org.mockito.Mockito.doAnswer(inv -> {
             inv.getArgument(0, DeployRecord.class).setId(200L);
             return 1;

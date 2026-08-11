@@ -61,4 +61,23 @@ public interface EnvService {
      * 软删环境.
      */
     void delete(Long id);
+
+    /**
+     * M9 commit-6: 解密 env.workerTokenEnc 拿明文 token (HMAC bearer 用).
+     *
+     * <p>调用方: DeployServiceImpl 调 worker 时, 拿 env 级 token 放 {@code Authorization: Bearer xxx} 头.
+     *
+     * <p>返回 null 如果:
+     * <ul>
+     *   <li>env 不存在</li>
+     *   <li>env 没配 workerTokenEnc (旧 env 没设 token, V1 兼容场景)</li>
+     * </ul>
+     *
+     * <p>解密失败 (CryptoException) 抛 BusinessException(CRYPTO_ERROR),
+     * 不返 null — 这意味着配置错误, 应该 fail-fast, 不能用 fallback token 调 worker.
+     *
+     * @param envId env.id
+     * @return 明文 token, 没配返 null
+     */
+    String getDecryptedWorkerToken(Long envId);
 }
