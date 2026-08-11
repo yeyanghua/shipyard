@@ -85,4 +85,11 @@ public interface WorkerService {
      * 列出指定 ns 的 deployment — 调 worker 拿.
      */
     List<Map<String, Object>> listDeployments(Long workerId, String namespace);
+
+    /**
+     * M9 commit-16: 拿 worker 自己的 deployment 状态 (replicas + pod 列表).
+     *
+     * <p>前端展示 "1 worker DB row 对应 N 个 k8s pod" 关系用.
+     */
+    Map<String, Object> listWorkerPods(Long workerId);
 }

@@ -52,6 +52,19 @@ public class Worker extends BaseEntity {
     private Long envId;
 
     /**
+     * worker 唯一名 (env 下唯一) — M9 commit-16 加, register 时 shipyard 拿这个做
+     * SELECT 主键之一 ({@code (env_id, worker_name)} 联合), 跟 workerUrl 解耦.
+     *
+     * <p>来源: worker 端 {@code RegisterRequest.workerName}, shipyard 端
+     * {@code WorkerRegisterRequest.workerName} (V1 就有, V1 阶段不存库).
+     *
+     * <p>默认 {@code worker-${HOSTNAME}} (worker 启动时生成). 2 pod 同 deployment
+     * 同 env register 时, 复用同一行 (用 name 不用 workerUrl), 复用时保留
+     * 手动 UPDATE 后的 workerUrl.
+     */
+    private String workerName;
+
+    /**
      * worker 服务 URL — shipyard → worker 调用的目标.
      *
      * <p>示例:

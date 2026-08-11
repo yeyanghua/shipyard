@@ -68,6 +68,13 @@ export const workersApi = {
     http.get<Array<Record<string, unknown>>>(`/workers/${id}/cluster/deployments`, {
       params: { namespace },
     }),
+
+  /**
+   * M9 commit-16: 拿 worker 自己的 deployment 状态 (replicas + pod 列表).
+   * shipyard DB 1 行 worker 对应 N 个 k8s pod, 前端用这个展示真实实例数.
+   */
+  listWorkerPods: (id: string) =>
+    http.get<Record<string, unknown>>(`/workers/${id}/cluster/worker-pods`),
 };
 
 /** Worker status 颜色 + 标签 (前端用) */
@@ -78,6 +85,26 @@ export function workerStatusBadge(status: string): { color: string; label: strin
     case 'INACTIVE': return { color: 'var(--color-text-muted)', label: '离线', severity: 'neutral' };
     default:         return { color: 'var(--color-text-muted)', label: status,   severity: 'neutral' };
   }
+}
+
+/** M9 commit-16: worker pod 信息 (K8s pod 简化) */
+export interface WorkerPod {
+  name: string;
+  namespace: string;
+  node?: string;
+  ip?: string;
+  phase: string;            // Running / Pending / Failed
+  ready?: string;           // "1/1"
+  createdAt?: string;
+}
+
+/** M9 commit-16: worker deployment 状态 (replicas + pod 列表) */
+export interface WorkerInfo {
+  workerName: string;
+  namespace: string;
+  replicas: number;          // 期望副本数
+  readyReplicas: number;     // 当前 ready 数
+  pods: WorkerPod[];
 }
 
 /** M9 commit-12: Worker health 颜色 + 标签 (HEALTHY/UNHEALTHY 二态) */

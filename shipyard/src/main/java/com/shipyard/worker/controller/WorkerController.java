@@ -133,4 +133,15 @@ public class WorkerController {
     ) {
         return ApiResponse.ok(workerService.listDeployments(id, namespace));
     }
+
+    /**
+     * M9 commit-16: 拿 worker 自己的 deployment 状态 (replicas + pod 列表).
+     *
+     * <p>前端用这个展示 "1 worker DB row 对应 N 个 k8s pod" 关系.
+     * 返 {@code Map<String, Object>} — 含 workerName/namespace/replicas/readyReplicas/pods[].
+     */
+    @GetMapping("/{id}/cluster/worker-pods")
+    public ApiResponse<Map<String, Object>> listWorkerPods(@PathVariable Long id) {
+        return ApiResponse.ok(workerService.listWorkerPods(id));
+    }
 }

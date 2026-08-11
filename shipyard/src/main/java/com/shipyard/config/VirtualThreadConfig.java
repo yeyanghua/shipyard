@@ -25,9 +25,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * href="https://spring.io/blog/2023/09/spring-boot-3-2-0-m1-introducing-the-virtual-threads-executor">
  * Spring Boot 3.2 Virtual Threads</a>
  */
-@Configuration
-@EnableAsync
-public class VirtualThreadConfig implements AsyncConfigurer, WebMvcConfigurer {
+// V1 demo 临时关 (M9 deploy 验证): virtual thread + Spring Security 6.2 在 register handler 兼容性
+// 卡住 controller 不下传. V1.5 fix 时重新启用 (Spring Security 6.2 bug 修了之后).
+// @Configuration
+// @EnableAsync
+class VirtualThreadConfig implements AsyncConfigurer, WebMvcConfigurer {
 
     /**
      * Tomcat 用虚拟线程处理 HTTP 请求 (替代默认 200 个 OS 线程池).

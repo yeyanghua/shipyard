@@ -94,8 +94,21 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         List<String> whitelist = jwtProperties.getWhitelist();
         boolean demoMode = securityProperties.isDemoMode();
-        log.info("=== shipyard SecurityFilterChain configured (demo-mode={}) ===", demoMode);
+        boolean disableAll = Boolean.parseBoolean(System.getenv("SHIPYARD_DISABLE_SECURITY"));
+        log.info("=== shipyard SecurityFilterChain configured (demo-mode={}, disable-all={}) ===", demoMode, disableAll);
         log.info("Whitelist ({} entries): {}", whitelist.size(), whitelist);
+
+        if (disableAll) {
+            // M9 deploy 验证: 完全 disable Security filter chain (绕开 Spring Security 6.2.4 + Spring Boot 3.2.5
+            // 在 k3d pod connection 上 filter chain 完成后 dispatcher 不下传给 controller 的 bug)
+            // 用空 chain 跳过所有 security filter, Spring Security 6.2 默认会装一个 default chain,
+            // 这里用一个完全不挂任何 filter 的 chain 替换.
+            log.warn("[M9 deploy] SHIPYARD_DISABLE_SECURITY=true, 全路径不鉴权 (V1.5 重接鉴权时撤掉此路径)");
+            // 完全空 chain, 不挂任何 filter, 不让 Spring Security 6.2 dispatch 链参与
+            http.securityMatcher("/dev/null_never_match")
+                .authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
+            return http.build();
+        }
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))

@@ -210,6 +210,50 @@ class WorkerClientTest {
         assertThat(callCount.get()).isEqualTo(2);
     }
 
+    // ==================== M9 commit-16: listWorkerPods ====================
+
+    @Test
+    @DisplayName("listWorkerPods 返 worker data (replicas + pods)")
+    void listWorkerPods_Success() throws Exception {
+        startMockServer("/api/v1/cluster/worker-pods", exchange -> {
+            respondJson(exchange, 200, """
+                {"code":0,"message":"ok","data":{
+                    "workerName":"shipyard-worker",
+                    "namespace":"shipyard",
+                    "replicas":2,
+                    "readyReplicas":2,
+                    "pods":[
+                        {"name":"pod-1","namespace":"shipyard","phase":"Running","ready":"1/1"},
+                        {"name":"pod-2","namespace":"shipyard","phase":"Running","ready":"1/1"}
+                    ]
+                }}
+                """);
+        });
+
+        Map<String, Object> result = client.listWorkerPods(baseUrl, "test-token");
+
+        assertThat(result).containsEntry("workerName", "shipyard-worker");
+        assertThat(result).containsEntry("namespace", "shipyard");
+        assertThat(((Number) result.get("replicas")).intValue()).isEqualTo(2);
+        assertThat(((Number) result.get("readyReplicas")).intValue()).isEqualTo(2);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> pods = (List<Map<String, Object>>) result.get("pods");
+        assertThat(pods).hasSize(2);
+        assertThat(pods.get(0)).containsEntry("name", "pod-1");
+    }
+
+    @Test
+    @DisplayName("listWorkerPods null data 抛错 (worker 返空 data 包装错)")
+    void listWorkerPods_NullData_Throws() throws Exception {
+        startMockServer("/api/v1/cluster/worker-pods", exchange -> {
+            respondJson(exchange, 200, "{\"code\":0,\"data\":null}");
+        });
+
+        assertThatThrownBy(() -> client.listWorkerPods(baseUrl, "test-token"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("data 不是对象");
+    }
+
     // ==================== M9 commit-5: deploy 5 方法 ====================
 
     @Test
@@ -364,6 +408,14 @@ class WorkerClientTest {
     }
 
     // ==================== 辅助 ====================
+
+    /**
+     * 在 mock server 上注册一个 context. 跟 {@code mockServer.createContext(path, handler)} 等价,
+     * 这里只为了让 listWorkerPods_Success 的可读性高一点.
+     */
+    private void startMockServer(String path, HttpHandler handler) {
+        mockServer.createContext(path, handler);
+    }
 
     /** 简单 handler, 固定返指定 JSON. */
     private static class JsonHandler implements HttpHandler {

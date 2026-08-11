@@ -28,7 +28,7 @@ func newTestRouter(h *ClusterHandler) *gin.Engine {
 
 // 用 fake client 做测试 (M8.3 起, 替硬编码 mock)
 func newHandlerWithFake() *ClusterHandler {
-	return NewClusterHandler(zap.NewNop(), k8sclient.NewFakeClient())
+	return NewClusterHandler(zap.NewNop(), k8sclient.NewFakeClient(), nil)
 }
 
 func TestClusterHandler_ListNamespaces(t *testing.T) {
@@ -197,7 +197,7 @@ func (e *simpleErr) Error() string { return e.msg }
 func errFake(msg string) error { return &simpleErr{msg: msg} }
 
 func TestClusterHandler_K8sAPIFails_Returns500(t *testing.T) {
-	h := NewClusterHandler(zap.NewNop(), &mockFailingClient{})
+	h := NewClusterHandler(zap.NewNop(), &mockFailingClient{}, nil)
 	r := newTestRouter(h)
 
 	w := httptest.NewRecorder()

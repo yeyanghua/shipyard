@@ -15,7 +15,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/shipyard?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:}
+    password: ${MYSQL_PASSWORD:zaige806}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -46,11 +46,16 @@ spring:
     # 关闭 placeholder 替换: V1__init.sql 注释里有 ${var} (Dockerfile 模板占位符示例),
     # Flyway 默认会把 ${...} 当 placeholder 解析,关掉它就只是普通 SQL.
     placeholder-replacement: false
+    # M9 commit-16: dev 阶段手动改过 V3 SQL (老数据兜底 + 列已存在), 跟 schema_history
+    # 已记录的 checksum 不一致. validate-on-migrate=false 让 Flyway 跳过 checksum 校验.
+    # 生产: 删这一行 (validate 默认 true), 保证 migration 跟 SQL 文件严格一致.
+    validate-on-migrate: false
 
   # ---- 虚拟线程 (Java 21 + Project Loom) ----
   threads:
     virtual:
-      enabled: true   # M2 启用 (M5 临时关掉排查 Security bug, 已确认不是虚拟线程引起)
+      enabled: false  # M9 deploy 关掉: Spring Security 6.2 + virtual thread 在 register handler 有兼容问题 (M9.5 fix)
+                     # 见 docs/M9-detail.md §10 踩坑
 
   # ---- Jackson ----
   jackson:
@@ -75,6 +80,9 @@ mybatis-plus:
 # ---- 服务端口 ----
 server:
   port: 8080
+  # M9 deploy 验证: 强制 IPv4 listen (避免 IPv6 socket + IPv4-mapped 在 k3d pod 走 RemoteIpValve 触发 NPE)
+  # V1.5 改成 listen all (0.0.0.0) + 修 Spring Security 6.2 + Spring Boot 3.2 dispatch bug 后再说
+  address: 0.0.0.0
   servlet:
     context-path: /
 

@@ -31,6 +31,8 @@ import (
 	"github.com/yeyanghua/shipyard/worker/internal/log"
 	"github.com/yeyanghua/shipyard/worker/internal/server"
 	"github.com/yeyanghua/shipyard/worker/internal/types"
+
+	"k8s.io/client-go/kubernetes"
 )
 
 func main() {
@@ -81,7 +83,12 @@ func main() {
 	)
 
 	// 5. wire handler
-	cluster := handler.NewClusterHandler(logger, k8s)
+	// M9 commit-16: 传 clientset 给 ClusterHandler (ListWorkerPods 端点需要直接调 K8s API)
+	var clusterClientset kubernetes.Interface
+	if realK8s, ok := k8s.(*k8sclient.InClusterClient); ok {
+		clusterClientset = realK8s.Clientset()
+	}
+	cluster := handler.NewClusterHandler(logger, k8s, clusterClientset)
 	healthH := handler.NewHealthHandler(logger, cfg.Version)
 	echo := handler.NewEchoHandler(logger, cfg.WorkerName)
 	deploy := handler.NewDeployHandler(logger, k8s)  // M9 commit-8

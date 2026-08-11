@@ -99,6 +99,12 @@ func (c *InClusterClient) dynamicClient() (dynamic.Interface, error) {
 	return c.dynClient, c.dynErr
 }
 
+// Clientset 返原生 kubernetes.Clientset — M9 commit-16 ClusterHandler ListWorkerPods 端点用
+// (直接调 deployments/pods 强类型 API, 不走 K8sClient 抽象).
+func (c *InClusterClient) Clientset() *kubernetes.Clientset {
+	return c.clientset
+}
+
 // gvrFromUnstructured 从 unstructured.Unstructured 拿 gvr (group/version/resource).
 //
 // apiVersion 格式:

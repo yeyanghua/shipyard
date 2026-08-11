@@ -55,6 +55,9 @@ func New(
 			clusterGroup.GET("/namespaces", cluster.ListNamespaces)
 			clusterGroup.GET("/pods", cluster.ListPods)
 			clusterGroup.GET("/deployments", cluster.ListDeployments)
+			// M9 commit-16: worker 自己 deployment 的 pod 列表 (replicas + pod 状态)
+			// shipyard 用这个展示 "1 worker DB row 对应 N 个 k8s pod"
+			clusterGroup.GET("/worker-pods", cluster.ListWorkerPods)
 		}
 
 		// 写动作 (M9 commit-8): shipyard → worker 真 apply / scale / manifest

@@ -185,9 +185,10 @@ metadata:
 data:
   WORKER_ENV: "dev"
   WORKER_VERSION: "dev"
-  SHIPYARD_URL: "http://host.docker.internal:8080"
-  # k3d 集群外访问 shipyard (Mac 主机): 用 host.docker.internal
-  # 或用 k3d 集群内 service name (如果 shipyard 也在 k3s 里跑)
+  # k3d 5.x 默认不注入 host.docker.internal, 用 host.k3d.internal (= docker host gateway 192.168.65.254)
+  # 跟 V1 demo 的区别: M8.3b 验证时用 host.docker.internal 走通, 但 M9 commit-11 重做 RBAC 时
+  # 同时调整了 SHIPYARD_URL 为 k3d 5.x 兼容的 host.k3d.internal. (k3d 5.9+ 行为变化)
+  SHIPYARD_URL: "http://host.k3d.internal:8080"
   K8S_IN_CLUSTER: "true"
   WORKER_HEARTBEAT_INTERVAL_SEC: "30"
 ---

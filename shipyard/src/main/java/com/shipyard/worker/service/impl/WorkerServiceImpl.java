@@ -74,16 +74,26 @@ public class WorkerServiceImpl implements WorkerService {
                 "环境不存在: " + req.getEnv() + ", 请先在 shipyard 创建环境");
         }
 
-        // === 2. 查 worker 是否已注册 (按 name + env_id) ===
+        // === 2. 查 worker 是否已注册 (按 env_id + workerName 联合主键) ===
+        // M9 commit-16: SELECT 主键从 workerUrl 改成 env_id+workerName, 修复 2 pod 1 worker 模型.
+        // 之前用 workerUrl 做主键: pod A register URL_A → 插 row; pod A 重启 register URL_B → 插新 row
+        //   (旧 row 永远 stale); 手动 UPDATE workerUrl 后, 任何 register 都会插新行覆盖手动改的端口.
+        // 改成 env_id+workerName: 2 pod 同 name → SELECT 命中同一行 → 复用 ID + 不覆盖 workerUrl
+        //   (保留手动 UPDATE 后的 dev 端口, 也兼容生产 K8s svc DNS 跟 shipyard 同集群的语义).
+        // 注: WorkerRegisterRequest.workerName 字段已经在 wire 里 (types.RegisterRequest.workerName),
+        //   shipyard 端只是之前 SELECT 没用到, 现在补上.
         LambdaQueryWrapper<Worker> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Worker::getWorkerUrl, req.getWorkerUrl())
-               .eq(Worker::getEnvId, envId)
+        wrapper.eq(Worker::getEnvId, envId)
+               .eq(Worker::getWorkerName, req.getWorkerName())
                .eq(Worker::getDeleted, 0)
                .last("LIMIT 1");
         Worker existing = workerMapper.selectOne(wrapper);
         if (existing != null) {
-            // 已存在 → 复用 ID, 更新 token hash / url / version / status
-            log.info("worker 已存在 (id={}), 走更新流程: name={}", existing.getId(), req.getWorkerName());
+            // 已存在 → 复用 ID, 更新 token hash / version / status + last_heartbeat_at
+            // ⚠️ 不覆盖 workerUrl: 保留手动 UPDATE 后的端口 (dev 阶段 shipyard→worker 走 port-forward,
+            //   worker 上报 svc.cluster.local:8888 调不通, 必须 shipyard 端 workerUrl 改成 localhost:18888).
+            log.info("worker 已存在 (id={}), 走更新流程: name={} envId={}",
+                    existing.getId(), req.getWorkerName(), envId);
             existing.setWorkerTokenHash(hashToken(req.getWorkerToken()));
             existing.setStatus("online");
             existing.setLastHeartbeatAt(LocalDateTime.now());
@@ -200,6 +210,13 @@ public class WorkerServiceImpl implements WorkerService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "namespace 不能为空");
         }
         return workerClient.listDeployments(getWorkerUrl(workerId), namespace);
+    }
+
+    @Override
+    public Map<String, Object> listWorkerPods(Long workerId) {
+        // M9 commit-16: 调 worker /api/v1/cluster/worker-pods 拿 deployment replicas + pod 列表
+        // 跟 listNamespaces/listPods 一样, 集群读类端点不鉴权 (M8.2 决策: 集群读开放, 写动作要 token)
+        return workerClient.listWorkerPods(getWorkerUrl(workerId), null);
     }
 
     // ==================== 私有辅助 ====================

@@ -205,6 +205,42 @@ public class WorkerClient {
     }
 
     // ============================================================
+    // M9 commit-16: worker 自己 deployment 的 pod 列表 (replicas + pod 状态)
+    // ============================================================
+
+    /**
+     * 调 worker 拿 worker 所属 deployment 的 pod 列表 + replicas 信息.
+     *
+     * <p>解决 "1 个 worker DB row 对应 N 个 k8s pod" 的展示问题 — 前端用这个显示
+     * "2 replicas (1 worker DB row)" 这种 1:N 关系.
+     *
+     * @return {@code Map<String, Object>} — 含 workerName/namespace/replicas/readyReplicas/pods[]
+     */
+    public Map<String, Object> listWorkerPods(String workerUrl, String token) {
+        String url = workerUrl + "/api/v1/cluster/worker-pods";
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(TIMEOUT)
+                .header("Authorization", "Bearer " + (token != null ? token : ""))
+                .GET()
+                .build();
+        String body = sendWithRetry(req, url);
+        try {
+            // worker 返 {code, message, data: {workerName, namespace, replicas, readyReplicas, pods[]}}
+            Map<String, Object> envelope = objectMapper.readValue(body, new TypeReference<Map<String, Object>>() {});
+            Object data = envelope.get("data");
+            if (data instanceof Map) {
+                return (Map<String, Object>) data;
+            }
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "worker 返 data 不是对象: " + body);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "解析 worker 响应失败: " + e.getMessage());
+        }
+    }
+
+    // ============================================================
     // 私有 — HTTP POST + 业务码 unwrap + 重试
     // ============================================================
 

@@ -17,7 +17,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, Delete, Search, Cpu, View } from '@element-plus/icons-vue';
-import { workersApi, workerStatusBadge, workerHealthBadge, relativeTime, type Worker } from '@/api';
+import { workersApi, workerStatusBadge, workerHealthBadge, relativeTime, type Worker, type WorkerInfo } from '@/api';
 
 const loading = ref(false);
 const workers = ref<Worker[]>([]);
@@ -25,10 +25,45 @@ const detailVisible = ref(false);
 const detailWorker = ref<Worker | null>(null);
 
 // 集群代理测试数据
-const clusterNs = ref<Array<Record<string, unknown>>>([]);
-const clusterPods = ref<Array<Record<string, unknown>>>([]);
-const clusterDeployments = ref<Array<Record<string, unknown>>>([]);
+const clusterNs = ref<NamespaceRow[]>([]);
+const clusterPods = ref<PodRow[]>([]);
+const clusterDeployments = ref<DeploymentRow[]>([]);
 const clusterLoading = ref(false);
+// M9 commit-16: 4 个 API 独立错误, 错到对应区块 (不互相影响)
+const clusterErrors = ref<Record<string, string>>({});
+// M9 commit-16: worker 自己的 deployment 状态 (replicas + pod 列表)
+const workerInfo = ref<WorkerInfo | null>(null);
+
+// 行类型 — shipyard 后端 listNamespaces / listPods / listDeployments 返 Map<String,Object>,
+// TS 端我们用宽类型描述可能字段, 实际模板只取明确字段, 多余字段无副作用.
+interface NamespaceRow {
+  name: string;
+  status?: string;
+  age?: string;
+  [key: string]: unknown;
+}
+interface PodRow {
+  name: string;
+  namespace?: string;
+  ready?: string;
+  status?: string;
+  restarts?: number;
+  age?: string;
+  node?: string;
+  phase?: string;
+  [key: string]: unknown;
+}
+interface DeploymentRow {
+  name: string;
+  namespace?: string;
+  ready?: string;
+  upToDate?: number;
+  available?: number;
+  age?: string;
+  replicas?: number;
+  readyReplicas?: number;
+  [key: string]: unknown;
+}
 
 // 过滤
 const filterStatus = ref<string>('all');
@@ -66,6 +101,27 @@ const stats = computed(() => {
   };
 });
 
+// M9 commit-16: 每个 worker 的 replicas 信息 (按 id 缓存, listWorkerPods 调用结果)
+const workerReplicas = ref<Record<string, { replicas: number; readyReplicas: number }>>({});
+
+async function fetchAllReplicas() {
+  const results = await Promise.all(
+    workers.value.map(async (w) => {
+      try {
+        const info = (await workersApi.listWorkerPods(w.id)) as unknown as WorkerInfo;
+        return { id: w.id, replicas: info.replicas, readyReplicas: info.readyReplicas };
+      } catch {
+        return { id: w.id, replicas: 0, readyReplicas: 0 };
+      }
+    }),
+  );
+  const map: Record<string, { replicas: number; readyReplicas: number }> = {};
+  for (const r of results) {
+    map[r.id] = { replicas: r.replicas, readyReplicas: r.readyReplicas };
+  }
+  workerReplicas.value = map;
+}
+
 async function fetchList() {
   loading.value = true;
   try {
@@ -78,7 +134,10 @@ async function fetchList() {
   }
 }
 
-onMounted(fetchList);
+onMounted(async () => {
+  await fetchList();
+  await fetchAllReplicas();
+});
 
 async function openDetail(w: Worker) {
   detailWorker.value = w;
@@ -86,26 +145,42 @@ async function openDetail(w: Worker) {
   clusterNs.value = [];
   clusterPods.value = [];
   clusterDeployments.value = [];
+  clusterErrors.value = {};
+  workerInfo.value = null;
   await loadClusterData();
 }
 
 async function loadClusterData() {
   if (!detailWorker.value) return;
+  const id = detailWorker.value.id;
   clusterLoading.value = true;
-  try {
-    const [ns, pods, deps] = await Promise.all([
-      workersApi.listNamespaces(detailWorker.value.id),
-      workersApi.listPods(detailWorker.value.id, 'default'),
-      workersApi.listDeployments(detailWorker.value.id, 'default'),
-    ]);
-    clusterNs.value = ns;
-    clusterPods.value = pods;
-    clusterDeployments.value = deps;
-  } catch (e) {
-    ElMessage.warning(`集群代理测试失败 (worker 可能未连上 shipyard): ${(e as Error).message}`);
-  } finally {
-    clusterLoading.value = false;
-  }
+
+  // M9 commit-16: 4 个 API 独立 try/catch, 任何一个失败不影响其他, 错到对应区块
+  // (之前一个失败整组 ElMessage.warning + 全部数据空, 排查 worker 状态特别难)
+  const tasks: Array<{ key: string; run: () => Promise<unknown> }> = [
+    { key: 'ns', run: () => workersApi.listNamespaces(id) },
+    { key: 'pods', run: () => workersApi.listPods(id, 'default') },
+    { key: 'deployments', run: () => workersApi.listDeployments(id, 'default') },
+    { key: 'info', run: () => workersApi.listWorkerPods(id) },
+  ];
+  const results = await Promise.allSettled(tasks.map((t) => t.run()));
+
+  results.forEach((r, idx) => {
+    const key = tasks[idx].key;
+    if (r.status === 'fulfilled') {
+      if (key === 'ns') clusterNs.value = r.value as NamespaceRow[];
+      else if (key === 'pods') clusterPods.value = r.value as PodRow[];
+      else if (key === 'deployments') clusterDeployments.value = r.value as DeploymentRow[];
+      else if (key === 'info') workerInfo.value = r.value as unknown as WorkerInfo;
+    } else {
+      const reason = (r.reason as Error)?.message ?? String(r.reason);
+      clusterErrors.value[key] = `集群代理测试失败 (worker 可能未连上 shipyard): ${reason}`;
+      // eslint-disable-next-line no-console
+      console.warn(`[Workers.loadClusterData] ${key} failed:`, reason);
+    }
+  });
+
+  clusterLoading.value = false;
 }
 
 async function deleteWorker(w: Worker) {
@@ -129,6 +204,21 @@ async function deleteWorker(w: Worker) {
 
 function statusBadge(status: string) {
   return workerStatusBadge(status);
+}
+
+// M9 commit-16: pod 状态映射
+function podPhaseClass(phase: string) {
+  return {
+    'pod-running': phase === 'Running',
+    'pod-pending': phase === 'Pending',
+    'pod-failed': phase === 'Failed' || phase === 'Unknown',
+  };
+}
+function podPhaseTagType(phase: string): 'success' | 'warning' | 'danger' | 'info' {
+  if (phase === 'Running') return 'success';
+  if (phase === 'Pending') return 'warning';
+  if (phase === 'Failed' || phase === 'Unknown') return 'danger';
+  return 'info';
 }
 
 function fmtTime(iso: string | null): string {
@@ -256,6 +346,25 @@ function fmtTime(iso: string | null): string {
             </el-tag>
           </template>
         </el-table-column>
+        <!-- M9 commit-16: 实例数列 (K8s replicas, 跟 shipyard DB 1:N 关系展示) -->
+        <el-table-column label="实例数" width="120">
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="workerReplicas[row.id]"
+              :content="`期望 ${workerReplicas[row.id].replicas} 副本, ${workerReplicas[row.id].readyReplicas} 已就绪`"
+              placement="top"
+            >
+              <el-tag
+                :type="workerReplicas[row.id]?.readyReplicas === workerReplicas[row.id]?.replicas ? 'success' : 'warning'"
+                size="small"
+                effect="dark"
+              >
+                {{ workerReplicas[row.id]?.readyReplicas ?? 0 }} / {{ workerReplicas[row.id]?.replicas ?? 0 }}
+              </el-tag>
+            </el-tooltip>
+            <span v-else class="muted text-xs">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="version" label="版本" width="120">
           <template #default="{ row }">
             <code class="text-mono text-sm">{{ row.version || 'dev' }}</code>
@@ -274,7 +383,7 @@ function fmtTime(iso: string | null): string {
             <span class="muted text-sm">{{ row.createdAt }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link type="primary" @click.stop="openDetail(row)">
           <el-icon><View /></el-icon>
@@ -356,6 +465,48 @@ function fmtTime(iso: string | null): string {
             <el-button size="small" :icon="Refresh" @click="loadClusterData" :loading="clusterLoading">
               重测
             </el-button>
+          </div>
+
+          <!-- M9 commit-16: 4 个 API 独立错误展示, 哪个挂显示哪个 (不全屏) -->
+          <el-alert
+            v-for="(msg, key) in clusterErrors"
+            :key="key"
+            :title="`集群代理 · ${key} 接口失败`"
+            :description="msg"
+            type="warning"
+            show-icon
+            :closable="false"
+            class="cluster-error"
+          />
+
+          <!-- M9 commit-16: worker 实例数 + pod 列表 (1 worker DB row ↔ N K8s pod) -->
+          <div v-if="workerInfo" class="replica-banner">
+            <div class="replica-stats">
+              <el-tag
+                :type="workerInfo.readyReplicas === workerInfo.replicas ? 'success' : 'warning'"
+                size="default"
+                effect="dark"
+              >
+                {{ workerInfo.readyReplicas }} / {{ workerInfo.replicas }} Pod
+              </el-tag>
+              <span class="muted text-sm">
+                deployment <code class="text-mono">{{ workerInfo.workerName }}</code> @ ns <code class="text-mono">{{ workerInfo.namespace }}</code>
+              </span>
+            </div>
+            <ul v-if="workerInfo.pods.length > 0" class="pod-list">
+              <li v-for="p in workerInfo.pods" :key="p.name" :class="podPhaseClass(p.phase)">
+                <span class="pod-name">
+                  <code class="text-mono text-sm">{{ p.name }}</code>
+                </span>
+                <span class="pod-meta">
+                  <el-tag size="small" :type="podPhaseTagType(p.phase)" effect="plain">{{ p.phase }}</el-tag>
+                  <span v-if="p.ready" class="text-xs muted">ready {{ p.ready }}</span>
+                  <span v-if="p.node" class="text-xs muted">node {{ p.node }}</span>
+                  <span v-if="p.ip" class="text-xs muted">ip {{ p.ip }}</span>
+                </span>
+              </li>
+            </ul>
+            <p v-else class="muted text-sm">未查询到 pod (worker fake mode 或 deployment 还没起)</p>
           </div>
 
           <div class="cluster-grid">
@@ -472,5 +623,47 @@ function fmtTime(iso: string | null): string {
 
 .hint { color: var(--color-text-muted); font-size: 12px; margin: var(--space-3) 0 0; padding: 8px 12px; background: var(--color-bg-elevated); border-radius: 4px; }
 
+/* M9 commit-16: replica banner (worker pods) */
+.replica-banner {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.replica-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.pod-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pod-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--color-bg-surface);
+  border-left: 3px solid transparent;
+}
+.pod-list li.pod-running { border-left-color: var(--color-success); }
+.pod-list li.pod-pending { border-left-color: var(--color-warning); }
+.pod-list li.pod-failed { border-left-color: var(--color-danger); }
+.pod-name { flex: 0 0 auto; }
+.pod-meta { display: flex; align-items: center; gap: 8px; }
+
 .detail-actions { display: flex; justify-content: flex-end; padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+
+/* M9 commit-16: 集群 API 错误条 — 黄色 alert, 不盖住其他区块 */
+.cluster-error { margin-bottom: var(--space-2); }
+.cluster-error :deep(.el-alert__title) { font-weight: 600; }
+.cluster-error :deep(.el-alert__description) { font-size: 12px; opacity: 0.85; }
 </style>
