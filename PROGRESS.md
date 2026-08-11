@@ -734,3 +734,51 @@ Mavis 读 PROGRESS.md + spec + plan + KNOWN_ISSUES 自动接上, 不需要你解
 | 8 | EventSource 不走 Vite proxy | 直连 `sseBaseURL=http://localhost:8080` |
 
 详细 memory 见 `C:\Users\Administrator\.minimax\agents\mavis\memory\MEMORY.md`。
+
+---
+
+## 8. M8.3c 端到端收尾 (2026-08-11 晚, D 盘 + PC 端)
+
+**今日完成** (commit `48b832e`):
+- 修 worker pod 0/1 Ready 死循环 (K8sClient init 卡死 → readiness fail → liveness 杀)
+- 加 `initK8sClientWithCtx` wrapper (5s timeout, fallback fake-timeout)
+- 改 `ClusterInfo` 内部 goroutine + select 模式 (原来 Discovery().ServerVersion() 不收 ctx)
+- 跨编译 GOOS=linux 成功 (59.5MB binary)
+- D 盘 k8sclient 单测 19/19 全过
+
+**PC 端验证**:
+- `kubectl rollout restart` 后, **2 个 pod 都 1/1 Ready**, RESTARTS=0
+- `kubectl logs` 看到 `K8sClient ready mode=in-cluster` + `worker 启动中 ...` + 后续 register / heartbeat 日志
+- `/healthz` `/readyz` 200, k8s probe 正常
+
+**待解 1 个** (明天收尾):
+- PC 端浏览器 `http://192.168.10.29:8080/workers` 显示 0 worker (空表)
+- 但 worker pod 日志里 `RegisterHandler.heartbeatLoop` → `sendHeartbeat` 在跑 = register 至少成功过 1 次
+- 可能性: (a) 浏览器访问的 shipyard 后端 ≠ 接 worker register 的后端 (D 盘 sandbox 起的 8080 vs PC 主机起的 8080)
+-         (b) shipyard 后端 register 端点 HTTP 返 4xx/5xx, worker 重试, 但 DB 没行
+-         (c) `Ctrl+F5` 没强刷干净, Vite dev 缓存显示老空列表
+
+**明天第一步** (仔哥 PC 端跑):
+
+```bash
+# 1. 看 8080 监听进程 (确认浏览器访问的是哪个 shipyard 后端)
+netstat -ano | findstr :8080   # Windows PowerShell
+# 或:  Get-NetTCPConnection -LocalPort 8080
+
+# 2. shipyard 后端日志搜 register (看 register 端点返了什么)
+# 看你 PC 主机起的 shipyard (哪个 logs 目录都行, Mavis 后端 spring-boot 默认 stdout):
+Select-String -Path logs\startup.log -Pattern "register" -SimpleMatch
+# 或 D 盘 sandbox: Select-String -Path D:\Projects\shipyard\shipyard\logs\startup.log -Pattern "register" -SimpleMatch
+```
+
+**预期结果 2 选 1**:
+- 看到 register POST 记录 + code=0 → register 成功, DB 有行, 浏览器强刷应该看到 → 问题就是浏览器缓存或访问错的 shipyard
+- 看到 register POST 记录 + code!=0 → 后端拒 (WORKER_TOKEN 不匹配? env "dev" 不存在?)，贴 code+msg 我修
+
+**commit 历史** (D 盘 HEAD = 48b832e):
+- `48b832e` M8.3c fix: K8sClient 5s timeout
+- `2bf6589` M8.3c: RBAC ClusterRole (修 NotFound)
+- `3bb844b` M8.3c: Dockerfile mirror.gcr.io
+- `554c389` M8.3c: WORKER_PUBLIC_URL worker node 1
+- `e393890` M4 var forward-compat 别名
+- `488b70e` M8.3c: PC 端部署 (NodePort + 文档)
