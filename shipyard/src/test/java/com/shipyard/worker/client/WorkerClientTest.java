@@ -18,6 +18,7 @@ package com.shipyard.worker.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shipyard.common.exception.BusinessException;
+import com.shipyard.worker.dto.DeployRequest;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -207,6 +208,159 @@ class WorkerClientTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0)).containsEntry("name", "recovered");
         assertThat(callCount.get()).isEqualTo(2);
+    }
+
+    // ==================== M9 commit-5: deploy 5 方法 ====================
+
+    @Test
+    @DisplayName("deploy: POST /api/v1/tasks/deploy, 鉴权 + body + 返 data map")
+    void deploy_Success() throws Exception {
+        String[] capturedAuth = {null};
+        String[] capturedBody = {null};
+        mockServer.createContext("/api/v1/tasks/deploy", exchange -> {
+            capturedAuth[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            // 读 body
+            try (var is = exchange.getRequestBody()) {
+                capturedBody[0] = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            String body = "{\"code\":0,\"message\":\"applied\",\"data\":"
+                    + "{\"phase\":\"created\",\"message\":\"deployment.apps/myapp-dev created\""
+                    + ",\"manifest\":\"apiVersion: apps/v1\\nkind: Deployment\"}}";
+            respondJson(exchange, 200, body);
+        });
+
+        DeployRequest req = new DeployRequest();
+        req.setDeployRecordId(1234L);
+        req.setNamespace("shipyard-dev");
+        req.setYaml("apiVersion: apps/v1\nkind: Deployment\n...");
+        req.setResourceName("myapp-dev");
+
+        Map<String, Object> data = client.deploy(baseUrl, "test-token", req);
+
+        assertThat(data).containsEntry("phase", "created");
+        assertThat(data).containsKey("message");
+        assertThat(capturedAuth[0]).isEqualTo("Bearer test-token");
+        assertThat(capturedBody[0]).contains("\"deployRecordId\":1234");
+        assertThat(capturedBody[0]).contains("\"namespace\":\"shipyard-dev\"");
+    }
+
+    @Test
+    @DisplayName("rollback: 复用 /api/v1/tasks/deploy 端点, body 含历史 yaml")
+    void rollback_Success() throws Exception {
+        mockServer.createContext("/api/v1/tasks/deploy", new JsonHandler(
+            "{\"code\":0,\"data\":{\"phase\":\"updated\",\"message\":\"rolled back to v1\"}}"
+        ));
+
+        DeployRequest req = new DeployRequest();
+        req.setDeployRecordId(200L);
+        req.setNamespace("shipyard-dev");
+        req.setYaml("apiVersion: apps/v1\nkind: Deployment\n# old version");
+
+        Map<String, Object> data = client.rollback(baseUrl, "tok", req);
+        assertThat(data).containsEntry("phase", "updated");
+    }
+
+    @Test
+    @DisplayName("scale: POST /api/v1/tasks/scale, body 含 kind/name/namespace/replicas")
+    void scale_Success() throws Exception {
+        String[] capturedBody = {null};
+        mockServer.createContext("/api/v1/tasks/scale", exchange -> {
+            try (var is = exchange.getRequestBody()) {
+                capturedBody[0] = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            String body = "{\"code\":0,\"data\":{\"phase\":\"scaled\",\"replicas\":5}}";
+            respondJson(exchange, 200, body);
+        });
+
+        Map<String, Object> data = client.scale(baseUrl, "tok", "Deployment", "myapp-dev",
+                "shipyard-dev", 5);
+
+        assertThat(data).containsEntry("phase", "scaled");
+        assertThat(data).containsEntry("replicas", 5);
+        assertThat(capturedBody[0]).contains("\"kind\":\"Deployment\"");
+        assertThat(capturedBody[0]).contains("\"name\":\"myapp-dev\"");
+        assertThat(capturedBody[0]).contains("\"replicas\":5");
+    }
+
+    @Test
+    @DisplayName("stop: 走 scale 端点, replicas=0")
+    void stop_Success() throws Exception {
+        String[] capturedBody = {null};
+        mockServer.createContext("/api/v1/tasks/scale", exchange -> {
+            try (var is = exchange.getRequestBody()) {
+                capturedBody[0] = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            String body = "{\"code\":0,\"data\":{\"phase\":\"scaled\",\"replicas\":0}}";
+            respondJson(exchange, 200, body);
+        });
+
+        Map<String, Object> data = client.stop(baseUrl, "tok", "Deployment", "myapp-dev",
+                "shipyard-dev");
+        assertThat(data).containsEntry("replicas", 0);
+        assertThat(capturedBody[0]).contains("\"replicas\":0");
+    }
+
+    @Test
+    @DisplayName("getManifest: GET /api/v1/tasks/manifest, 返 raw yaml 字符串")
+    void getManifest_Success() throws Exception {
+        String[] capturedPath = {null};
+        mockServer.createContext("/api/v1/tasks/manifest", exchange -> {
+            capturedPath[0] = exchange.getRequestURI().toString();
+            String yaml = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: myapp-dev";
+            byte[] bytes = yaml.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/yaml");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+
+        String yaml = client.getManifest(baseUrl, "tok", "Deployment", "myapp-dev", "shipyard-dev");
+
+        assertThat(yaml).contains("apiVersion: apps/v1");
+        assertThat(yaml).contains("name: myapp-dev");
+        assertThat(capturedPath[0])
+                .contains("kind=Deployment")
+                .contains("name=myapp-dev")
+                .contains("namespace=shipyard-dev");
+    }
+
+    @Test
+    @DisplayName("deploy 业务错 (worker 返 code=400): 抛 BusinessException")
+    void deploy_BusinessError_ThrowsException() throws Exception {
+        mockServer.createContext("/api/v1/tasks/deploy", new JsonHandler(
+            "{\"code\":400,\"message\":\"yaml invalid: kind required\"}"
+        ));
+
+        DeployRequest req = new DeployRequest();
+        req.setDeployRecordId(1L);
+        req.setNamespace("ns");
+        req.setYaml("invalid");
+
+        assertThatThrownBy(() -> client.deploy(baseUrl, "tok", req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("worker 业务错")
+                .hasMessageContaining("yaml invalid");
+    }
+
+    @Test
+    @DisplayName("deploy token null: 鉴权头变 'Bearer' (空), worker 应返 401")
+    void deploy_NullToken_StillSendsAuth() throws Exception {
+        String[] capturedAuth = {null};
+        mockServer.createContext("/api/v1/tasks/deploy", exchange -> {
+            capturedAuth[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            respondJson(exchange, 401, "{\"code\":401,\"message\":\"unauthorized\"}");
+        });
+
+        DeployRequest req = new DeployRequest();
+        req.setDeployRecordId(1L);
+        req.setNamespace("ns");
+        req.setYaml("yaml");
+
+        // 不抛 — 4xx 路径在 client 不重试, 直接抛 BusinessException
+        assertThatThrownBy(() -> client.deploy(baseUrl, null, req))
+                .isInstanceOf(BusinessException.class);
+        // JDK HttpClient 自动 trim 掉 "Bearer " 后的空格, 变成 "Bearer"
+        assertThat(capturedAuth[0]).isEqualTo("Bearer");
     }
 
     // ==================== 辅助 ====================
