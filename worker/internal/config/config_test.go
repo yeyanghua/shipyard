@@ -10,7 +10,12 @@ import (
 
 func TestLoad_Defaults(t *testing.T) {
 	// 清掉可能干扰的 env
-	for _, k := range []string{"WORKER_PORT", "WORKER_ENV", "WORKER_NAME", "WORKER_VERSION", "SHIPYARD_URL", "K8S_IN_CLUSTER"} {
+	for _, k := range []string{
+		"WORKER_PORT", "WORKER_ENV", "WORKER_NAME", "WORKER_VERSION",
+		"SHIPYARD_URL", "K8S_IN_CLUSTER",
+		"HEALTH_DISK_THRESHOLD_PERCENT", "HEALTH_MEM_MIN_AVAILABLE_MB",
+		"HEALTH_K8S_CHECK_TIMEOUT_MS", "HEALTH_CACHE_TTL_SEC",
+	} {
 		os.Unsetenv(k)
 	}
 
@@ -22,6 +27,11 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, "dev", cfg.Version)
 	assert.Equal(t, "http://localhost:8080", cfg.ShipyardURL)
 	assert.False(t, cfg.K8sInCluster)
+	// M9 commit-9: health 默认值
+	assert.Equal(t, 90, cfg.HealthDiskThresholdPercent)
+	assert.Equal(t, 200, cfg.HealthMemMinAvailableMB)
+	assert.Equal(t, 3000, cfg.HealthK8sCheckTimeoutMS)
+	assert.Equal(t, 30, cfg.HealthCacheTTLSec)
 }
 
 func TestLoad_Override(t *testing.T) {

@@ -26,9 +26,11 @@ import (
 
 	"github.com/yeyanghua/shipyard/worker/internal/config"
 	"github.com/yeyanghua/shipyard/worker/internal/handler"
+	"github.com/yeyanghua/shipyard/worker/internal/health"
 	"github.com/yeyanghua/shipyard/worker/internal/k8sclient"
 	"github.com/yeyanghua/shipyard/worker/internal/log"
 	"github.com/yeyanghua/shipyard/worker/internal/server"
+	"github.com/yeyanghua/shipyard/worker/internal/types"
 )
 
 func main() {
@@ -80,7 +82,7 @@ func main() {
 
 	// 5. wire handler
 	cluster := handler.NewClusterHandler(logger, k8s)
-	health := handler.NewHealthHandler(logger, cfg.Version)
+	healthH := handler.NewHealthHandler(logger, cfg.Version)
 	echo := handler.NewEchoHandler(logger, cfg.WorkerName)
 	deploy := handler.NewDeployHandler(logger, k8s)  // M9 commit-8
 
@@ -110,6 +112,27 @@ func main() {
 		Version:           cfg.Version,
 		HeartbeatInterval: cfg.HeartbeatInterval,
 	}
+
+	// M9 commit-9: 装配 health checker, 注入到 register handler — 心跳时带上 health 字段.
+	// k8sCheckFn 直接调 K8sClient.ListNamespaces, 通了算健康.
+	healthCfg := health.Config{
+		DiskThresholdPercent: cfg.HealthDiskThresholdPercent,
+		MemMinAvailableMB:    cfg.HealthMemMinAvailableMB,
+		K8sCheckTimeout:      time.Duration(cfg.HealthK8sCheckTimeoutMS) * time.Millisecond,
+		CacheTTL:             time.Duration(cfg.HealthCacheTTLSec) * time.Second,
+	}
+	checker := health.NewChecker(logger, healthCfg, func(ctx context.Context) error {
+		if k8s == nil {
+			return fmt.Errorf("k8s client not initialized")
+		}
+		_, err := k8s.ListNamespaces(ctx)
+		return err
+	})
+	registerCfg.HealthFn = func(ctx context.Context) types.HealthStatus {
+		r := checker.Check(ctx)
+		return types.HealthStatus{Health: r.Health, Detail: r.Detail}
+	}
+
 	register := handler.NewRegisterHandler(logger, registerCfg, echo)
 	if err := register.Start(ctx); err != nil {
 		// 注册失败不致命, worker 还能服务 HTTP, 后台 goroutine 自己重试
@@ -118,7 +141,7 @@ func main() {
 	defer register.Stop()
 
 	// 7. HTTP server
-	srv := server.New(cfg, logger, cluster, health, echo, deploy)
+	srv := server.New(cfg, logger, cluster, healthH, echo, deploy)
 
 	// 8. 优雅关闭 — SIGINT/SIGTERM 触发 cancel + Shutdown
 	sigCh := make(chan os.Signal, 1)

@@ -38,6 +38,10 @@ type RegisterConfig struct {
 	WorkerToken       string
 	Version           string
 	HeartbeatInterval time.Duration
+
+	// M9 commit-9: 心跳里带的 health 字段由外部 (main.go) 注入 checker 决定.
+	// 不在 register.go 内部跑 health check, 保持 handler 薄.
+	HealthFn func(ctx context.Context) types.HealthStatus
 }
 
 // NewRegisterHandler 创建 handler (不自动启动,等 worker main 调 Start).
@@ -182,6 +186,13 @@ func (r *RegisterHandler) sendHeartbeat(ctx context.Context) {
 	req := types.HeartbeatRequest{
 		WorkerID: id,
 		Status:   "online",
+	}
+
+	// M9 commit-9: 拿 health result 填到心跳, shipyard 端 WorkerHealthScanner 拿这个判 HEALTHY/UNHEALTHY.
+	if r.cfg.HealthFn != nil {
+		hs := r.cfg.HealthFn(ctx)
+		req.Health = hs.Health
+		req.HealthDetail = hs.Detail
 	}
 
 	body, _ := json.Marshal(req)

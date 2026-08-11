@@ -18,19 +18,29 @@ type Config struct {
 	HeartbeatInterval time.Duration // 心跳间隔
 	K8sInCluster      bool          // true = in-cluster;false = 走 KUBECONFIG
 	KubeConfigPath    string        // K8sInCluster=false 时读这个
+
+	// M9 commit-9: health 自检配置.
+	HealthDiskThresholdPercent int           // 磁盘使用率阈值 (默认 90)
+	HealthMemMinAvailableMB    int           // 最小可用内存 MB (默认 200)
+	HealthK8sCheckTimeoutMS    int           // k8s 连通检查超时 ms (默认 3000)
+	HealthCacheTTLSec          int           // 自检 cache TTL 秒 (默认 30)
 }
 
 // Load 从 env var 加载,带默认值.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:              getEnvInt("WORKER_PORT", 8888),
-		Env:               getEnvStr("WORKER_ENV", "dev"),
-		WorkerName:        getEnvStr("WORKER_NAME", fmt.Sprintf("worker-%s", getHostname())),
-		Version:           getEnvStr("WORKER_VERSION", "dev"),
-		ShipyardURL:       getEnvStr("SHIPYARD_URL", "http://localhost:8080"),
-		HeartbeatInterval: time.Duration(getEnvInt("WORKER_HEARTBEAT_INTERVAL_SEC", 30)) * time.Second,
-		K8sInCluster:      getEnvBool("K8S_IN_CLUSTER", false),
-		KubeConfigPath:    getEnvStr("KUBECONFIG", ""),
+		Port:                       getEnvInt("WORKER_PORT", 8888),
+		Env:                        getEnvStr("WORKER_ENV", "dev"),
+		WorkerName:                 getEnvStr("WORKER_NAME", fmt.Sprintf("worker-%s", getHostname())),
+		Version:                    getEnvStr("WORKER_VERSION", "dev"),
+		ShipyardURL:                getEnvStr("SHIPYARD_URL", "http://localhost:8080"),
+		HeartbeatInterval:          time.Duration(getEnvInt("WORKER_HEARTBEAT_INTERVAL_SEC", 30)) * time.Second,
+		K8sInCluster:               getEnvBool("K8S_IN_CLUSTER", false),
+		KubeConfigPath:             getEnvStr("KUBECONFIG", ""),
+		HealthDiskThresholdPercent: getEnvInt("HEALTH_DISK_THRESHOLD_PERCENT", 90),
+		HealthMemMinAvailableMB:    getEnvInt("HEALTH_MEM_MIN_AVAILABLE_MB", 200),
+		HealthK8sCheckTimeoutMS:    getEnvInt("HEALTH_K8S_CHECK_TIMEOUT_MS", 3000),
+		HealthCacheTTLSec:          getEnvInt("HEALTH_CACHE_TTL_SEC", 30),
 	}
 
 	if cfg.Port < 1 || cfg.Port > 65535 {

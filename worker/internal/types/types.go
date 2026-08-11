@@ -83,6 +83,14 @@ type HeartbeatRequest struct {
 	HealthDetail string `json:"healthDetail,omitempty"`
 }
 
+// HealthStatus 独立的 health 状态结构 — 给 RegisterHandler.HealthFn 注入用.
+//
+// 跟 HeartbeatRequest 的 health/healthDetail 字段语义一致, 拆出来避免 handler 依赖整个 Request DTO.
+type HealthStatus struct {
+	Health string // "HEALTHY" / "UNHEALTHY"
+	Detail string // 失败原因 (HEALTHY 时为空)
+}
+
 // ============================================================
 // Tasks (M8.4+)
 // ============================================================
