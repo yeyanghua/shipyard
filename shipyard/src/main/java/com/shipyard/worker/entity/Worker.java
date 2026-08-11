@@ -88,4 +88,19 @@ public class Worker extends BaseEntity {
      * worker 版本 (Go 二进制 ldflags 注入的 WORKER_VERSION).
      */
     private String version;
+
+    /**
+     * worker 角色 (M9 新增, V2 加字段):
+     * <ul>
+     *   <li>{@code PRIMARY} — 跑 deploy 任务 (1 env 最多 1 个, 推荐)</li>
+     *   <li>{@code STANDBY} — 备机, 只 heartbeat + 故障接管</li>
+     * </ul>
+     *
+     * <p>角色由 shipyard 端在 worker register 时 self-elect 决定:
+     * 同 env 已有 0 个 online worker → 新 worker 给 PRIMARY;
+     * 已 ≥1 个 → 给 STANDBY.
+     *
+     * <p>M9.5+ 考虑:加 {@code weight} 字段做 round-robin, 暂不实现.
+     */
+    private String role;
 }

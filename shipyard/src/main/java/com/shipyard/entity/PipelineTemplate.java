@@ -109,6 +109,33 @@ public class PipelineTemplate {
     @TableField("ai_prompt")
     private String aiPrompt;
 
+    // ============================================================
+    // M9 deploy 字段
+    // ============================================================
+
+    /**
+     * 主容器监听端口 (M9 新增, V2 加字段) — deploy 渲染 K8s YAML 用.
+     *
+     * <p>NULL 表示该项目还不支持 deploy (V1 demo 阶段允许, UI 上隐藏部署按钮).
+     */
+    @TableField("container_port")
+    private Integer containerPort;
+
+    /**
+     * 副本数 (M9 新增, V2 加字段, 默认 1) — deploy 渲染 K8s Deployment.spec.replicas 用.
+     */
+    @TableField("replicas")
+    private Integer replicas;
+
+    /**
+     * 目标 namespace 模板 (M9 新增, V2 加字段, 默认 {@code shipyard-{env_name}}) — deploy 时
+     * 把 {@code {env_name}} 替换为 env.name, 渲染出 K8s namespace.
+     *
+     * <p>支持简单模板, 不引 helm/kustomize: 例 {@code shipyard-{env_name}} / {@code team-a-{env_name}}.
+     */
+    @TableField("namespace_pattern")
+    private String namespacePattern;
+
     /** 创建时间 — INSERT 时自动填 */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

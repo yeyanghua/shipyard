@@ -18,8 +18,10 @@ package com.shipyard.worker.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.shipyard.worker.entity.Worker;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
@@ -50,4 +52,28 @@ public interface WorkerMapper extends BaseMapper<Worker> {
     int updateHeartbeat(@Param("id") Long id,
                        @Param("heartbeatAt") LocalDateTime heartbeatAt,
                        @Param("status") String status);
+
+    /**
+     * 按 env_id + role + status 查 worker — M9 选 deploy worker 用.
+     *
+     * <p>按 last_heartbeat_at DESC 选最新心跳的 1 个, 适配 M9.5 round-robin 加 weight 字段.
+     *
+     * <p>当前调用场景:
+     * <ul>
+     *   <li>DeployService.selectDeployWorker: env_id + role='PRIMARY' + status='online'</li>
+     *   <li>WorkerHeartbeatScanner: env_id + role='STANDBY' + status='online' (升级备用)</li>
+     * </ul>
+     */
+    @Select("SELECT * FROM worker "
+            + "WHERE env_id = #{envId} AND role = #{role} AND status = #{status} AND deleted = 0 "
+            + "ORDER BY last_heartbeat_at DESC LIMIT 1")
+    Worker selectByEnvAndRole(@Param("envId") Long envId,
+                              @Param("role") String role,
+                              @Param("status") String status);
+
+    /**
+     * 查某 env 下所有 online worker — M9 self-elect 时算同 env 已有数量用.
+     */
+    @Select("SELECT * FROM worker WHERE env_id = #{envId} AND status = 'online' AND deleted = 0")
+    List<Worker> selectOnlineByEnv(@Param("envId") Long envId);
 }

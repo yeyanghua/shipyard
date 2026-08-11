@@ -54,4 +54,14 @@ public class WorkerRegisterRequest {
 
     /** (M8.3+) 节点名, M8.2 阶段不存. */
     private String nodeName;
+
+    /**
+     * (M9+) 角色自荐 — worker 启动时自己希望当什么角色.
+     * <ul>
+     *   <li>{@code PRIMARY} (默认) — 想当主, 跑 deploy 任务</li>
+     *   <li>{@code STANDBY} — 想当备, 只 heartbeat + 故障接管</li>
+     * </ul>
+     * shipyard 端会按同 env 已有 online worker 数 self-elect, 不一定接受 hint.
+     */
+    private String roleHint;
 }
