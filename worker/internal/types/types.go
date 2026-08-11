@@ -68,11 +68,19 @@ type RegisterResponse struct {
 
 // HeartbeatRequest worker 定期上报.
 type HeartbeatRequest struct {
-	WorkerID    string `json:"workerId"`
-	Status      string `json:"status"` // online / unhealthy
-	CPULoad     string `json:"cpuLoad,omitempty"`
-	MemoryUsage string `json:"memoryUsage,omitempty"`
-	PodsCount   int    `json:"podsCount,omitempty"`
+	WorkerID     string `json:"workerId"`
+	Status       string `json:"status"` // online / unhealthy
+	CPULoad      string `json:"cpuLoad,omitempty"`
+	MemoryUsage  string `json:"memoryUsage,omitempty"`
+	PodsCount    int    `json:"podsCount,omitempty"`
+
+	// M9 commit-8: worker 自报健康状态
+	// HEALTHY (默认) — worker 自检通过, 愿意接 deploy
+	// UNHEALTHY — 自检失败 (k8s API / mem / disk), 不派活但继续心跳
+	Health string `json:"health,omitempty"`
+
+	// M9 commit-8: 自检失败原因 — 例 "k8s API timeout 3s" / "disk 95% > 90%"
+	HealthDetail string `json:"healthDetail,omitempty"`
 }
 
 // ============================================================
@@ -92,4 +100,48 @@ type EchoResponse struct {
 	WorkerID    string      `json:"workerId,omitempty"`
 	Received    EchoRequest `json:"received"`
 	ProcessedAt time.Time   `json:"processedAt"`
+}
+
+// ============================================================
+// Deploy tasks (M9 commit-8) — shipyard → worker 调 deploy/scale/manifest
+// ============================================================
+
+// DeployTaskRequest POST /api/v1/tasks/deploy — shipyard 渲染完 yaml 后发过来, worker 真 apply.
+//
+// namespace + yaml 是必填;resourceName 可选 (worker 端做 sanity check).
+// 跟 commit-5 shipyard 端 DeployRequest 对齐.
+type DeployTaskRequest struct {
+	Namespace    string `json:"namespace" binding:"required"`
+	YAML         string `json:"yaml" binding:"required"`
+	ResourceName string `json:"resourceName,omitempty"`
+	DeployID     int64  `json:"deployRecordId,omitempty"` // shipyard 端 deploy_record.id, log 用
+}
+
+// DeployTaskResponse 返 {phase, message, manifest} — shipyard 端写到 deploy_record.error_message 用.
+type DeployTaskResponse struct {
+	Phase    string `json:"phase"`    // created / updated / rolled-back / unchanged / failed
+	Message  string `json:"message"`
+	Manifest string `json:"manifest,omitempty"` // k8s 真生效的 yaml, 高级模式 diff 用
+}
+
+// ScaleTaskRequest POST /api/v1/tasks/scale — 修改副本数.
+type ScaleTaskRequest struct {
+	Namespace string `json:"namespace" binding:"required"`
+	Kind      string `json:"kind" binding:"required"` // Deployment / StatefulSet
+	Name      string `json:"name" binding:"required"`
+	Replicas  int    `json:"replicas"`
+}
+
+// ScaleTaskResponse 返 phase + message.
+type ScaleTaskResponse struct {
+	Phase   string `json:"phase"` // scaled / failed
+	Message string `json:"message"`
+}
+
+// ManifestTaskResponse GET /api/v1/tasks/manifest — 返 raw yaml 字符串, 高级模式 diff 用.
+type ManifestTaskResponse struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Manifest  string `json:"manifest"`
 }

@@ -82,6 +82,7 @@ func main() {
 	cluster := handler.NewClusterHandler(logger, k8s)
 	health := handler.NewHealthHandler(logger, cfg.Version)
 	echo := handler.NewEchoHandler(logger, cfg.WorkerName)
+	deploy := handler.NewDeployHandler(logger, k8s)  // M9 commit-8
 
 	// 6. register handler (注册 + 心跳) — 独立于 HTTP server, 走后台 goroutine
 	workerURL := os.Getenv("WORKER_URL")
@@ -117,7 +118,7 @@ func main() {
 	defer register.Stop()
 
 	// 7. HTTP server
-	srv := server.New(cfg, logger, cluster, health, echo)
+	srv := server.New(cfg, logger, cluster, health, echo, deploy)
 
 	// 8. 优雅关闭 — SIGINT/SIGTERM 触发 cancel + Shutdown
 	sigCh := make(chan os.Signal, 1)

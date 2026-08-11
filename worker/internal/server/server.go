@@ -29,6 +29,7 @@ func New(
 	cluster *handler.ClusterHandler,
 	health *handler.HealthHandler,
 	echo *handler.EchoHandler,
+	deploy *handler.DeployHandler,
 ) *Server {
 	if cfg.Env != "dev" {
 		gin.SetMode(gin.ReleaseMode)
@@ -54,6 +55,14 @@ func New(
 			clusterGroup.GET("/namespaces", cluster.ListNamespaces)
 			clusterGroup.GET("/pods", cluster.ListPods)
 			clusterGroup.GET("/deployments", cluster.ListDeployments)
+		}
+
+		// 写动作 (M9 commit-8): shipyard → worker 真 apply / scale / manifest
+		taskGroup := v1.Group("/tasks")
+		{
+			taskGroup.POST("/deploy", deploy.Deploy)
+			taskGroup.POST("/scale", deploy.Scale)
+			taskGroup.GET("/manifest", deploy.GetManifest)
 		}
 	}
 
