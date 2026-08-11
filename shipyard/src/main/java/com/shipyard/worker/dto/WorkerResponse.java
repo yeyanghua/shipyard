@@ -41,6 +41,15 @@ public class WorkerResponse {
     /** 心跳是否新鲜 (last_heartbeat_at 在 90s 内). 方便前端 UI 标红/标绿. */
     private Boolean heartbeatFresh;
 
+    /**
+     * M9 commit-4: worker 自报健康状态 (HEALTHY / UNHEALTHY).
+     * 前端 UI 显示 "健康" / "不健康 (k8s API timeout)" 等.
+     */
+    private String health;
+
+    /** M9 commit-4: 自检失败原因 (例 "k8s API timeout 3s"). */
+    private String healthDetail;
+
     public static WorkerResponse from(Worker w) {
         if (w == null) return null;
         WorkerResponse r = new WorkerResponse();
@@ -54,6 +63,8 @@ public class WorkerResponse {
         r.setUpdatedAt(w.getUpdatedAt());
         r.setHeartbeatFresh(w.getLastHeartbeatAt() != null
                 && w.getLastHeartbeatAt().isAfter(LocalDateTime.now().minusSeconds(90)));
+        r.setHealth(w.getHealth());
+        r.setHealthDetail(w.getHealthDetail());
         return r;
     }
 }

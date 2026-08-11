@@ -54,6 +54,32 @@ public interface WorkerMapper extends BaseMapper<Worker> {
                        @Param("status") String status);
 
     /**
+     * M9 commit-4: 心跳时同时更新 health + health_detail.
+     *
+     * <p>跟 {@link #updateHeartbeat} 区别: 多更新 health 字段 (worker 自报健康状态).
+     * WorkerSelector 选 worker 时额外过滤 health='HEALTHY' (不健康不派活).
+     */
+    @Update("UPDATE worker SET last_heartbeat_at = #{heartbeatAt}, status = #{status}, "
+            + "health = #{health}, health_detail = #{healthDetail}, "
+            + "updated_at = CURRENT_TIMESTAMP "
+            + "WHERE id = #{id} AND deleted = 0")
+    int updateHeartbeatWithHealth(@Param("id") Long id,
+                                  @Param("heartbeatAt") LocalDateTime heartbeatAt,
+                                  @Param("status") String status,
+                                  @Param("health") String health,
+                                  @Param("healthDetail") String healthDetail);
+
+    /**
+     * M9 commit-4: 标 worker 离线 (心跳超时, shipyard @Scheduled 30s 扫一次).
+     *
+     * <p>条件 {@code status = 'online'} 防止重复标 (UNHEALTHY 状态 worker 也会被心跳,
+     * 但标 offline 只对 online 状态生效).
+     */
+    @Update("UPDATE worker SET status = 'offline', updated_at = CURRENT_TIMESTAMP "
+            + "WHERE id = #{id} AND status = 'online' AND deleted = 0")
+    int markOffline(@Param("id") Long id);
+
+    /**
      * 按 env_id + status 查 worker 列表 — M9 选 deploy worker 用 (WorkerSelector 抽象).
      *
      * <p>不限定 role (M9 fix-commit 后 worker 不再分 PRIMARY/STANDBY):
@@ -87,4 +113,14 @@ public interface WorkerMapper extends BaseMapper<Worker> {
             + "AND last_heartbeat_at < #{threshold} AND deleted = 0")
     List<Worker> selectStaleOnlineByEnv(@Param("envId") Long envId,
                                         @Param("threshold") java.time.LocalDateTime threshold);
+
+    /**
+     * M9 commit-4: 全表扫, 找心跳超时的 online worker (不限 env).
+     *
+     * <p>{@link WorkerHealthScanner} 30s 调一次. V1 worker 数量 < 100 全表扫够用,
+     * V1.5+ worker 多起来时考虑按 env 切分多线程扫, 或加 idx_worker_heartbeat 索引.
+     */
+    @Select("SELECT * FROM worker "
+            + "WHERE status = 'online' AND last_heartbeat_at < #{threshold} AND deleted = 0")
+    List<Worker> selectStaleOnline(@Param("threshold") java.time.LocalDateTime threshold);
 }

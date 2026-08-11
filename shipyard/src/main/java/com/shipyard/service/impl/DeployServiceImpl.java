@@ -358,13 +358,24 @@ public class DeployServiceImpl implements DeployService {
      *
      * <p>查 status=online + last_heartbeat_at DESC, WorkerSelector 从中按策略选 1 个.
      * 没找到 → 返 null (业务层抛 NOT_FOUND 错).
+     *
+     * <p>M9 commit-4: WorkerSelector 选完后再过滤 health='HEALTHY' (worker 自检失败的不派活).
+     * 过滤逻辑: 拿 candidates 列表, 把 health != HEALTHY 的剔除, 再走 selector.
+     * 如果剔除后空 → 返 null.
      */
     private Worker selectDeployWorker(Long envId) {
         List<Worker> candidates = workerMapper.selectByEnvAndStatus(envId, "online");
         if (candidates == null || candidates.isEmpty()) {
             return null;
         }
-        return activeWorkerSelector.select(candidates);
+        // commit-4: 过滤 health != HEALTHY (worker 自检失败的)
+        List<Worker> healthyCandidates = candidates.stream()
+                .filter(w -> "HEALTHY".equals(w.getHealth()))
+                .toList();
+        if (healthyCandidates.isEmpty()) {
+            return null;
+        }
+        return activeWorkerSelector.select(healthyCandidates);
     }
 
     /**

@@ -73,3 +73,21 @@ ALTER TABLE `pipeline_template`
   ADD COLUMN `namespace_pattern` VARCHAR(64) NOT NULL DEFAULT 'shipyard-{env_name}'
   COMMENT '目标 ns 模板 ({env_name} 渲染时替换)'
   AFTER `replicas`;
+
+-- ============================================================
+-- 4. worker 表加 health 字段 (commit-4 新增)
+-- (worker 自检 + 跟 shipyard @Scheduled 配合, shipyard 是被动路由层.
+--  worker 自检: k8s API 连不连得上 / 内存压力 / 磁盘满 没满, 自报 HEALTHY/UNHEALTHY;
+--  shipyard WorkerHealthScanner 扫 last_heartbeat_at < now-90s 标 offline.
+--  WorkerSelector 候选池只走 status='online' + health='HEALTHY' 的 worker,
+--  unhealthy 不派活 — M9 fix-commit 决策 11 'shipyard 不 promote, 只剔除')
+-- ============================================================
+ALTER TABLE `worker`
+  ADD COLUMN `health` VARCHAR(16) NOT NULL DEFAULT 'HEALTHY'
+  COMMENT 'HEALTHY (默认, worker 自报健康) / UNHEALTHY (worker 自检失败, 不派活)'
+  AFTER `status`;
+
+ALTER TABLE `worker`
+  ADD COLUMN `health_detail` VARCHAR(512) NULL
+  COMMENT 'worker 自检失败原因 (例 k8s API timeout / disk full), 前端 + log 用'
+  AFTER `health`;

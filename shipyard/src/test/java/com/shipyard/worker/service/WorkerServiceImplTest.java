@@ -144,20 +144,41 @@ class WorkerServiceImplTest {
         verify(workerMapper, times(1)).insert(any(Worker.class));
     }
 
-    // ==================== heartbeat ====================
+    // ==================== heartbeat (M9 commit-4) ====================
+    // commit-4 后 heartbeat 调 updateHeartbeatWithHealth, 旧 updateHeartbeat 保留兼容
 
     @Test
-    @DisplayName("heartbeat 成功: 调 updateHeartbeat SQL, 不走 ORM 全字段")
+    @DisplayName("heartbeat 成功 (HEALTHY): 调 updateHeartbeatWithHealth, 默认 HEALTHY")
     void heartbeat_Success() {
         WorkerHeartbeatRequest req = new WorkerHeartbeatRequest();
         req.setWorkerId(1L);
         req.setStatus("online");
-        when(workerMapper.updateHeartbeat(eq(1L), any(LocalDateTime.class), eq("online")))
-                .thenReturn(1);
+        when(workerMapper.updateHeartbeatWithHealth(eq(1L), any(LocalDateTime.class),
+                eq("online"), eq("HEALTHY"), eq(null))).thenReturn(1);
 
         workerService.heartbeat(1L, req);
 
-        verify(workerMapper, times(1)).updateHeartbeat(eq(1L), any(LocalDateTime.class), eq("online"));
+        verify(workerMapper, times(1)).updateHeartbeatWithHealth(
+                eq(1L), any(LocalDateTime.class),
+                eq("online"), eq("HEALTHY"), eq(null));
+    }
+
+    @Test
+    @DisplayName("heartbeat 成功 (UNHEALTHY + detail): 自检失败信息能传到 DB")
+    void heartbeat_Unhealthy() {
+        WorkerHeartbeatRequest req = new WorkerHeartbeatRequest();
+        req.setWorkerId(1L);
+        req.setStatus("online");
+        req.setHealth("UNHEALTHY");
+        req.setHealthDetail("k8s API timeout 3s");
+        when(workerMapper.updateHeartbeatWithHealth(eq(1L), any(LocalDateTime.class),
+                eq("online"), eq("UNHEALTHY"), eq("k8s API timeout 3s"))).thenReturn(1);
+
+        workerService.heartbeat(1L, req);
+
+        verify(workerMapper, times(1)).updateHeartbeatWithHealth(
+                eq(1L), any(LocalDateTime.class),
+                eq("online"), eq("UNHEALTHY"), eq("k8s API timeout 3s"));
     }
 
     @Test
@@ -165,7 +186,8 @@ class WorkerServiceImplTest {
     void heartbeat_WorkerNotFound_ThrowsException() {
         WorkerHeartbeatRequest req = new WorkerHeartbeatRequest();
         req.setStatus("online");
-        when(workerMapper.updateHeartbeat(eq(99L), any(), any())).thenReturn(0);
+        when(workerMapper.updateHeartbeatWithHealth(eq(99L), any(), any(), any(), any()))
+                .thenReturn(0);
 
         assertThatThrownBy(() -> workerService.heartbeat(99L, req))
                 .isInstanceOf(BusinessException.class)
@@ -182,7 +204,19 @@ class WorkerServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("status 必须是");
 
-        verify(workerMapper, never()).updateHeartbeat(anyLong(), any(), anyString());
+        verify(workerMapper, never()).updateHeartbeatWithHealth(anyLong(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("heartbeat: health 非法 → 抛 BAD_REQUEST")
+    void heartbeat_InvalidHealth_ThrowsException() {
+        WorkerHeartbeatRequest req = new WorkerHeartbeatRequest();
+        req.setStatus("online");
+        req.setHealth("yolo");  // 非法
+
+        assertThatThrownBy(() -> workerService.heartbeat(1L, req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("health 必须是");
     }
 
     @Test

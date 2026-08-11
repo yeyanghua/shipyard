@@ -44,4 +44,20 @@ public class WorkerHeartbeatRequest {
 
     /** (M13+) 看到的 pod 数, M8.2 不强要. */
     private Integer podsCount;
+
+    /**
+     * (M9 commit-4 新增) worker 自报健康状态 — 跟 shipyard @Scheduled 配合.
+     * <ul>
+     *   <li>{@code HEALTHY} (默认) — worker 自检通过, 愿意接 deploy</li>
+     *   <li>{@code UNHEALTHY} — 自检失败 (k8s API / mem / disk), 不派活但继续心跳</li>
+     * </ul>
+     * 不传时 shipyard 默认 HEALTHY (老 worker 客户端兼容).
+     */
+    private String health;
+
+    /**
+     * (M9 commit-4 新增) 自检失败原因 — 例 "k8s API timeout 3s" / "disk 95% > 90%".
+     * null = 没失败或没上报.
+     */
+    private String healthDetail;
 }

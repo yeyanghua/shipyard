@@ -57,6 +57,9 @@ public class WorkerServiceImpl implements WorkerService {
     /** worker 允许的 status 值. */
     private static final Set<String> ALLOWED_STATUS = Set.of("online", "offline", "unhealthy");
 
+    /** M9 commit-4: worker 自报 health 合法值. */
+    private static final Set<String> ALLOWED_HEALTH = Set.of("HEALTHY", "UNHEALTHY");
+
     private final WorkerMapper workerMapper;
     private final EnvMapper envMapper;
     private final WorkerClient workerClient;
@@ -127,12 +130,23 @@ public class WorkerServiceImpl implements WorkerService {
                 "URL path workerId (" + workerId + ") 跟 body workerId (" + req.getWorkerId() + ") 不一致");
         }
 
-        int updated = workerMapper.updateHeartbeat(workerId, LocalDateTime.now(), status);
+        // M9 commit-4: 接 worker 自报 health 字段
+        // 不传时默认 HEALTHY (老 worker 客户端兼容)
+        String health = req.getHealth() != null ? req.getHealth() : "HEALTHY";
+        if (!ALLOWED_HEALTH.contains(health)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST,
+                "health 必须是 " + ALLOWED_HEALTH + " 之一, 实际: " + health);
+        }
+        String healthDetail = req.getHealthDetail();  // null OK
+
+        int updated = workerMapper.updateHeartbeatWithHealth(
+                workerId, LocalDateTime.now(), status, health, healthDetail);
         if (updated == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND,
                 "worker 不存在: id=" + workerId + " (可能已被删除)");
         }
-        log.debug("worker 心跳: id={} status={}", workerId, status);
+        log.debug("worker 心跳: id={} status={} health={} detail={}",
+                workerId, status, health, healthDetail);
     }
 
     @Override

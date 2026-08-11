@@ -85,6 +85,27 @@ public class Worker extends BaseEntity {
     private String status;
 
     /**
+     * worker 自报健康状态 (M9 commit-4 新增, V2 加字段):
+     * <ul>
+     *   <li>{@code HEALTHY} (默认) — worker 自检通过, 愿意接 deploy 任务</li>
+     *   <li>{@code UNHEALTHY} — worker 自检失败 (k8s API 连不上 / 内存压力 / 磁盘满),
+     *       不派活给它, 但继续心跳 (shipyard 知道它还活着, 故障恢复后能自愈)</li>
+     * </ul>
+     *
+     * <p>WorkerSelector 只从 {@code status='online' AND health='HEALTHY'} 里选,
+     * 不健康 worker 仍在 shipyard UI 显示 ("不健康"), 但不接任务.
+     */
+    private String health;
+
+    /**
+     * worker 自检失败原因 (M9 commit-4 新增, V2 加字段).
+     *
+     * <p>例: "k8s API timeout 3s" / "disk usage 95% > threshold 90%" / "mem alloc 80% > 75%".
+     * null = 没失败或没上报. shipyard UI / log 用来 debug.
+     */
+    private String healthDetail;
+
+    /**
      * worker 版本 (Go 二进制 ldflags 注入的 WORKER_VERSION).
      */
     private String version;

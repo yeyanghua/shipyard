@@ -121,6 +121,7 @@ class DeployServiceImplTest {
         worker.setEnvId(10L);
         worker.setWorkerUrl("http://worker-1:8888");
         worker.setStatus("online");
+        worker.setHealth("HEALTHY");  // M9 commit-4: 默认 HEALTHY, 过滤不掉
         worker.setLastHeartbeatAt(LocalDateTime.now());
     }
 
