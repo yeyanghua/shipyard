@@ -17,42 +17,54 @@
 package com.shipyard.worker.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shipyard.worker.dto.WorkerCreateRequest;
 import com.shipyard.worker.dto.WorkerHeartbeatRequest;
 import com.shipyard.worker.dto.WorkerRegisterRequest;
 import com.shipyard.worker.dto.WorkerRegisterResponse;
+import com.shipyard.worker.dto.WorkerTokenResponse;
+import com.shipyard.worker.dto.WorkerUpdateRequest;
 import com.shipyard.worker.entity.Worker;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Worker Service — shipyard 端 worker 生命周期管理.
+ * Worker Service — M9.5 redesign.
  *
- * <p>M8.2 阶段:
+ * <p>核心变化 (vs M8.2 / M9):
  * <ul>
- *   <li>register: worker 主动调 shipyard, shipyard 查 env → 写 worker 表 → 返 ID</li>
- *   <li>heartbeat: 30s/次, 更新 last_heartbeat_at + status</li>
- *   <li>list / get: UI 展示用</li>
- *   <li>cluster 代理: shipyard Web 调 worker 读类接口, 透传响应</li>
+ *   <li>新增 CRUD: create / update / regenerateToken (UI 调)</li>
+ *   <li>register 改严格模式 (必须先有预登记 row + token 校验)</li>
+ *   <li>1 worker = 1 pod (新增 podName 唯一约束)</li>
+ *   <li>状态机扩展: PLANNED / PROVISIONING / ONLINE / OFFLINE / UNHEALTHY</li>
  * </ul>
  */
 public interface WorkerService {
 
-    /**
-     * Worker 主动注册.
-     *
-     * @param req worker 端发上来的注册请求
-     * @return shipyard 分配的 worker ID + 心跳间隔
-     */
-    WorkerRegisterResponse register(WorkerRegisterRequest req);
+    // ============================================================
+    // UI 调 (CRUD)
+    // ============================================================
 
     /**
-     * Worker 心跳 — 更新 last_heartbeat_at + status.
+     * 创建 worker (预登记) — 用户在 shipyard UI 填 name + podName.
      *
-     * @param workerId worker ID
-     * @param req 心跳请求
+     * <p>shipyard 自动生成 32 字节 token, 存 SHA-256 哈希, 返明文 (一次性).
+     *
+     * @param envId       所属环境 ID
+     * @param req         创建请求 (name / podName / description)
+     * @param currentUser 当前操作人 (V1 demo 默认 'system')
+     * @return 含明文 token, 用户复制到 k8s manifest
      */
-    void heartbeat(Long workerId, WorkerHeartbeatRequest req);
+    WorkerTokenResponse create(Long envId, WorkerCreateRequest req, String currentUser);
+
+    /**
+     * 重新生成 token — 旧 token 立即失效.
+     *
+     * @param workerId    worker ID
+     * @param currentUser 当前操作人
+     * @return 新 token 明文
+     */
+    WorkerTokenResponse regenerateToken(Long workerId, String currentUser);
 
     /**
      * 列表 (分页, 可选 envId 过滤).
@@ -65,31 +77,46 @@ public interface WorkerService {
     Worker get(Long id);
 
     /**
-     * 软删 — 调 WorkerMapper.deleteById.
+     * 更新 (V1 阶段只允许改 description).
+     */
+    Worker update(Long id, WorkerUpdateRequest req, String currentUser);
+
+    /**
+     * 软删 — 调 WorkerMapper.deleteById (MyBatis-Plus @TableLogic 自动改 deleted=1).
      */
     void delete(Long id);
 
-    // ==================== 集群读类代理 (透传 worker 响应) ====================
+    // ============================================================
+    // Worker 主动调 shipyard
+    // ============================================================
 
     /**
-     * 列出所有 namespace — 调 worker 拿.
+     * Worker 主动注册 — 严格模式: 必须先有预登记 row + token 校验通过.
+     *
+     * @param req worker 端发上来的注册请求 (含 podName / env / workerUrl / workerToken)
+     * @return shipyard 分配的 worker ID + 心跳间隔
+     * @throws BusinessException 404 (没预登记) / 401 (token 错) / 500
      */
+    WorkerRegisterResponse register(WorkerRegisterRequest req);
+
+    /**
+     * Worker 心跳 — 更新 last_heartbeat_at + status + health.
+     */
+    void heartbeat(Long workerId, WorkerHeartbeatRequest req);
+
+    // ============================================================
+    // 集群读类代理 (shipyard → worker)
+    // ============================================================
+
     List<Map<String, Object>> listNamespaces(Long workerId);
 
-    /**
-     * 列出指定 ns 的 pod — 调 worker 拿.
-     */
     List<Map<String, Object>> listPods(Long workerId, String namespace);
 
-    /**
-     * 列出指定 ns 的 deployment — 调 worker 拿.
-     */
     List<Map<String, Object>> listDeployments(Long workerId, String namespace);
 
     /**
-     * M9 commit-16: 拿 worker 自己的 deployment 状态 (replicas + pod 列表).
-     *
-     * <p>前端展示 "1 worker DB row 对应 N 个 k8s pod" 关系用.
+     * M9 commit-16: 拿 worker 自己的 deployment 状态.
+     * <p>M9.5: 1 worker = 1 pod, 返 1 个 pod 数组, 兼容旧 UI.
      */
     Map<String, Object> listWorkerPods(Long workerId);
 }

@@ -23,7 +23,8 @@ import lombok.Data;
 /**
  * 环境响应体 — GET / POST / PUT /api/envs 统一返回.
  *
- * <p>关键: <b>{@code workerToken} 不回显</b> — 只暴露 {@code hasWorkerToken: boolean}.
+ * <p>M9.5 redesign: 删 workerUrl / hasWorkerToken / k8sNamespace 字段, env 只管集群元数据.
+ * worker 相关的 token / URL 走 worker 表.
  */
 @Data
 public class EnvResponse {
@@ -32,12 +33,14 @@ public class EnvResponse {
     private String name;
     private String displayName;
     private String clusterType;
-    private String k8sNamespace;
-    private String workerUrl;
-    private Boolean hasWorkerToken;
     private Integer isProduction;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /**
+     * 该 env 下的 worker 数量 (M9.5 新加, 方便 UI 一眼看到 env 部署了几个 worker).
+     */
+    private Long workerCount;
 
     public static EnvResponse from(Env e) {
         if (e == null) return null;
@@ -46,10 +49,6 @@ public class EnvResponse {
         r.setName(e.getName());
         r.setDisplayName(e.getDisplayName());
         r.setClusterType(e.getClusterType());
-        r.setK8sNamespace(e.getK8sNamespace());
-        r.setWorkerUrl(e.getWorkerUrl());
-        r.setHasWorkerToken(
-                e.getWorkerTokenEnc() != null && !e.getWorkerTokenEnc().isEmpty());
         r.setIsProduction(e.getIsProduction());
         r.setCreatedAt(e.getCreatedAt());
         r.setUpdatedAt(e.getUpdatedAt());

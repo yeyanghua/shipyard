@@ -24,52 +24,66 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;
 
 /**
- * Worker 注册表 — shipyard 端记录每个跑起来的 worker (Go 进程, in k8s pod).
+ * Worker 实体 — M9.5 redesign (1 worker = 1 pod, 预登记 + token 鉴权).
  *
- * <p>对应 V1__init.sql 的 {@code worker} 表. spec §5.1 "一环境多个 worker" (高可用),
- * V1.2 + replicas=2 起 2 个 pod 都注册到同一 env_id.
+ * <p>对应 V4__redesign_worker_table.sql 的 {@code worker} 表.
  *
- * <p>关键字段:
+ * <p>关键设计 (M9.5):
  * <ul>
- *   <li>{@code envId} — 所属环境, 一对多 (env 1 — N worker)</li>
- *   <li>{@code workerUrl} — worker 服务的 URL, shipyard → worker 走这个</li>
- *   <li>{@code workerTokenHash} — token 哈希 (SHA-256), 用于 shipyard → worker 调用的 HMAC 验签</li>
- *   <li>{@code status} — online / offline / unhealthy (30s 没心跳 → unhealthy)</li>
- *   <li>{@code lastHeartbeatAt} — worker 每次心跳更新</li>
+ *   <li><b>1 worker = 1 pod</b> — 每条 row 对应一个具体的 k8s pod, 2 pod 不会再共享 1 row
+ *       (旧 M9 commit-16 的 2 pod 1 row 模型已废弃, 跟实际 pod 数量对不齐, UI "实例数" 永远 1)</li>
+ *   <li><b>预登记</b> — 用户在 shipyard UI 填 worker 基础信息 (name / podName),
+ *       shipyard 入库 (status=PLANNED), 用户再去 k8s 部署 pod, pod register 时
+ *       shipyard 严格匹配 (env_id, pod_name), 找不到就报错 "请先在 UI 创建 worker"</li>
+ *   <li><b>token 鉴权</b> — shipyard 端生成 32 字节随机 base64 token, 存 SHA-256 哈希,
+ *       明文只展示一次 (用户复制到 k8s manifest 的 WORKER_TOKEN env var), shipyard → worker
+ *       调用带 Bearer token 头, worker 端用同样哈希校验</li>
+ *   <li><b>状态机</b> — PLANNED → PROVISIONING (register 找到 row) → ONLINE (首次心跳)
+ *       → OFFLINE (心跳超时 90s) / UNHEALTHY (worker 自检失败) → 软删 (UI 删 / k8s pod 没了)</li>
  * </ul>
  *
- * <p>token 不存明文: worker 主动注册时 shipyard 哈希入库, 后续 shipyard → worker 调用
- * 走 HMAC (跟 M5 drone webhook 验签同一机制, M8.3+ 接入).
+ * <p>字段职责:
+ * <ul>
+ *   <li>{@code envId} — 所属环境, 1:N 关系 (1 env — N worker)</li>
+ *   <li>{@code name} — shipyard 内部展示名, 同 env 下唯一</li>
+ *   <li>{@code podName} — 匹配 k8s pod metadata.name, 同 env 下唯一, register 严格匹配</li>
+ *   <li>{@code workerUrl} — worker 服务 URL, worker 启动后 register 时上报,
+ *       shipyard → worker 调用走这个</li>
+ *   <li>{@code workerTokenHash} — token SHA-256 哈希 (Hex 64字符), 不存明文</li>
+ *   <li>{@code status} — PLANNED / PROVISIONING / ONLINE / OFFLINE / UNHEALTHY</li>
+ *   <li>{@code health} / {@code healthDetail} — worker 自检状态 (HEALTHY / UNHEALTHY + 原因)</li>
+ *   <li>{@code lastHeartbeatAt} — worker 30s 上报一次, WorkerHealthScanner 扫超时</li>
+ *   <li>{@code createdBy} / {@code updatedBy} / {@code createdAt} / {@code updatedAt} — 审计字段
+ *       (V1 默认 'system', V1.5 接用户体系后存 userId/email; register/heartbeat 等系统行为
+ *       updated_by = 'system:register' / 'system:heartbeat' 标记)</li>
+ * </ul>
+ *
+ * @see com.shipyard.worker.service.WorkerService
+ * @see docs/M9.5-redesign.md
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("worker")
 public class Worker extends BaseEntity {
 
-    /**
-     * 所属环境 ID — 一对多, 一 env 可挂多个 worker (高可用).
-     */
+    /** 所属环境 ID (1:N, 1 env — N worker). */
     private Long envId;
 
-    /**
-     * worker 唯一名 (env 下唯一) — M9 commit-16 加, register 时 shipyard 拿这个做
-     * SELECT 主键之一 ({@code (env_id, worker_name)} 联合), 跟 workerUrl 解耦.
-     *
-     * <p>来源: worker 端 {@code RegisterRequest.workerName}, shipyard 端
-     * {@code WorkerRegisterRequest.workerName} (V1 就有, V1 阶段不存库).
-     *
-     * <p>默认 {@code worker-${HOSTNAME}} (worker 启动时生成). 2 pod 同 deployment
-     * 同 env register 时, 复用同一行 (用 name 不用 workerUrl), 复用时保留
-     * 手动 UPDATE 后的 workerUrl.
-     */
-    private String workerName;
+    /** shipyard 内部展示名 (同 env 下唯一, 用户创建时填). */
+    private String name;
+
+    /** k8s pod metadata.name (同 env 下唯一, register 严格匹配). */
+    private String podName;
+
+    /** 备注 / 描述 (用户可选填). */
+    private String description;
 
     /**
-     * worker 服务 URL — shipyard → worker 调用的目标.
+     * worker 服务 URL — worker 启动后 register 时上报, shipyard → worker 调用走这个.
      *
      * <p>示例:
      * <ul>
-     *   <li>本地开发: {@code http://localhost:8888}</li>
+     *   <li>V1 dev (NodePort 模式): {@code http://192.168.91.139:30080}</li>
      *   <li>k3d 集群内: {@code http://shipyard-worker.shipyard.svc.cluster.local:8888}</li>
      *   <li>生产集群: {@code http://shipyard-worker-prod.shipyard-prod.svc.cluster.local:8888}</li>
      * </ul>
@@ -77,51 +91,54 @@ public class Worker extends BaseEntity {
     private String workerUrl;
 
     /**
-     * worker 鉴权 token 的 SHA-256 哈希 (Base16 / hex 编码, 64 字符).
+     * worker 鉴权 token 的 SHA-256 哈希 (Hex 64 字符).
      *
-     * <p>不存明文. shipyard → worker 调 HTTP 时, 把明文 token (从 shipyard 端配置读)
-     * 加 {@code Authorization: Bearer xxx} 头, worker 端用同样哈希比对.
+     * <p>不存明文. shipyard 端生成 32 字节随机 base64 token, 哈希后入库.
+     * 明文只展示一次 (用户复制到 k8s manifest 的 WORKER_TOKEN env var).
+     * shipyard → worker 调用时, 把明文 token 加 {@code Authorization: Bearer xxx} 头,
+     * worker 端用同样哈希比对.
      */
     private String workerTokenHash;
 
     /**
-     * 最后心跳时间 — worker 30s 上报一次.
-     */
-    private LocalDateTime lastHeartbeatAt;
-
-    /**
-     * 状态: online / offline / unhealthy.
+     * 状态机: PLANNED / PROVISIONING / ONLINE / OFFLINE / UNHEALTHY.
      *
-     * <p>shipyard 定时任务扫描: {@code last_heartbeat_at < now() - 90s} → unhealthy.
-     * unhealthy 超过 5min → 软删 (或保留 + 标 offline, M8.3+ 决定).
+     * <p>迁移:
+     * <ul>
+     *   <li>PLANNED → PROVISIONING: register 时 shipyard 找到预登记 row, 状态切换</li>
+     *   <li>PROVISIONING → ONLINE: 第一次心跳到达</li>
+     *   <li>ONLINE → OFFLINE: 心跳超时 90s (WorkerHealthScanner @Scheduled 30s 扫)</li>
+     *   <li>ONLINE/OFFLINE → UNHEALTHY: worker 自检失败 (k8s API / 内存 / 磁盘)</li>
+     *   <li>UNHEALTHY → ONLINE: worker 自检恢复</li>
+     *   <li>* → deleted=1: 软删 (UI 删除 / k8s pod 永久消失)</li>
+     * </ul>
      */
     private String status;
 
-    /**
-     * worker 自报健康状态 (M9 commit-4 新增, V2 加字段):
-     * <ul>
-     *   <li>{@code HEALTHY} (默认) — worker 自检通过, 愿意接 deploy 任务</li>
-     *   <li>{@code UNHEALTHY} — worker 自检失败 (k8s API 连不上 / 内存压力 / 磁盘满),
-     *       不派活给它, 但继续心跳 (shipyard 知道它还活着, 故障恢复后能自愈)</li>
-     * </ul>
-     *
-     * <p>WorkerSelector 只从 {@code status='online' AND health='HEALTHY'} 里选,
-     * 不健康 worker 仍在 shipyard UI 显示 ("不健康"), 但不接任务.
-     */
+    /** worker 自检状态: HEALTHY (默认) / UNHEALTHY. null = worker 还没上报过. */
     private String health;
 
-    /**
-     * worker 自检失败原因 (M9 commit-4 新增, V2 加字段).
-     *
-     * <p>例: "k8s API timeout 3s" / "disk usage 95% > threshold 90%" / "mem alloc 80% > 75%".
-     * null = 没失败或没上报. shipyard UI / log 用来 debug.
-     */
+    /** worker 自检失败原因 (例: "k8s API timeout 3s"). */
     private String healthDetail;
 
-    /**
-     * worker 版本 (Go 二进制 ldflags 注入的 WORKER_VERSION).
-     */
+    /** 最后心跳时间 — worker 30s 上报一次. */
+    private LocalDateTime lastHeartbeatAt;
+
+    /** worker 版本 (从 ldflags 注入的 WORKER_VERSION). */
     private String version;
+
+    // ============================================================
+    // 审计字段 (M9.5 新增, BaseEntity 没有, 自己加, 跟 env_variable 风格一致)
+    // ============================================================
+    // V1 demo 默认 'system' (跟 BaseEntity 一致, 不强制建用户体系).
+    // V1.5 接用户体系后, 存 userId/email.
+    // register / heartbeat 等系统行为 updated_by 走 'system:register' / 'system:heartbeat' 标记.
+
+    /** 创建人 (V1 默认 'system', V1.5 接用户体系后存 userId/email). */
+    private String createdBy;
+
+    /** 修改人 (register/heartbeat 等系统行为 updated_by = 'system:register' 等). */
+    private String updatedBy;
 
     // ============================================================
     // M9 fix-commit: 删除 role 字段 (worker 自治模式)

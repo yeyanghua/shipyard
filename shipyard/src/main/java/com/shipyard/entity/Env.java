@@ -21,24 +21,29 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 环境定义 — 一套 k8s 集群 + worker 服务的元数据.
+ * 环境定义 — 一套 k8s 集群的元数据.
  *
- * <p>对应 V1__init.sql 的 {@code env} 表.
+ * <p>对应 V4__redesign_worker_table.sql 的 {@code env} 表 (M9.5 redesign).
  *
  * <p>关键字段:
  * <ul>
  *   <li>{@code name} — 英文唯一标识 (dev / staging / prod)</li>
- *   <li>{@code workerUrl} — worker 服务 URL (每环境一个独立 Go 进程, M8 实现)</li>
- *   <li>{@code workerTokenEnc} — worker 鉴权 token 密文, shipyard → worker 调用凭据</li>
  *   <li>{@code isProduction} — 生产环境标记, 影响前端确认弹窗和告警级别</li>
+ * </ul>
+ *
+ * <p>M9.5 删的字段 (env 不再管 worker 部署细节):
+ * <ul>
+ *   <li>{@code k8sNamespace} — 移到 worker 表 (每个 worker 自己有 pod metadata.namespace)</li>
+ *   <li>{@code workerUrl} — 移到 worker 表 (worker register 时上报, shipyard → worker 调用走这个)</li>
+ *   <li>{@code workerTokenEnc} — 移到 worker 表 (每个 worker 自己的 token, 哈希存库)</li>
  * </ul>
  *
  * <p>被引用方:
  * <ul>
  *   <li>{@link com.shipyard.entity.ProjectEnv} — 关联项目 (N:N)</li>
  *   <li>{@link com.shipyard.entity.EnvVariable} — 环境变量 (一对多, 必填 env_id)</li>
- *   <li>(M7+) worker 表 (一对多, 一环境多 worker)</li>
- *   <li>(M7+) deploy_record (一对多)</li>
+ *   <li>{@link com.shipyard.worker.entity.Worker} — worker (1:N, M9.5: 1 env 可挂多个 worker, 跨集群跨地域)</li>
+ *   <li>{@link com.shipyard.entity.DeployRecord} — 发布记录 (一对多)</li>
  * </ul>
  */
 @Data
@@ -60,26 +65,6 @@ public class Env extends BaseEntity {
      * 集群类型 — V1 只支持 {@code k8s}. V1.5 可能加 {@code docker-compose}.
      */
     private String clusterType;
-
-    /**
-     * k8s namespace — 该环境部署的目标 namespace.
-     * 例如 {@code demo-java-app-dev} / {@code demo-java-app-prod}.
-     */
-    private String k8sNamespace;
-
-    /**
-     * worker 服务 URL — 每环境一个 worker (Go 进程, M8 实现).
-     * 例如 {@code http://worker-dev.shipyard.svc.cluster.local:8081}.
-     */
-    private String workerUrl;
-
-    /**
-     * worker 鉴权 token 密文 (AES-256 加密, Base64 编码).
-     *
-     * <p>shipyard → worker 调用时解密后放 {@code Authorization: Bearer xxx} 头.
-     * 列表/详情 API 不回显明文.
-     */
-    private String workerTokenEnc;
 
     /**
      * 是否生产环境 — 影响:

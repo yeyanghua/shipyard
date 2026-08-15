@@ -17,47 +17,70 @@
 package com.shipyard.worker.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
  * Worker 主动注册请求 — POST /api/workers/register.
  *
- * <p>由 worker 端 (Go 进程) 启动时调用, 告诉 shipyard "我在, 我是 xxx".
+ * <p>由 worker 端 (Go 进程) 启动时调用, 告诉 shipyard "我在, 我是哪个 pod, token 是 xxx".
+ *
+ * <p>M9.5 redesign: register 改成 <b>严格模式</b>:
+ * <ul>
+ *   <li>shipyard 端必须先有预登记 row (用户在 UI 创建)</li>
+ *   <li>register 用 {@code (env_id, pod_name)} 严格匹配预登记 row</li>
+ *   <li>找不到 → 返 404, 提示 "请先在 shipyard UI 创建 worker"</li>
+ *   <li>token SHA-256 校验必须通过 (shipyard 端生成, worker 端从 env 读)</li>
+ *   <li>校验通过 → 状态从 PLANNED 变 PROVISIONING, 返回 workerId 用于心跳</li>
+ * </ul>
  *
  * <p>字段命名跟 worker Go 端 {@code types.RegisterRequest} 对齐 (camelCase, JSON 一致).
  */
 @Data
 public class WorkerRegisterRequest {
 
-    /** worker 唯一名, 默认 {@code worker-${HOSTNAME}}. */
+    /**
+     * k8s pod metadata.name — M9.5 register 严格匹配主键之一 (跟 env 一起).
+     *
+     * <p>来源: worker 端从 downward API 读 {@code POD_NAME} env var.
+     * shipyard 端拿这个跟预登记 row 的 {@code pod_name} 比对.
+     */
     @NotBlank
-    private String workerName;
+    private String podName;
 
     /** 所属环境名 (dev / test / prod), 用于查 env_id. */
     @NotBlank
     private String env;
 
-    /** worker URL — shipyard → worker 调用的目标. */
+    /**
+     * worker URL — worker 启动后上报, shipyard → worker 调用走这个.
+     *
+     * <p>worker 自己拼: NodePort 模式 {@code http://<node-ip>:<nodePort>},
+     * 或者 svc DNS 模式 {@code http://shipyard-worker.shipyard.svc.cluster.local:8888}.
+     */
     @NotBlank
     private String workerUrl;
 
-    /** worker token 明文 — shipyard 端 SHA-256 哈希入库, 不存明文. */
+    /** worker token 明文 — shipyard 端 SHA-256 哈希后跟预登记 row 的 hash 比对, 不存明文. */
     @NotBlank
     private String workerToken;
 
     /** worker 版本 (Go ldflags 注入的 WORKER_VERSION). */
     private String version;
 
-    /** (M8.3+) k8s 集群版本, M8.2 阶段不存. */
+    /** (M8.3+) k8s 集群版本, M9.5 register 阶段不强制. */
     private String k8sVersion;
 
-    /** (M8.3+) 节点名, M8.2 阶段不存. */
+    /** (M8.3+) 节点名, M9.5 register 阶段不强制 (downward API 注入). */
     private String nodeName;
 
+    /** (M8.3+) pod IP, M9.5 register 阶段不强制 (downward API 注入). */
+    private String podIp;
+
     // ============================================================
-    // M9 fix-commit: 删除 roleHint 字段 (worker 自治模式)
+    // M9.5 删除字段
     // ============================================================
-    // 仔哥 2026-08-11 拍板: worker 是自治服务, 不在 shipyard 里管主备.
-    // shipyard 只被动接 worker 注册 + 路由 deploy 任务, 不参与角色分配.
+    // workerName: 旧模型用 (env_id, worker_name) 联合主键, M9.5 改成 (env_id, pod_name),
+    //             workerName 只作展示名, 不参与唯一性约束, 所以 register 不再必填.
+    //             用户在 UI 创建 worker 时已经填了 name 字段.
+    // roleHint:   M9 fix-commit 已经删 (worker 自治, shipyard 不参与角色分配).
 }

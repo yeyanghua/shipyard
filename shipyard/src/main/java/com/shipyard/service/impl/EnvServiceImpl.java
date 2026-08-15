@@ -21,7 +21,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shipyard.common.BeanUtils;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
-import com.shipyard.crypto.Encrypter;
 import com.shipyard.entity.Env;
 import com.shipyard.mapper.EnvMapper;
 import com.shipyard.service.EnvService;
@@ -32,7 +31,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * Env Service 实现 — 跟 {@link ProjectServiceImpl} 同构, 字段差异.
+ * Env Service 实现 — M9.5 redesign.
+ *
+ * <p>核心变化: 删 workerToken / k8sNamespace / workerUrl 字段处理, env 只管集群元数据.
+ * worker 相关的走 WorkerService + worker 表.
  */
 @Slf4j
 @Service
@@ -43,7 +45,6 @@ public class EnvServiceImpl implements EnvService {
     private static final Set<String> CLUSTER_TYPES = Set.of("k8s");
 
     private final EnvMapper envMapper;
-    private final Encrypter encrypter;
 
     @Override
     public Page<Env> list(int page, int size, String keyword, Boolean production) {
@@ -85,17 +86,10 @@ public class EnvServiceImpl implements EnvService {
             }
             existing.setDeleted(0); // 复活
             BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
-            if (StringUtils.hasText(env.getWorkerTokenEnc())) {
-                existing.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
-            }
             envMapper.updateById(existing);
             return existing;
         }
 
-        // 加密 worker token
-        if (StringUtils.hasText(env.getWorkerTokenEnc())) {
-            env.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
-        }
         // 默认 clusterType
         if (!StringUtils.hasText(env.getClusterType())) {
             env.setClusterType("k8s");
@@ -121,9 +115,6 @@ public class EnvServiceImpl implements EnvService {
         }
 
         BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
-        if (StringUtils.hasText(env.getWorkerTokenEnc())) {
-            existing.setWorkerTokenEnc(encrypter.encrypt(env.getWorkerTokenEnc()));
-        }
         validateEnv(existing);
 
         envMapper.updateById(existing);
@@ -136,22 +127,15 @@ public class EnvServiceImpl implements EnvService {
         envMapper.deleteById(existing.getId());
     }
 
+    /**
+     * @deprecated M9.5: worker token 移到 worker 表, 这个方法保留只为兼容老调用方 (返回 null + warn).
+     *             V1.5 完全删掉.
+     */
+    @Deprecated
     @Override
     public String getDecryptedWorkerToken(Long envId) {
-        Env env = envMapper.selectById(envId);
-        if (env == null) {
-            return null;
-        }
-        if (!StringUtils.hasText(env.getWorkerTokenEnc())) {
-            return null;  // 没配 token, V1 兼容场景
-        }
-        try {
-            return encrypter.decrypt(env.getWorkerTokenEnc());
-        } catch (Exception e) {
-            log.error("env.workerTokenEnc 解密失败 envId={}", envId, e);
-            throw new BusinessException(ErrorCode.CRYPTO_ERROR,
-                    "env workerToken 解密失败: envId=" + envId, e);
-        }
+        log.warn("调用了过时的 EnvService.getDecryptedWorkerToken(envId={}), M9.5 后 worker token 走 worker 表", envId);
+        return null;
     }
 
     // ==================== 私有辅助方法 ====================
@@ -165,12 +149,6 @@ public class EnvServiceImpl implements EnvService {
         }
         if (!StringUtils.hasText(e.getDisplayName())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "displayName 不能为空");
-        }
-        if (!StringUtils.hasText(e.getK8sNamespace())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "k8sNamespace 不能为空");
-        }
-        if (!StringUtils.hasText(e.getWorkerUrl())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "workerUrl 不能为空");
         }
         // clusterType 允许默认 ("k8s")
         if (StringUtils.hasText(e.getClusterType()) && !CLUSTER_TYPES.contains(e.getClusterType())) {

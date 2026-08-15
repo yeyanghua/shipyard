@@ -1,6 +1,9 @@
 <script setup lang="ts">
 /**
- * 环境列表页 - 表格 + 搜索 + 新建按钮.
+ * 环境列表页 - M9.5 redesign.
+ *
+ * <p>env 表 M9.5 删了 workerUrl / workerToken / k8sNamespace 字段, 这里只管集群元数据.
+ * worker 创建走 /api/envs/{envId}/workers (在 Workers.vue 里).
  */
 import { onMounted, ref } from 'vue';
 import { useEnvStore } from '@/stores/env';
@@ -11,9 +14,6 @@ const showCreate = ref(false);
 const form = ref({
   name: '',
   displayName: '',
-  k8sNamespace: '',
-  workerUrl: '',
-  workerToken: '',
   isProduction: false,
 });
 const error = ref('');
@@ -27,19 +27,14 @@ async function onCreate() {
     return;
   }
   if (!form.value.displayName) { error.value = 'displayName 必填'; return; }
-  if (!form.value.k8sNamespace) { error.value = 'k8sNamespace 必填'; return; }
-  if (!form.value.workerUrl) { error.value = 'workerUrl 必填'; return; }
   try {
     await store.create({
       name: form.value.name,
       displayName: form.value.displayName,
-      k8sNamespace: form.value.k8sNamespace,
-      workerUrl: form.value.workerUrl,
-      workerToken: form.value.workerToken || undefined,
       isProduction: form.value.isProduction ? 1 : 0,
     });
     showCreate.value = false;
-    form.value = { name: '', displayName: '', k8sNamespace: '', workerUrl: '', workerToken: '', isProduction: false };
+    form.value = { name: '', displayName: '', isProduction: false };
   } catch (e) {
     error.value = (e as ApiError).message;
   }
@@ -70,6 +65,7 @@ function onFilterProduction(v: boolean | undefined) {
 
     <div v-if="showCreate" class="card form-card">
       <h3>新建环境</h3>
+      <p class="muted hint">M9.5: env 只管集群元数据. 创建后请到 <strong>Worker 管理</strong> 页添加 worker (系统会生成 token).</p>
       <div v-if="error" class="error">{{ error }}</div>
       <div class="form-grid">
         <div class="field">
@@ -79,18 +75,6 @@ function onFilterProduction(v: boolean | undefined) {
         <div class="field">
           <label>显示名 *</label>
           <input v-model="form.displayName" placeholder="开发环境" />
-        </div>
-        <div class="field">
-          <label>k8s Namespace *</label>
-          <input v-model="form.k8sNamespace" placeholder="demo-app-dev" />
-        </div>
-        <div class="field">
-          <label>Worker URL *</label>
-          <input v-model="form.workerUrl" placeholder="http://worker-dev:8081" />
-        </div>
-        <div class="field full">
-          <label>Worker Token<span class="hint">(选填, 加密)</span></label>
-          <input v-model="form.workerToken" type="password" />
         </div>
         <div class="field full">
           <label>
@@ -107,25 +91,20 @@ function onFilterProduction(v: boolean | undefined) {
     <table v-if="!store.loading && store.list.length > 0" class="table">
       <thead>
         <tr>
-          <th>Name</th><th>显示名</th><th>Namespace</th><th>Worker</th><th>Token</th><th>类型</th><th>操作</th>
+          <th>Name</th><th>显示名</th><th>类型</th><th>操作</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="e in store.list" :key="e.id">
           <td><code>{{ e.name }}</code></td>
           <td>{{ e.displayName }}</td>
-          <td><code>{{ e.k8sNamespace }}</code></td>
-          <td><code class="url">{{ e.workerUrl }}</code></td>
-          <td>
-            <span v-if="e.hasWorkerToken" class="secret">已设</span>
-            <span v-else class="muted">未设</span>
-          </td>
           <td>
             <span v-if="e.isProduction" class="tag danger">PROD</span>
             <span v-else class="tag">DEV</span>
           </td>
           <td class="ops">
             <RouterLink :to="`/envs/${e.id}/variables`">变量</RouterLink>
+            <RouterLink :to="`/workers?envId=${e.id}`">Worker</RouterLink>
           </td>
         </tr>
       </tbody>
@@ -155,11 +134,10 @@ function onFilterProduction(v: boolean | undefined) {
 .table { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 8px; border-collapse: collapse; overflow: hidden; }
 .table th, .table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
 .table th { background: #f3f4f6; font-weight: 600; color: var(--text-muted); }
-.url { font-size: 12px; color: var(--text-muted); }
 .tag { padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 12px; }
 .tag.danger { background: #fee2e2; color: #dc2626; }
-.secret { color: var(--primary); font-size: 12px; }
 .muted { color: var(--text-soft); font-size: 12px; }
+.hint { color: var(--text-muted); font-size: 12px; margin: 0 0 12px 0; }
 .ops a { color: var(--primary); text-decoration: none; margin-right: 12px; }
 .empty, .loading { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; text-align: center; color: var(--text-muted); }
 </style>

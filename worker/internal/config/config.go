@@ -49,11 +49,19 @@ func Load() (*Config, error) {
 	if cfg.Env == "" {
 		return nil, fmt.Errorf("WORKER_ENV cannot be empty")
 	}
+	// M9.5: WorkerName 改 optional (UI 创建 worker 时填, worker 端 register 不再必填)
 	if cfg.WorkerName == "" {
-		return nil, fmt.Errorf("WORKER_NAME cannot be empty")
+		logger_placeholder("WORKER_NAME 未设, 走 dev fallback (建议生产用 shipyard UI 创建 worker 时填)")
+		cfg.WorkerName = fmt.Sprintf("worker-%s", getHostname())
 	}
 
 	return cfg, nil
+}
+
+// logger_placeholder 避免 main.go logger 未初始化时 worker config.Load() 静默失败
+// 真实日志在 main.go 里用 logger.Warn 重新打
+func logger_placeholder(msg string) {
+	fmt.Fprintf(os.Stderr, "[worker config] %s\n", msg)
 }
 
 func getEnvStr(key, def string) string {

@@ -22,8 +22,11 @@ import com.shipyard.dto.EnvCreateRequest;
 import com.shipyard.dto.EnvResponse;
 import com.shipyard.dto.EnvUpdateRequest;
 import com.shipyard.dto.PageResponse;
+import com.shipyard.worker.dto.WorkerCreateRequest;
+import com.shipyard.worker.dto.WorkerTokenResponse;
 import com.shipyard.entity.Env;
 import com.shipyard.service.EnvService;
+import com.shipyard.worker.service.WorkerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -40,7 +43,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Env Controller — /api/envs.
  *
- * <p>5 个端点: GET 列表 (按 production 过滤) / GET 详情 / POST 创建 / PUT 更新 / DELETE 软删.
+ * <p>M9.5 redesign 后的端点:
+ * <ul>
+ *   <li>5 个 env CRUD: GET 列表 / GET 详情 / POST 创建 / PUT 更新 / DELETE 软删</li>
+ *   <li>1 个 worker 创建端点: POST /api/envs/{envId}/workers (M9.5 新增, 走 EnvController 路径方便 URL 语义 "在 env 下创建 worker")</li>
+ * </ul>
+ *
+ * <p>注意: env 表 M9.5 删了 workerUrl / workerToken / k8sNamespace 字段, env 现在只管集群元数据.
+ * worker 的部署细节 (pod 名, token) 走 worker 表, 端点 {@code POST /api/envs/{envId}/workers}.
  */
 @RestController
 @RequestMapping("/api/envs")
@@ -48,6 +58,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class EnvController {
 
     private final EnvService envService;
+    private final WorkerService workerService;
 
     @GetMapping
     public ApiResponse<PageResponse<EnvResponse>> list(
@@ -67,16 +78,15 @@ public class EnvController {
     @PostMapping
     public ApiResponse<EnvResponse> create(@RequestBody @Valid EnvCreateRequest req) {
         Env e = new Env();
-        BeanUtils.copyProperties(req, e, "workerToken");
-        e.setWorkerTokenEnc(req.getWorkerToken());
+        BeanUtils.copyProperties(req, e);
+        // M9.5: env 不再存 workerUrl / workerToken, 创建时不用管
         return ApiResponse.ok(EnvResponse.from(envService.create(e)));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<EnvResponse> update(@PathVariable Long id, @RequestBody @Valid EnvUpdateRequest req) {
         Env e = new Env();
-        BeanUtils.copyProperties(req, e, "workerToken");
-        e.setWorkerTokenEnc(req.getWorkerToken());
+        BeanUtils.copyProperties(req, e);
         return ApiResponse.ok(EnvResponse.from(envService.update(id, e)));
     }
 
@@ -84,5 +94,26 @@ public class EnvController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         envService.delete(id);
         return ApiResponse.ok();
+    }
+
+    // ==================== M9.5: 在 env 下创建 worker (预登记) ====================
+
+    /**
+     * 创建 worker (预登记).
+     *
+     * <p>用户在 shipyard UI 创建 worker, shipyard:
+     * <ol>
+     *   <li>校验 (env_id, name) 唯一 + (env_id, podName) 唯一</li>
+     *   <li>生成 32 字节随机 token, 存 SHA-256 哈希</li>
+     *   <li>status = PLANNED</li>
+     *   <li>返明文 token (一次性, 用户复制到 k8s manifest)</li>
+     * </ol>
+     */
+    @PostMapping("/{envId}/workers")
+    public ApiResponse<WorkerTokenResponse> createWorker(
+            @PathVariable Long envId,
+            @RequestBody @Valid WorkerCreateRequest req) {
+        // V1 demo 默认 'system', V1.5 从 JWT 取 userId/email
+        return ApiResponse.ok(workerService.create(envId, req, "system"));
     }
 }

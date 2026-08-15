@@ -114,12 +114,23 @@ func main() {
 		logger.Warn("WORKER_TOKEN 未设, 走 V1 demo 默认值 'test-token' (V1.5 接真鉴权后必填)")
 	}
 
+	// M9.5: 从 downward API 读 POD_NAME / POD_IP (k8s manifest env 注入)
+	// shipyard 端按 (env_id, podName) 严格匹配预登记 row, 没设就 404.
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		// dev mode fallback: 用 hostname (跟 M8.3c 旧逻辑一致, 防止本地没装 k8s 直接挂)
+		podName = fmt.Sprintf("dev-%s", getHostname())
+		logger.Warn("POD_NAME env var 未设, 走 dev fallback (M9.5 strict mode 强烈建议生产配 downward API)", zap.String("fallback", podName))
+	}
+	podIP := os.Getenv("POD_IP")  // 可选, register 上报 shipyard 记录
+
 	registerCfg := handler.RegisterConfig{
 		ShipyardURL:       cfg.ShipyardURL,
-		WorkerName:        cfg.WorkerName,
+		PodName:           podName,
 		Env:               cfg.Env,
 		K8sVersion:        k8sVer,
 		NodeName:          nodeName,
+		PodIP:             podIP,
 		WorkerURL:         workerURL,
 		WorkerToken:       workerToken,
 		Version:           cfg.Version,

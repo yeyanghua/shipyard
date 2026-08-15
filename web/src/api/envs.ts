@@ -1,5 +1,8 @@
 /**
  * 环境 API - 对应后端 /api/envs + /api/projects/{id}/envs.
+ *
+ * <p>M9.5 redesign: env 表删 workerUrl / workerToken / k8sNamespace 字段, env 只管集群元数据.
+ * worker 创建走 POST /api/envs/{envId}/workers (见 workersApi.create).
  */
 import { http } from './client';
 import type { PageResponse } from './types';
@@ -9,21 +12,16 @@ export interface Env {
   name: string;
   displayName: string;
   clusterType: string;
-  k8sNamespace: string;
-  workerUrl: string;
-  hasWorkerToken: boolean;    // 替代 workerToken, 不回显
   isProduction: number;       // 0=dev, 1=prod
   createdAt: string;
   updatedAt: string;
+  workerCount?: number;       // M9.5: 该 env 下的 worker 数量
 }
 
 export interface CreateEnvRequest {
   name: string;
   displayName: string;
   clusterType?: string;
-  k8sNamespace: string;
-  workerUrl: string;
-  workerToken?: string;
   isProduction?: number;
 }
 
@@ -31,9 +29,6 @@ export interface UpdateEnvRequest {
   name?: string;
   displayName?: string;
   clusterType?: string;
-  k8sNamespace?: string;
-  workerUrl?: string;
-  workerToken?: string;
   isProduction?: number;
 }
 
@@ -60,7 +55,7 @@ export const envsApi = {
   delete: (id: string) =>
     http.delete<void>(`/envs/${id}`),
 
-  /** 项目-环境关联 */
+  /** 项目-环境关联. */
   listByProject: (projectId: string) =>
     http
       .get<ProjectEnvLink[]>(`/projects/${projectId}/envs`),

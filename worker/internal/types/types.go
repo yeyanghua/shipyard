@@ -47,14 +47,23 @@ type Deployment struct {
 // ============================================================
 
 // RegisterRequest worker 启动时主动注册到 shipyard.
+//
+// M9.5 redesign: register 走严格模式, shipyard 端按 (env_id, podName) 严格匹配
+// 预登记 row + token 校验. 找不到返 404, 提示用户先在 shipyard UI 创建 worker.
 type RegisterRequest struct {
-	WorkerName  string `json:"workerName"`
+	PodName     string `json:"podName"`     // k8s pod metadata.name (downward API 注入)
 	Env         string `json:"env"`         // dev / test / prod
 	K8sVersion  string `json:"k8sVersion"`  // 集群版本 (e.g. v1.30.3)
 	NodeName    string `json:"nodeName"`    // 跑的节点名
+	PodIP       string `json:"podIp"`       // pod IP (downward API 注入, status.podIP)
 	WorkerURL   string `json:"workerUrl"`   // shipyard 调 worker 用的 URL
-	WorkerToken string `json:"workerToken"` // HMAC token (跟 shipyard 共享)
+	WorkerToken string `json:"workerToken"` // 明文 token (跟 shipyard 共享, shipyard 端 SHA-256 哈希后比对)
 	Version     string `json:"version"`     // worker 版本
+
+	// M9.5 删除: WorkerName 字段
+	// 旧模型用 (env_id, workerName) 做联合主键, M9.5 改成 (env_id, podName).
+	// workerName 只作展示名, 不参与 register 唯一性约束, 所以 register 不再必填.
+	// 用户在 UI 创建 worker 时已经填了 name 字段, worker 进程不需要重复传.
 }
 
 // RegisterResponse shipyard 返回 worker ID + 下次心跳间隔.

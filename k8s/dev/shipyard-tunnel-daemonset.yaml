@@ -1,0 +1,106 @@
+# ============================================================
+# shipyard-tunnel DaemonSet — 跨网段 worker -> shipyard 永久解
+# ============================================================
+# 解决问题 (M9.5 真实案例 2026-08-15):
+#   k8s pod 网络 (calico 192.168.36.x / 192.168.169.x) -> 物理机 shipyard
+#   后端 (192.168.10.29:8080, 192.168.91.138:30090) 都 10s timeout.
+#   根因: pod -> 非本集群物理 IP 在 calico 默认 egress 下被挡.
+#   worker NodePort 30080 通, 是因为 NodePort 走 kube-proxy 在 node
+#   物理网卡监听, 不走 calico egress 策略.
+#
+# 方案: DaemonSet + hostNetwork + hostPort, 让 socat 在每个 node 物理
+#   网卡监听 30090, worker pod -> svc DNS -> ClusterIP -> 后端 pod
+#   (在 worker 所在 node 上, hostNetwork) -> socat -> shipyard.
+#   等价于 "把 NodePort 30080 的网络绕道模式应用到 30090".
+#
+# 生产场景 (V1.5+, 跨地域 worker 集群):
+#   - 把 shipyard 部署在公网域名 (shipyard.shipyard.dev)
+#   - 把后端地址改成 https://shipyard.shipyard.dev
+#   - 加 TLS 证书 (跟 worker 共享 mTLS)
+#   - 跨 VPC / 跨地域, 同样架构, 不用改代码
+# ============================================================
+
+---
+# 独立 namespace, 跟 shipyard 解耦
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shipyard-tunnel
+  labels:
+    app.kubernetes.io/part-of: shipyard
+---
+# DaemonSet: 每个 node 1 个 socat pod
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: shipyard-tunnel
+  namespace: shipyard-tunnel
+  labels:
+    app: shipyard-tunnel
+spec:
+  selector:
+    matchLabels:
+      app: shipyard-tunnel
+  template:
+    metadata:
+      labels:
+        app: shipyard-tunnel
+    spec:
+      # === 关键: 用 host 网络, socat 监听在 node 物理网卡 ===
+      # 跟 worker NodePort 30080 同样的网络路径, 绕过 calico egress 策略
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: socat
+        # 官方 alpine + socat, ~10MB, 无 shell 也无所谓, 只跑 socat 二进制
+        image: alpine/socat:1.7.4.4
+        # 静态 args: listen 30090, fork accept, forward 到 shipyard 后端
+        # 改 shipyard 地址: 改这里
+        args:
+        - "TCP-LISTEN:30090,fork,reuseaddr"
+        - "TCP:192.168.10.29:8080"
+        ports:
+        - containerPort: 30090
+          # hostPort 同步开, 物理网卡也监听 30090
+          hostPort: 30090
+          protocol: TCP
+          name: shipyard
+        # socat 资源占用极小, 留 limit 防止异常占资源
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        # healthcheck: 试 forward 到 shipyard, 失败就重启
+        # alpine 内有 wget, 但更通用用 nsenter / TCP socket check
+        livenessProbe:
+          tcpSocket:
+            port: 30090
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 30090
+          initialDelaySeconds: 3
+          periodSeconds: 10
+---
+# Service: 让 worker pod 用 DNS 解析, 不写死 node IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipyard-tunnel
+  namespace: shipyard-tunnel
+  labels:
+    app: shipyard-tunnel
+spec:
+  selector:
+    app: shipyard-tunnel
+  ports:
+  - name: shipyard
+    port: 30090
+    targetPort: 30090
+    protocol: TCP
+  # ClusterIP 默认, 不暴露到 node 物理网卡 (hostPort 已经开)
+  type: ClusterIP

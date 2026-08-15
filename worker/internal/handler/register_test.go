@@ -25,7 +25,7 @@ func TestRegisterHandler_Start_RetryWhenShipyardDown(t *testing.T) {
 	echo := NewEchoHandler(zap.NewNop(), "test-worker")
 	reg := NewRegisterHandler(zap.NewNop(), RegisterConfig{
 		ShipyardURL:       "http://127.0.0.1:1", // 故意连不上
-		WorkerName:        "test-worker",
+		PodName:           "test-pod",
 		Env:               "test",
 		HeartbeatInterval: 100 * time.Millisecond,
 	}, echo)
@@ -57,7 +57,8 @@ func TestRegisterHandler_Start_RegisterAndHeartbeat(t *testing.T) {
 			atomic.AddInt32(&registerCalls, 1)
 			var req types.RegisterRequest
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			assert.Equal(t, "test-worker", req.WorkerName)
+			// M9.5: 严格模式 register 用 podName (不是 workerName)
+			assert.Equal(t, "test-pod", req.PodName)
 			assert.Equal(t, "test", req.Env)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -81,7 +82,7 @@ func TestRegisterHandler_Start_RegisterAndHeartbeat(t *testing.T) {
 	echo := NewEchoHandler(zap.NewNop(), "test-worker")
 	reg := NewRegisterHandler(zap.NewNop(), RegisterConfig{
 		ShipyardURL:       mockShipyard.URL,
-		WorkerName:        "test-worker",
+		PodName:           "test-pod",
 		Env:               "test",
 		HeartbeatInterval: 100 * time.Millisecond,
 	}, echo)

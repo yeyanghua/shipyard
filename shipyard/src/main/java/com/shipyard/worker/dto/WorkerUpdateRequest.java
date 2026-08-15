@@ -14,30 +14,21 @@
  * limitations under the License.
  */
 
-package com.shipyard.dto;
+package com.shipyard.worker.dto;
 
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 更新环境请求体 — PUT /api/envs/{id}.
+ * 更新 worker 请求 — PUT /api/workers/{id}.
  *
- * <p>M9.5: 删 workerUrl / workerToken / k8sNamespace 字段, env 只管集群元数据.
- * 所有字段可选 (不传 = 不改).
+ * <p>M9.5: V1 阶段只允许改 description (name / podName / token 改的成本高, 不让改).
+ * 要改 name / podName 走 "删 worker + 重新创建" 流程.
  */
 @Data
-public class EnvUpdateRequest {
+public class WorkerUpdateRequest {
 
-    @Pattern(regexp = "^[a-z0-9-]+$", message = "只能包含小写字母/数字/中划线")
-    @Size(max = 64)
-    private String name;
-
-    @Size(max = 128)
-    private String displayName;
-
-    @Pattern(regexp = "^(k8s)$", message = "V1 只支持 k8s")
-    private String clusterType;
-
-    private Integer isProduction;
+    /** 备注 / 描述 (可选, 不传 = 不改). */
+    @Size(max = 256)
+    private String description;
 }
