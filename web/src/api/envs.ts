@@ -1,8 +1,8 @@
 /**
  * 环境 API - 对应后端 /api/envs + /api/projects/{id}/envs.
  *
- * <p>M9.5 redesign: env 表删 workerUrl / workerToken / k8sNamespace 字段, env 只管集群元数据.
- * worker 创建走 POST /api/envs/{envId}/workers (见 workersApi.create).
+ * <p>V1 阶段 (V5 撤回后 V3 模式): env 表自管 workerUrl / k8sNamespace (workerTokenEnc 不返前端, shipyard 后端 AES-256 加密存).
+ * 创 env 时 shipyard 自动生成 workerToken, 不暴露给前端.
  */
 import { http } from './client';
 import type { PageResponse } from './types';
@@ -15,7 +15,23 @@ export interface Env {
   isProduction: number;       // 0=dev, 1=prod
   createdAt: string;
   updatedAt: string;
-  workerCount?: number;       // M9.5: 该 env 下的 worker 数量
+
+  /**
+   * V1 阶段 (V5 撤回后): 该 env 下的 worker 服务 URL.
+   * shipyard 调 K8s API 走这个 (V1 阶段 shipyard 自指, 演示用).
+   */
+  workerUrl?: string | null;
+
+  /**
+   * V1 阶段: 该 env 对应 k8s namespace. 创 env 时默认 = env.name.
+   * shipyard 调 K8s API 时指定这个 ns.
+   */
+  k8sNamespace?: string | null;
+
+  /**
+   * V1 阶段: 该 env 下的 worker 数量 (in-process 模拟, 创 env 时 0).
+   */
+  workerCount?: number;
 }
 
 export interface CreateEnvRequest {
@@ -23,6 +39,10 @@ export interface CreateEnvRequest {
   displayName: string;
   clusterType?: string;
   isProduction?: number;
+  /** V1 阶段可选, 留空走 shipyard 默认 (shipyard-tunnel 跳板). */
+  workerUrl?: string;
+  /** V1 阶段可选, 留空走默认 = env.name. */
+  k8sNamespace?: string;
 }
 
 export interface UpdateEnvRequest {
@@ -30,6 +50,8 @@ export interface UpdateEnvRequest {
   displayName?: string;
   clusterType?: string;
   isProduction?: number;
+  workerUrl?: string;
+  k8sNamespace?: string;
 }
 
 export interface ProjectEnvLink {

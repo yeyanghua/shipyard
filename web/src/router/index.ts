@@ -91,12 +91,8 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Notifications.vue'),
     meta: { title: '通知', milestone: 'M13' },
   },
-  {
-    path: '/workers',
-    name: 'workers',
-    component: () => import('@/views/Workers.vue'),
-    meta: { title: 'Worker 管理', milestone: 'M13' },
-  },
+  // V1 阶段 (V5 撤回后): 删 /workers 路由, worker 走 in-process 模拟, 不再独立管理页面.
+  // V1.5+ 重新设计真接 worker 时再加回.
   {
     // 404 兜底
     path: '/:pathMatch(.*)*',

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * 环境列表页 - M9.5 redesign.
+ * 环境列表页 - V1 阶段 (V5 撤回后 V3 模式).
  *
- * <p>env 表 M9.5 删了 workerUrl / workerToken / k8sNamespace 字段, 这里只管集群元数据.
- * worker 创建走 /api/envs/{envId}/workers (在 Workers.vue 里).
+ * <p>env 表自管 workerUrl / k8sNamespace. 创 env 时 shipyard 后端自动生成 + AES-256 加密 workerToken (不暴露前端).
+ * V1 阶段 in-process 模拟, 不再有独立 worker 管理页面 (worker 状态模拟, 通过 env 字段观察).
  */
 import { onMounted, ref } from 'vue';
 import { useEnvStore } from '@/stores/env';
@@ -65,7 +65,7 @@ function onFilterProduction(v: boolean | undefined) {
 
     <div v-if="showCreate" class="card form-card">
       <h3>新建环境</h3>
-      <p class="muted hint">M9.5: env 只管集群元数据. 创建后请到 <strong>Worker 管理</strong> 页添加 worker (系统会生成 token).</p>
+      <p class="muted hint">V1 阶段: env 自管 worker 部署细节 (workerUrl / k8sNamespace). 创 env 时 shipyard 后端自动生成 workerToken (AES-256 加密, 不暴露前端).</p>
       <div v-if="error" class="error">{{ error }}</div>
       <div class="form-grid">
         <div class="field">
@@ -91,7 +91,7 @@ function onFilterProduction(v: boolean | undefined) {
     <table v-if="!store.loading && store.list.length > 0" class="table">
       <thead>
         <tr>
-          <th>Name</th><th>显示名</th><th>类型</th><th>操作</th>
+          <th>Name</th><th>显示名</th><th>类型</th><th>K8s Namespace</th><th>Worker URL</th><th>操作</th>
         </tr>
       </thead>
       <tbody>
@@ -102,9 +102,10 @@ function onFilterProduction(v: boolean | undefined) {
             <span v-if="e.isProduction" class="tag danger">PROD</span>
             <span v-else class="tag">DEV</span>
           </td>
+          <td><code class="muted">{{ e.k8sNamespace || '—' }}</code></td>
+          <td><code class="muted">{{ e.workerUrl || '—' }}</code></td>
           <td class="ops">
             <RouterLink :to="`/envs/${e.id}/variables`">变量</RouterLink>
-            <RouterLink :to="`/workers?envId=${e.id}`">Worker</RouterLink>
           </td>
         </tr>
       </tbody>
