@@ -23,8 +23,8 @@ import lombok.Data;
 /**
  * 更新环境请求体 — PUT /api/envs/{id}.
  *
- * <p>M9.5: 删 workerUrl / workerToken / k8sNamespace 字段, env 只管集群元数据.
- * 所有字段可选 (不传 = 不改).
+ * <p>V1 阶段 (V5 撤回后): 恢复 workerUrl + k8sNamespace 字段 (V3 模式).
+ * 所有字段可选 (不传 = 不改). workerTokenEnc 不让前端改.
  */
 @Data
 public class EnvUpdateRequest {
@@ -40,4 +40,10 @@ public class EnvUpdateRequest {
     private String clusterType;
 
     private Integer isProduction;
+
+    @Size(max = 512)
+    private String workerUrl;
+
+    @Size(max = 64)
+    private String k8sNamespace;
 }

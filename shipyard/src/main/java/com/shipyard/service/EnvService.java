@@ -25,20 +25,17 @@ import com.shipyard.entity.Env;
  * <p>跟 ProjectService 类似, 区别:
  * <ul>
  *   <li>字段: {@code k8sNamespace} / {@code workerUrl} / {@code workerTokenEnc} / {@code isProduction}</li>
- *   <li>加密: {@code workerTokenEnc} 跟 {@code repoTokenEnc} 一样加密</li>
+ *   <li>加密: {@code workerTokenEnc} 用 AES-256 (Encrypter bean 注入)</li>
  *   <li>{@code isProduction} 默认 0 (dev), 创建时可指定</li>
+ *   <li>V1 阶段 (V5 撤回后): env 自管 worker 部署细节, 创 env 时自动生成 + 加密 token</li>
  * </ul>
+ *
+ * <p>V1.5+ 真接 worker: 写 V6 migration 拆 token 到 worker 表, 删 env.workerTokenEnc.
  */
 public interface EnvService {
 
     /**
      * 分页查询环境列表 — 按 {@code name} / {@code displayName} 模糊匹配.
-     *
-     * @param page          页码
-     * @param size          每页大小
-     * @param keyword       搜索关键字 (选填)
-     * @param production    按生产环境过滤 (选填, null=全部)
-     * @return 分页结果
      */
     Page<Env> list(int page, int size, String keyword, Boolean production);
 
@@ -48,12 +45,12 @@ public interface EnvService {
     Env get(Long id);
 
     /**
-     * 创建环境.
+     * 创建环境. 自动生成 + 加密 workerTokenEnc.
      */
     Env create(Env env);
 
     /**
-     * 更新环境.
+     * 更新环境. 不让改 workerTokenEnc (要改走专门的 rotate-token 端点, V1.5+).
      */
     Env update(Long id, Env env);
 
@@ -61,23 +58,4 @@ public interface EnvService {
      * 软删环境.
      */
     void delete(Long id);
-
-    /**
-     * M9 commit-6: 解密 env.workerTokenEnc 拿明文 token (HMAC bearer 用).
-     *
-     * <p>调用方: DeployServiceImpl 调 worker 时, 拿 env 级 token 放 {@code Authorization: Bearer xxx} 头.
-     *
-     * <p>返回 null 如果:
-     * <ul>
-     *   <li>env 不存在</li>
-     *   <li>env 没配 workerTokenEnc (旧 env 没设 token, V1 兼容场景)</li>
-     * </ul>
-     *
-     * <p>解密失败 (CryptoException) 抛 BusinessException(CRYPTO_ERROR),
-     * 不返 null — 这意味着配置错误, 应该 fail-fast, 不能用 fallback token 调 worker.
-     *
-     * @param envId env.id
-     * @return 明文 token, 没配返 null
-     */
-    String getDecryptedWorkerToken(Long envId);
 }

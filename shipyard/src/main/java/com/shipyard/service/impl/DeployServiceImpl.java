@@ -39,18 +39,12 @@ import com.shipyard.service.DeployService;
 import com.shipyard.service.DeployTemplateRenderer;
 import com.shipyard.service.EnvService;
 import com.shipyard.service.PipelineTemplateService;
-import com.shipyard.worker.client.WorkerClient;
-import com.shipyard.worker.dto.DeployRequest;
-import com.shipyard.worker.entity.Worker;
-import com.shipyard.worker.mapper.WorkerMapper;
-import com.shipyard.worker.selector.WorkerSelector;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -75,9 +69,6 @@ public class DeployServiceImpl implements DeployService {
     private final BuildRecordMapper buildRecordMapper;
     private final PipelineTemplateMapper pipelineTemplateMapper;
     private final PipelineTemplateService pipelineTemplateService;
-    private final WorkerMapper workerMapper;
-    private final WorkerSelector activeWorkerSelector;
-    private final WorkerClient workerClient;
     private final EnvService envService;
     private final DeployTemplateRenderer templateRenderer;
 
@@ -96,30 +87,22 @@ public class DeployServiceImpl implements DeployService {
         // 2. 校验 env
         Env env = envMapper.selectById(request.getEnvId());
         if (env == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    "环境不存在: id=" + request.getEnvId());
+            throw new BusinessException(ErrorCode.NOT_FOUND, "环境不存在: id=" + request.getEnvId());
         }
 
         // 3. 解析 imageTag
         String imageTag = resolveImageTag(request);
         if (imageTag == null || imageTag.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "imageTag 不能为空, 必须传 buildRecordId 或 imageTag 其中之一");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "imageTag 不能为空, 必须传 buildRecordId 或 imageTag 其中之一");
         }
 
-        // 4. 选 worker (WorkerSelector 抽象, M9 fix-commit)
-        Worker worker = selectDeployWorker(request.getEnvId());
-        if (worker == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    "环境 [" + env.getName() + "] 没有可用的 worker (online 列表为空), "
-                    + "请先在集群里启动 worker 并等 30s 心跳");
-        }
+        // 4. (V1 in-process 模拟) 跳过 worker 选, 之前是 WorkerSelector.selectDeployWorker
+        //    V1 阶段无真 worker, 直接进 deploy_record 创建. 真 worker 接入见 V1.5 重新设计.
 
         // 5. 查 pipeline_template (active)
         PipelineTemplate activePipeline = pipelineTemplateService.getActive(projectId);
         if (activePipeline == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "项目没有 active 的 pipeline_template, 请先创建并 activate 一个");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "项目没有 active 的 pipeline_template, 请先创建并 activate 一个");
         }
         if (request.getReplicas() != null) {
             activePipeline.setReplicas(request.getReplicas());
@@ -127,8 +110,7 @@ public class DeployServiceImpl implements DeployService {
 
         // 6. 渲染 yaml + 算 sha256
         String resourceName = computeResourceName(project.getName(), env.getName());
-        String deployYaml = templateRenderer.render(
-                env, activePipeline, resourceName, imageTag, request.getEnvVars());
+        String deployYaml = templateRenderer.render(env, activePipeline, resourceName, imageTag, request.getEnvVars());
         String sha256 = sha256Hex(deployYaml);
 
         // 7. 写 deploy_record (PENDING)
@@ -137,15 +119,17 @@ public class DeployServiceImpl implements DeployService {
         record.setEnvId(request.getEnvId());
         record.setBuildRecordId(request.getBuildRecordId());
         record.setImageTag(imageTag);
-        record.setNamespace(env.getName() == null ? null
-                : templateRenderer.renderNamespace(activePipeline.getNamespacePattern(), env.getName()));
+        record.setNamespace(
+                env.getName() == null
+                        ? null
+                        : templateRenderer.renderNamespace(activePipeline.getNamespacePattern(), env.getName()));
         record.setDeployYamlSha256(sha256);
         record.setStatus(DeployStatus.PENDING.name());
         record.setTriggeredBy(request.getTriggeredBy() != null ? request.getTriggeredBy() : "unknown");
         record.setTriggerType("MANUAL");
         deployRecordMapper.insert(record);
 
-        // 8. 写 deploy_snapshot (deploy 镜像 + yaml + sha256)
+        // 8. 写 deploy_snapshot
         DeploySnapshot snapshot = new DeploySnapshot();
         snapshot.setDeployRecordId(record.getId());
         snapshot.setEnvId(request.getEnvId());
@@ -158,65 +142,51 @@ public class DeployServiceImpl implements DeployService {
         // 9. 回填 current_snapshot_id
         deployRecordMapper.updateCurrentSnapshot(record.getId(), snapshot.getId());
 
-        log.info("[DeployService] createDeploy id={} projectId={} envId={} workerId={} imageTag={} sha256={}",
-                record.getId(), projectId, request.getEnvId(), worker.getId(), imageTag, sha256);
+        log.info(
+                "[DeployService] createDeploy id={} projectId={} envId={} imageTag={} sha256={}",
+                record.getId(),
+                projectId,
+                request.getEnvId(),
+                imageTag,
+                sha256);
 
-        // 10. 调 worker 真 apply 资源 (commit-6 整合)
-        //   同步: WorkerClient.deploy 返 data 后标 RUNNING, 然后等 worker 异步回调改终态
-        //   (callback 端点留 M9.5, 当前 commit-6 worker 同步返 status=applied 即 SUCCESS)
-        triggerWorkerDeploy(worker, record, deployYaml, env);
+        // 10. (V1 in-process 模拟) 不调真 worker, 5s 后异步标 SUCCESS
+        //    V1.5+ 真 worker: 改回 triggerWorkerDeploy (调 worker /api/v1/tasks/deploy + 回调)
+        simulateWorkerDeploy(record.getId(), deployYaml);
 
         return DeployResponse.from(record);
     }
 
     /**
-     * 调 worker 真 apply 资源, 同步等结果改 deploy_record 状态.
+     * V1 阶段 in-process 模拟: 标 RUNNING → 5s 后异步标 SUCCESS.
      *
-     * <p>commit-6 实现: 同步调, 拿到 worker 响应后:
-     * <ul>
-     *   <li>phase = "applied/created/updated" → 标 SUCCESS</li>
-     *   <li>worker 返业务错 (code ≠ 0) → 标 FAILED + errorMessage</li>
-     *   <li>worker 不可达 (连接错) → 标 FAILED, 等 user 重试</li>
-     * </ul>
-     *
-     * <p>M9.5 改进: 改异步 — worker 返 200 后 markRunning 立即返前端, worker 完成 apply 后
-     * 回调 shipyard /api/internal/deploy/callback 改终态. commit-6 同步版先用着.
+     * <p>V1.5+ 重新设计: 改回 triggerWorkerDeploy — 调真 worker /api/v1/tasks/deploy,
+     * worker 返 200 + code=0 标 SUCCESS, 返业务错 / 不可达标 FAILED.
      */
-    private void triggerWorkerDeploy(Worker worker, DeployRecord record, String deployYaml, Env env) {
-        // PENDING → RUNNING (本地状态机)
-        markRunning(record.getId());
+    private void simulateWorkerDeploy(Long deployRecordId, String deployYaml) {
+        // PENDING → RUNNING (本地状态机, V1 阶段 in-process 模拟)
+        markRunning(deployRecordId);
 
-        // 拿 env 级 token (HMAC bearer)
-        String token = envService.getDecryptedWorkerToken(env.getId());
-
-        // 调 worker POST /api/v1/tasks/deploy
-        DeployRequest deployReq = new DeployRequest();
-        deployReq.setDeployRecordId(record.getId());
-        deployReq.setNamespace(record.getNamespace());
-        deployReq.setYaml(deployYaml);
-        deployReq.setResourceName(worker.getWorkerUrl() != null
-                ? worker.getWorkerUrl()  // 占位 — 实际 resourceName 在 record 里
-                : null);
-
-        try {
-            Map<String, Object> data = workerClient.deploy(
-                    worker.getWorkerUrl(), token, deployReq);
-            // worker 返 200 + code=0, 标 SUCCESS
-            String phase = (String) data.getOrDefault("phase", "applied");
-            String message = (String) data.getOrDefault("message", "worker applied successfully");
-            markFinished(record.getId(), "SUCCESS", "phase=" + phase + " " + message);
-            log.info("[DeployService] worker deploy SUCCESS: id={} phase={} message={}",
-                    record.getId(), phase, message);
-        } catch (BusinessException e) {
-            // worker 返 4xx/5xx/不可达 → 标 FAILED, 写 errorMessage, 等 user 重试
-            markFinished(record.getId(), "FAILED", e.getMessage());
-            log.warn("[DeployService] worker deploy FAILED: id={} cause={}",
-                    record.getId(), e.getMessage());
-        } catch (Exception e) {
-            // 兜底 (NPE 等)
-            markFinished(record.getId(), "FAILED", "internal error: " + e.getMessage());
-            log.error("[DeployService] worker deploy 兜底错: id={}", record.getId(), e);
-        }
+        // 模拟 worker apply 5s 后完成
+        // V1 阶段: 不用 @Async 也不用 ScheduledExecutorService, 拉个 Thread 简单 sleep + markFinished
+        // V1.5+ 真 worker: 这里改成调 workerClient.deploy() + 回调 /api/internal/deploy/callback
+        Thread t = new Thread(
+                () -> {
+                    try {
+                        Thread.sleep(5000);
+                        markFinished(
+                                deployRecordId,
+                                "SUCCESS",
+                                "V1 in-process simulated apply (V1.5+ will call real worker)");
+                        log.info("[DeployService] V1 模拟 deploy SUCCESS: id={}", deployRecordId);
+                    } catch (InterruptedException e) {
+                        markFinished(deployRecordId, "FAILED", "V1 模拟被中断: " + e.getMessage());
+                        Thread.currentThread().interrupt();
+                    }
+                },
+                "v1-simulate-deploy-" + deployRecordId);
+        t.setDaemon(true);
+        t.start();
     }
 
     @Override
@@ -282,22 +252,16 @@ public class DeployServiceImpl implements DeployService {
         }
         if (!snapshot.getProjectId().equals(originalDeploy.getProjectId())
                 || !snapshot.getEnvId().equals(originalDeploy.getEnvId())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "snapshot 跟 deploy 不在同一 project/env, 拒绝回滚");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "snapshot 跟 deploy 不在同一 project/env, 拒绝回滚");
         }
 
-        // 3. 选 worker (跟 createDeploy 一样走 WorkerSelector)
-        Worker worker = selectDeployWorker(originalDeploy.getEnvId());
-        if (worker == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    "环境 [" + originalDeploy.getEnvId() + "] 没有可用的 worker");
-        }
+        // 3. (V1 in-process 模拟) 跳过 worker 选, 之前是 selectDeployWorker
 
         // 4. 写新 deploy_record (复用原 imageTag, 新 sha256 是 snapshot 的 sha256)
         DeployRecord record = new DeployRecord();
         record.setProjectId(originalDeploy.getProjectId());
         record.setEnvId(originalDeploy.getEnvId());
-        record.setBuildRecordId(null);  // 回滚不绑 build
+        record.setBuildRecordId(null); // 回滚不绑 build
         record.setImageTag(originalDeploy.getImageTag());
         record.setNamespace(originalDeploy.getNamespace());
         record.setDeployYamlSha256(snapshot.getDeployYamlSha256());
@@ -306,7 +270,7 @@ public class DeployServiceImpl implements DeployService {
         record.setTriggerType("ROLLBACK");
         deployRecordMapper.insert(record);
 
-        // 5. 写新 snapshot (deployYAML = 原 snapshot 的 deployYAML, sha256 同)
+        // 5. 写新 snapshot
         DeploySnapshot newSnap = new DeploySnapshot();
         newSnap.setDeployRecordId(record.getId());
         newSnap.setEnvId(originalDeploy.getEnvId());
@@ -319,12 +283,10 @@ public class DeployServiceImpl implements DeployService {
         // 6. 回填 current_snapshot_id
         deployRecordMapper.updateCurrentSnapshot(record.getId(), newSnap.getId());
 
-        log.info("[DeployService] rollback id={} from snapshotId={} workerId={}",
-                record.getId(), snapshotId, worker.getId());
+        log.info("[DeployService] rollback id={} from snapshotId={}", record.getId(), snapshotId);
 
-        // 7. 调 worker 真 apply (commit-6 整合, 复用 createDeploy 触发逻辑)
-        Env env = envMapper.selectById(originalDeploy.getEnvId());
-        triggerWorkerDeploy(worker, record, snapshot.getDeployYaml(), env);
+        // 7. (V1 in-process 模拟) 调 simulateWorkerDeploy, V1.5+ 改回 triggerWorkerDeploy
+        simulateWorkerDeploy(record.getId(), snapshot.getDeployYaml());
 
         return DeployResponse.from(record);
     }
@@ -338,11 +300,9 @@ public class DeployServiceImpl implements DeployService {
         }
         DeployStatus current = DeployStatus.valueOf(r.getStatus());
         if (current.isTerminal()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "部署已经在终态, 不能取消: " + current);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "部署已经在终态, 不能取消: " + current);
         }
-        deployRecordMapper.markFinished(id, DeployStatus.CANCELED.name(),
-                "用户取消", LocalDateTime.now());
+        deployRecordMapper.markFinished(id, DeployStatus.CANCELED.name(), "用户取消", LocalDateTime.now());
         DeployRecord updated = deployRecordMapper.selectById(id);
         log.info("[DeployService] cancel id={} was {}", id, current);
         return DeployResponse.from(updated);
@@ -355,27 +315,13 @@ public class DeployServiceImpl implements DeployService {
         if (r == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "部署不存在: id=" + deployId);
         }
-        // 2. 选 worker (用 env 选 healthy online worker, 跟 createDeploy 一样)
-        Worker worker = selectDeployWorker(r.getEnvId());
-        if (worker == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    "环境 [" + r.getEnvId() + "] 没有可用的 worker");
+        // 2. (V1 in-process 模拟) 返 snapshot 里的 yaml, 不调 K8s
+        //    V1.5+ 真 worker: 改成 selectDeployWorker(r.getEnvId()) + workerClient.getManifest(...)
+        DeploySnapshot snapshot = deploySnapshotMapper.selectById(r.getCurrentSnapshotId());
+        if (snapshot == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "deploy " + deployId + " 关联的 snapshot 不存在");
         }
-        // 3. 拿 token + 调 worker GET /api/v1/tasks/manifest
-        String token = envService.getDecryptedWorkerToken(r.getEnvId());
-        // resourceName = "<project>-<env>" 的小写形式 (跟 createDeploy 拼 resourceName 一致)
-        // 实际拿 project name + env name 拼 — 暂时拿 r.imageTag 前的 project id 拼
-        // V1 简版: 用 current_snapshot_id 关联的 snapshot.deploy_yaml 第一行 metadata.name
-        // 临时方案: 拿 deploy_record.imageTag 前的 "namespace" 字段当 resourceName
-        // M9.5 改: deploy_record 加 resourceName 字段存
-        String resourceName = "deploy-" + deployId;  // 临时 placeholder
-        try {
-            return workerClient.getManifest(worker.getWorkerUrl(), token,
-                    "Deployment", resourceName, r.getNamespace());
-        } catch (BusinessException e) {
-            log.warn("[DeployService] getLiveManifest 失败: id={} cause={}", deployId, e.getMessage());
-            throw e;
-        }
+        return snapshot.getDeployYaml();
     }
 
     // ============================================================
@@ -416,42 +362,16 @@ public class DeployServiceImpl implements DeployService {
         if (request.getBuildRecordId() != null) {
             BuildRecord br = buildRecordMapper.selectById(request.getBuildRecordId());
             if (br == null) {
-                throw new BusinessException(ErrorCode.NOT_FOUND,
-                        "build_record 不存在: id=" + request.getBuildRecordId());
+                throw new BusinessException(ErrorCode.NOT_FOUND, "build_record 不存在: id=" + request.getBuildRecordId());
             }
             if (br.getImageTag() == null || br.getImageTag().isBlank()) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST,
-                        "build_record " + request.getBuildRecordId()
-                        + " 还没镜像 (status=" + br.getStatus() + ")");
+                throw new BusinessException(
+                        ErrorCode.BAD_REQUEST,
+                        "build_record " + request.getBuildRecordId() + " 还没镜像 (status=" + br.getStatus() + ")");
             }
             return br.getImageTag();
         }
         return request.getImageTag();
-    }
-
-    /**
-     * 选 deploy worker — M9 fix-commit 后, 走 WorkerSelector 抽象, 不再硬编码 role.
-     *
-     * <p>查 status=online + last_heartbeat_at DESC, WorkerSelector 从中按策略选 1 个.
-     * 没找到 → 返 null (业务层抛 NOT_FOUND 错).
-     *
-     * <p>M9 commit-4: WorkerSelector 选完后再过滤 health='HEALTHY' (worker 自检失败的不派活).
-     * 过滤逻辑: 拿 candidates 列表, 把 health != HEALTHY 的剔除, 再走 selector.
-     * 如果剔除后空 → 返 null.
-     */
-    private Worker selectDeployWorker(Long envId) {
-        List<Worker> candidates = workerMapper.selectByEnvAndStatus(envId, "online");
-        if (candidates == null || candidates.isEmpty()) {
-            return null;
-        }
-        // commit-4: 过滤 health != HEALTHY (worker 自检失败的)
-        List<Worker> healthyCandidates = candidates.stream()
-                .filter(w -> "HEALTHY".equals(w.getHealth()))
-                .toList();
-        if (healthyCandidates.isEmpty()) {
-            return null;
-        }
-        return activeWorkerSelector.select(healthyCandidates);
     }
 
     /**

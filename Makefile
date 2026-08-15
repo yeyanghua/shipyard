@@ -145,44 +145,26 @@ web-coverage: ## Run shipyard Web tests with coverage
 	@cd web && pnpm test:coverage
 
 # ============================================================
-# Development - worker (M8)
+# V1 阶段 (V5 撤回后): 删 worker 目标, worker 走 in-process 模拟.
+# V1.5+ 重新设计真接 worker 时再加回 worker-build / worker-test / worker-coverage.
 # ============================================================
-.PHONY: worker-dev
-worker-dev: ## Run worker locally
-	@echo "Starting worker..."
-	@cd worker && go run main.go
-
-.PHONY: worker-build
-worker-build: ## Build worker binary
-	@cd worker && CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/worker main.go
-	@echo "[OK] Built: worker/bin/worker"
-
-.PHONY: worker-test
-worker-test: ## Run worker tests
-	@cd worker && go test -v ./...
-
-.PHONY: worker-coverage
-worker-coverage: ## Run worker tests with coverage
-	@cd worker && go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out
 
 # ============================================================
-# All tests + coverage
+# All tests + coverage (V1 阶段: 删 worker-test / worker-coverage)
 # ============================================================
 .PHONY: test
-test: shipyard-test worker-test web-test ## Run all tests
+test: shipyard-test web-test ## Run all tests
 
 .PHONY: coverage
-coverage: shipyard-coverage worker-coverage web-coverage ## Generate all coverage reports
+coverage: shipyard-coverage web-coverage ## Generate all coverage reports
 
 # ============================================================
-# Code quality
+# Code quality (V1 阶段: 删 worker lint/format)
 # ============================================================
 .PHONY: lint
 lint: ## Run all linters
 	@echo "Linting shipyard backend..."
 	@cd shipyard && mvn spotless:check
-	@echo "Linting worker..."
-	@cd worker && go vet ./... && golangci-lint run 2>/dev/null || true
 	@echo "Linting web..."
 	@cd web && pnpm lint
 	@echo "[OK] Linting complete"
@@ -191,8 +173,6 @@ lint: ## Run all linters
 format: ## Auto-format all code
 	@echo "Formatting shipyard backend..."
 	@cd shipyard && mvn spotless:apply
-	@echo "Formatting worker..."
-	@cd worker && gofmt -w .
 	@echo "Formatting web..."
 	@cd web && pnpm format
 	@echo "[OK] Formatting complete"
@@ -201,7 +181,7 @@ format: ## Auto-format all code
 # Build Docker images
 # ============================================================
 .PHONY: docker-build
-docker-build: docker-build-shipyard docker-build-worker ## Build all Docker images
+docker-build: docker-build-shipyard ## Build all Docker images (V1 阶段: 删 docker-build-worker)
 
 .PHONY: docker-build-shipyard
 docker-build-shipyard:
@@ -210,20 +190,14 @@ docker-build-shipyard:
 	@docker build -t $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION) -f Dockerfile.shipyard shipyard/
 	@docker tag $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION) $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:latest
 
-.PHONY: docker-build-worker
-docker-build-worker:
-	@echo "Building worker image..."
-	@cd worker && CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/worker main.go
-	@docker build -t $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:$(VERSION) -f Dockerfile.worker worker/
-	@docker tag $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:$(VERSION) $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:latest
+# V1 阶段 (V5 撤回后): 删 docker-build-worker, worker 走 shipyard in-process 模拟.
+# V1.5+ 重新设计真接 worker 时再加回.
 
 .PHONY: docker-push
-docker-push: docker-build ## Build and push all images to registry
+docker-push: docker-build ## Build and push shipyard image to registry (V1 阶段: 删 worker push)
 	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:$(VERSION)
 	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-shipyard:latest
-	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:$(VERSION)
-	@docker push $(DOCKER_REGISTRY)/$(PROJECT_NAME)-worker:latest
-	@echo "[OK] Images pushed to $(DOCKER_REGISTRY)"
+	@echo "[OK] Shipyard image pushed to $(DOCKER_REGISTRY)"
 
 # ============================================================
 # Cleanup

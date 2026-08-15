@@ -21,6 +21,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shipyard.common.BeanUtils;
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.common.exception.ErrorCode;
+import com.shipyard.crypto.Encrypter;
+import com.shipyard.crypto.TokenGenerator;
 import com.shipyard.entity.Env;
 import com.shipyard.mapper.EnvMapper;
 import com.shipyard.service.EnvService;
@@ -31,10 +33,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * Env Service 实现 — M9.5 redesign.
+ * Env Service 实现 — V1 阶段 (V5 撤回后) V3 模式.
  *
- * <p>核心变化: 删 workerToken / k8sNamespace / workerUrl 字段处理, env 只管集群元数据.
- * worker 相关的走 WorkerService + worker 表.
+ * <p>env 表自管 workerUrl / k8sNamespace / workerTokenEnc, 创 env 时:
+ * <ol>
+ *   <li>name 唯一检查 (含软删复活)</li>
+ *   <li>默认 clusterType="k8s", 默认 isProduction=0</li>
+ *   <li>默认 k8sNamespace = env.name (1:1 对应)</li>
+ *   <li>默认 workerUrl = shipyard-tunnel 跳板 (V1 阶段 shipyard 自指)</li>
+ *   <li>workerTokenEnc = AES-256 加密随机 32 字节 base64 (V1 阶段 shipyard 内部维护, 不暴露前端)</li>
+ * </ol>
+ *
+ * <p>update() 不让改 workerTokenEnc (token 重新生成走单独端点 /api/envs/{id}/rotate-token, V1.5+).
+ *
+ * <p>未来 V1.5+ 真接 worker: 写 V6 migration 把 workerUrl / k8sNamespace / workerTokenEnc 拆到 worker 表.
  */
 @Slf4j
 @Service
@@ -45,6 +57,7 @@ public class EnvServiceImpl implements EnvService {
     private static final Set<String> CLUSTER_TYPES = Set.of("k8s");
 
     private final EnvMapper envMapper;
+    private final Encrypter encrypter;
 
     @Override
     public Page<Env> list(int page, int size, String keyword, Boolean production) {
@@ -85,6 +98,7 @@ public class EnvServiceImpl implements EnvService {
                 throw new BusinessException(ErrorCode.INTERNAL_ERROR, "查到 ID 但 selectByIdIncludeDeleted 返回 null, 数据异常");
             }
             existing.setDeleted(0); // 复活
+            // V1 阶段复活时也允许更新 workerUrl / k8sNamespace
             BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
             envMapper.updateById(existing);
             return existing;
@@ -98,8 +112,20 @@ public class EnvServiceImpl implements EnvService {
         if (env.getIsProduction() == null) {
             env.setIsProduction(0);
         }
+        // 默认 k8sNamespace = env.name (V1 阶段 1:1 简化)
+        if (!StringUtils.hasText(env.getK8sNamespace())) {
+            env.setK8sNamespace(env.getName());
+        }
+        // 默认 workerUrl = shipyard-tunnel 跳板 (V1 阶段 shipyard 自指)
+        if (!StringUtils.hasText(env.getWorkerUrl())) {
+            env.setWorkerUrl("http://shipyard-tunnel.shipyard-tunnel.svc.cluster.local:30090");
+        }
+        // 自动生成 workerTokenEnc (AES-256 加密随机 token, 不暴露前端)
+        String token = TokenGenerator.generate();
+        env.setWorkerTokenEnc(encrypter.encrypt(token));
 
         envMapper.insert(env);
+        log.info("环境 {} 创建成功, 自动生成 workerToken (token 不暴露前端)", env.getName());
         return env;
     }
 
@@ -114,7 +140,8 @@ public class EnvServiceImpl implements EnvService {
             }
         }
 
-        BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted");
+        // 不让前端改 workerTokenEnc (要改走专门的 rotate-token 端点, V1.5+ 实现)
+        BeanUtils.copyNonNullProperties(env, existing, "id", "createdAt", "deleted", "workerTokenEnc");
         validateEnv(existing);
 
         envMapper.updateById(existing);
@@ -125,17 +152,6 @@ public class EnvServiceImpl implements EnvService {
     public void delete(Long id) {
         Env existing = get(id);
         envMapper.deleteById(existing.getId());
-    }
-
-    /**
-     * @deprecated M9.5: worker token 移到 worker 表, 这个方法保留只为兼容老调用方 (返回 null + warn).
-     *             V1.5 完全删掉.
-     */
-    @Deprecated
-    @Override
-    public String getDecryptedWorkerToken(Long envId) {
-        log.warn("调用了过时的 EnvService.getDecryptedWorkerToken(envId={}), M9.5 后 worker token 走 worker 表", envId);
-        return null;
     }
 
     // ==================== 私有辅助方法 ====================

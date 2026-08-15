@@ -23,8 +23,8 @@ import lombok.Data;
 /**
  * 环境响应体 — GET / POST / PUT /api/envs 统一返回.
  *
- * <p>M9.5 redesign: 删 workerUrl / hasWorkerToken / k8sNamespace 字段, env 只管集群元数据.
- * worker 相关的 token / URL 走 worker 表.
+ * <p>V1 阶段 (V5 撤回后) env 表自管 workerUrl / k8sNamespace (跟 V3 一致).
+ * workerTokenEnc 不返前端 (V1 阶段 shipyard 后端内部存, 不暴露明文/token 摘要).
  */
 @Data
 public class EnvResponse {
@@ -38,7 +38,17 @@ public class EnvResponse {
     private LocalDateTime updatedAt;
 
     /**
-     * 该 env 下的 worker 数量 (M9.5 新加, 方便 UI 一眼看到 env 部署了几个 worker).
+     * 该 env 下的 worker 服务 URL (V1 阶段 shipyard 内部维护, 演示 K8s 调谁用).
+     */
+    private String workerUrl;
+
+    /**
+     * 该 env 对应的 k8s namespace (V1 阶段 shipyard 调 K8s API 用).
+     */
+    private String k8sNamespace;
+
+    /**
+     * 该 env 下的 worker 数量 (V1 阶段 in-process 模拟, 创 env 时自动建 1 个).
      */
     private Long workerCount;
 
@@ -52,6 +62,8 @@ public class EnvResponse {
         r.setIsProduction(e.getIsProduction());
         r.setCreatedAt(e.getCreatedAt());
         r.setUpdatedAt(e.getUpdatedAt());
+        r.setWorkerUrl(e.getWorkerUrl());
+        r.setK8sNamespace(e.getK8sNamespace());
         return r;
     }
 }

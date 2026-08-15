@@ -24,9 +24,15 @@ import lombok.Data;
 /**
  * 创建环境请求体 — POST /api/envs.
  *
- * <p>M9.5: 删 workerUrl / workerToken / k8sNamespace 字段. env 只管集群元数据
- * (name / displayName / clusterType / isProduction), worker 走单独的端点
- * POST /api/envs/{envId}/workers 创建.
+ * <p>V1 阶段 (V5 撤回后): 恢复 workerUrl + k8sNamespace 字段 (V3 模式).
+ * workerTokenEnc 不让前端填 — shipyard 后端自动生成 + AES-256 加密存.
+ *
+ * <p>字段:
+ * <ul>
+ *   <li>name / displayName / clusterType / isProduction — env 集群元数据</li>
+ *   <li>workerUrl (可选) — 该 env 下的 worker 服务 URL, 留空走 shipyard 内部默认</li>
+ *   <li>k8sNamespace (可选) — env 对应 k8s namespace, 留空走 env.name 默认</li>
+ * </ul>
  */
 @Data
 public class EnvCreateRequest {
@@ -45,4 +51,18 @@ public class EnvCreateRequest {
 
     /** null=0 (dev), 1=生产. */
     private Integer isProduction;
+
+    /**
+     * 该 env 下的 worker 服务 URL (V1 阶段可选, shipyard 内部维护).
+     * 留空: shipyard 默认 {@code http://shipyard-tunnel.shipyard-tunnel.svc.cluster.local:30090}
+     * (走 shipyard-tunnel 跳板, V1 阶段演示用).
+     */
+    @Size(max = 512)
+    private String workerUrl;
+
+    /**
+     * env 对应 k8s namespace. 留空: 默认 = env.name.
+     */
+    @Size(max = 64)
+    private String k8sNamespace;
 }
