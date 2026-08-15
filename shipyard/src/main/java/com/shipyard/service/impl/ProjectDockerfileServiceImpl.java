@@ -25,13 +25,12 @@ import com.shipyard.mapper.ProjectDockerfileMapper;
 import com.shipyard.service.DockerfileTemplateService;
 import com.shipyard.service.ProjectDockerfileService;
 import com.shipyard.service.ProjectService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -50,12 +49,11 @@ public class ProjectDockerfileServiceImpl implements ProjectDockerfileService {
 
     @Override
     public ProjectDockerfile generate(
-        Long projectId,
-        DockerfileTemplate template,
-        Map<String, String> variables,
-        String repoBranch,
-        String commitMessage
-    ) {
+            Long projectId,
+            DockerfileTemplate template,
+            Map<String, String> variables,
+            String repoBranch,
+            String commitMessage) {
         // 1. 校验 project 存在
         Project project = projectService.get(projectId);
         if (project == null) {
@@ -72,15 +70,18 @@ public class ProjectDockerfileServiceImpl implements ProjectDockerfileService {
         pd.setRenderedContent(rendered);
         pd.setVariableValues(toJson(variables));
         pd.setRepoBranch(repoBranch == null || repoBranch.isBlank() ? "main" : repoBranch);
-        pd.setCommitMessage(commitMessage == null || commitMessage.isBlank()
-            ? "chore: add Dockerfile via shipyard"
-            : commitMessage);
+        pd.setCommitMessage(
+                commitMessage == null || commitMessage.isBlank()
+                        ? "chore: add Dockerfile via shipyard"
+                        : commitMessage);
         pd.setStatus("draft");
         pd.setCreatedAt(LocalDateTime.now());
         projectDockerfileMapper.insert(pd);
 
-        log.info("[ProjectDockerfileService] project={} 渲染 Dockerfile 模板={} (V1 status=draft, 未真推 repo)",
-            projectId, template.getName());
+        log.info(
+                "[ProjectDockerfileService] project={} 渲染 Dockerfile 模板={} (V1 status=draft, 未真推 repo)",
+                projectId,
+                template.getName());
         return pd;
     }
 

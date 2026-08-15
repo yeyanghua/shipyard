@@ -17,9 +17,8 @@
 package com.shipyard.dto;
 
 import com.shipyard.entity.PipelineTemplate;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * Pipeline 响应体 — GET / POST / PUT /api/projects/{id}/pipeline 统一返回.

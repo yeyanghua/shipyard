@@ -22,11 +22,10 @@ import com.shipyard.common.exception.ErrorCode;
 import com.shipyard.entity.DockerfileTemplate;
 import com.shipyard.mapper.DockerfileTemplateMapper;
 import com.shipyard.service.DockerfileTemplateService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +36,7 @@ public class DockerfileTemplateServiceImpl implements DockerfileTemplateService 
     @Override
     public List<DockerfileTemplate> listAll() {
         return templateMapper.selectList(
-            new QueryWrapper<DockerfileTemplate>()
-                .eq("deleted", 0)
-                .orderByAsc("language", "build_tool", "name")
-        );
+                new QueryWrapper<DockerfileTemplate>().eq("deleted", 0).orderByAsc("language", "build_tool", "name"));
     }
 
     @Override

@@ -10,23 +10,6 @@
 
 package com.shipyard.service.impl;
 
-import com.shipyard.common.exception.BusinessException;
-import com.shipyard.entity.DockerfileTemplate;
-import com.shipyard.entity.Project;
-import com.shipyard.entity.ProjectDockerfile;
-import com.shipyard.mapper.ProjectDockerfileMapper;
-import com.shipyard.service.DockerfileTemplateService;
-import com.shipyard.service.ProjectService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,13 +18,31 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.shipyard.common.exception.BusinessException;
+import com.shipyard.entity.DockerfileTemplate;
+import com.shipyard.entity.Project;
+import com.shipyard.entity.ProjectDockerfile;
+import com.shipyard.mapper.ProjectDockerfileMapper;
+import com.shipyard.service.DockerfileTemplateService;
+import com.shipyard.service.ProjectService;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 @ExtendWith(MockitoExtension.class)
 class ProjectDockerfileServiceImplTest {
 
     @Mock
     private DockerfileTemplateService templateService;
+
     @Mock
     private ProjectDockerfileMapper projectDockerfileMapper;
+
     @Mock
     private ProjectService projectService;
 
@@ -80,11 +81,10 @@ class ProjectDockerfileServiceImplTest {
 
     @Test
     void preview_shouldThrow_whenTemplateNotFound() {
-        when(templateService.getByName("nope")).thenThrow(new BusinessException(
-            com.shipyard.common.exception.ErrorCode.NOT_FOUND, "not found"));
+        when(templateService.getByName("nope"))
+                .thenThrow(new BusinessException(com.shipyard.common.exception.ErrorCode.NOT_FOUND, "not found"));
 
-        assertThatThrownBy(() -> service.preview("nope", Map.of()))
-            .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.preview("nope", Map.of())).isInstanceOf(BusinessException.class);
     }
 
     // ========== generate ==========
@@ -94,8 +94,7 @@ class ProjectDockerfileServiceImplTest {
         when(projectService.get(100L)).thenReturn(project);
         when(templateService.render(eq(tpl), any())).thenReturn("FROM ...\nEXPOSE 8080");
 
-        ProjectDockerfile out = service.generate(100L, tpl, Map.of("port", "8080"),
-            null, null);
+        ProjectDockerfile out = service.generate(100L, tpl, Map.of("port", "8080"), null, null);
 
         ArgumentCaptor<ProjectDockerfile> captor = ArgumentCaptor.forClass(ProjectDockerfile.class);
         verify(projectDockerfileMapper).insert(captor.capture());
@@ -104,10 +103,10 @@ class ProjectDockerfileServiceImplTest {
         assertThat(inserted.getProjectId()).isEqualTo(100L);
         assertThat(inserted.getDockerfileTemplateId()).isEqualTo(1L);
         assertThat(inserted.getStatus()).isEqualTo("draft");
-        assertThat(inserted.getRepoBranch()).isEqualTo("main");  // null → main
+        assertThat(inserted.getRepoBranch()).isEqualTo("main"); // null → main
         assertThat(inserted.getCommitMessage()).isEqualTo("chore: add Dockerfile via shipyard");
         assertThat(inserted.getRenderedContent()).contains("EXPOSE 8080");
-        assertThat(inserted.getRepoCommitSha()).isNull();  // V1 留空
+        assertThat(inserted.getRepoCommitSha()).isNull(); // V1 留空
         assertThat(inserted.getVariableValues()).contains("\"port\":\"8080\"");
 
         // service.generate 返回的 entity 是 mapper.insert 之前的 pd 对象 (我们看 inserted 字段即可)
@@ -119,8 +118,7 @@ class ProjectDockerfileServiceImplTest {
         when(projectService.get(100L)).thenReturn(project);
         when(templateService.render(eq(tpl), any())).thenReturn("FROM openjdk:21");
 
-        service.generate(100L, tpl, Map.of("port", "8080"),
-            "feat/docker", "chore: shipyard generated Dockerfile");
+        service.generate(100L, tpl, Map.of("port", "8080"), "feat/docker", "chore: shipyard generated Dockerfile");
 
         ArgumentCaptor<ProjectDockerfile> captor = ArgumentCaptor.forClass(ProjectDockerfile.class);
         verify(projectDockerfileMapper).insert(captor.capture());
@@ -131,12 +129,13 @@ class ProjectDockerfileServiceImplTest {
 
     @Test
     void generate_shouldThrow_whenProjectNotFound() {
-        when(projectService.get(99L)).thenThrow(new BusinessException(
-            com.shipyard.common.exception.ErrorCode.NOT_FOUND, "project 99 not found"));
+        when(projectService.get(99L))
+                .thenThrow(new BusinessException(
+                        com.shipyard.common.exception.ErrorCode.NOT_FOUND, "project 99 not found"));
 
         assertThatThrownBy(() -> service.generate(99L, tpl, Map.of(), null, null))
-            .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("99");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("99");
     }
 
     @Test
@@ -144,16 +143,14 @@ class ProjectDockerfileServiceImplTest {
         when(projectService.get(100L)).thenReturn(project);
         when(templateService.render(eq(tpl), any())).thenReturn("...");
 
-        service.generate(100L, tpl,
-            Map.of("msg", "hello \"world\"\\path"),
-            null, null);
+        service.generate(100L, tpl, Map.of("msg", "hello \"world\"\\path"), null, null);
 
         ArgumentCaptor<ProjectDockerfile> captor = ArgumentCaptor.forClass(ProjectDockerfile.class);
         verify(projectDockerfileMapper).insert(captor.capture());
         // msg: "hello \"world\"\\path" 应转义成 JSON 安全
         assertThat(captor.getValue().getVariableValues())
-            .contains("\\\"world\\\"")   // " 转义
-            .contains("\\\\path");        // \ 转义
+                .contains("\\\"world\\\"") // " 转义
+                .contains("\\\\path"); // \ 转义
     }
 
     // ========== listByProject / get ==========
@@ -168,7 +165,7 @@ class ProjectDockerfileServiceImplTest {
     void get_shouldThrow_whenNotFound() {
         when(projectDockerfileMapper.selectById(anyLong())).thenReturn(null);
         assertThatThrownBy(() -> service.get(99L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("99");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("99");
     }
 }

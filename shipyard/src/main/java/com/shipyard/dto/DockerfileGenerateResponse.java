@@ -17,9 +17,8 @@
 package com.shipyard.dto;
 
 import com.shipyard.entity.ProjectDockerfile;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 /**
  * Dockerfile 生成响应.
@@ -38,7 +37,7 @@ public class DockerfileGenerateResponse {
     private String status;
     private String repoBranch;
     private String commitMessage;
-    private String repoCommitSha;  // V1 留空, V1.5 真 commit 后填
+    private String repoCommitSha; // V1 留空, V1.5 真 commit 后填
     private LocalDateTime createdAt;
 
     public static DockerfileGenerateResponse from(ProjectDockerfile pd, String renderedContent, String templateName) {

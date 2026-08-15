@@ -112,8 +112,7 @@ public class BuildServiceImpl implements BuildService {
 
         // M6 4.2: 绑 project 当前 active pipeline — V1 mock 不用 pipeline 内容跑 step,
         // 但 build_record.pipeline_template_id 留痕, V1.5 真接 drone 时按 pipeline yaml 渲染 step
-        com.shipyard.entity.PipelineTemplate activePipeline =
-            pipelineTemplateService.getActive(request.getProjectId());
+        com.shipyard.entity.PipelineTemplate activePipeline = pipelineTemplateService.getActive(request.getProjectId());
         if (activePipeline != null) {
             record.setPipelineTemplateId(activePipeline.getId());
         }

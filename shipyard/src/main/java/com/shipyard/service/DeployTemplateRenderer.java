@@ -21,7 +21,6 @@ import com.shipyard.common.exception.ErrorCode;
 import com.shipyard.entity.Env;
 import com.shipyard.entity.PipelineTemplate;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -68,17 +67,14 @@ public class DeployTemplateRenderer {
      * @throws BusinessException pipeline_template.containerPort 必填字段为 NULL
      */
     public String render(
-            Env env,
-            PipelineTemplate template,
-            String resourceName,
-            String image,
-            Map<String, String> envVars) {
+            Env env, PipelineTemplate template, String resourceName, String image, Map<String, String> envVars) {
 
         // 1. 校验
         if (template.getContainerPort() == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "pipeline_template.containerPort 不能为空 (projectId=" + template.getProjectId()
-                    + " version=" + template.getVersion() + "), 请先在 pipeline 配置主端口");
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST,
+                    "pipeline_template.containerPort 不能为空 (projectId=" + template.getProjectId() + " version="
+                            + template.getVersion() + "), 请先在 pipeline 配置主端口");
         }
         if (resourceName == null || resourceName.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "resourceName 不能为空");
@@ -94,7 +90,8 @@ public class DeployTemplateRenderer {
         String envBlock = renderEnvBlock(envVars);
 
         // 4. 渲染整段 yaml (Deployment + Service)
-        return String.format("""
+        return String.format(
+                """
                 apiVersion: apps/v1
                 kind: Deployment
                 metadata:
@@ -140,14 +137,18 @@ public class DeployTemplateRenderer {
                       name: http
                   type: ClusterIP
                 """,
-                resourceName, namespace, resourceName,
+                resourceName,
+                namespace,
+                resourceName,
                 template.getReplicas(),
                 resourceName,
                 resourceName,
                 image,
                 template.getContainerPort(),
                 envBlock,
-                resourceName, namespace, resourceName,
+                resourceName,
+                namespace,
+                resourceName,
                 resourceName,
                 template.getContainerPort());
     }
@@ -160,7 +161,7 @@ public class DeployTemplateRenderer {
      */
     public String renderNamespace(String pattern, String envName) {
         if (pattern == null || pattern.isBlank()) {
-            return "shipyard-" + envName;  // fallback 到默认
+            return "shipyard-" + envName; // fallback 到默认
         }
         return pattern.replace("{env_name}", envName);
     }
@@ -184,8 +185,12 @@ public class DeployTemplateRenderer {
 
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, String> e : sorted.entrySet()) {
-            sb.append("            - name: ").append(e.getKey()).append("\n")
-              .append("              value: \"").append(escapeYamlValue(e.getValue())).append("\"\n");
+            sb.append("            - name: ")
+                    .append(e.getKey())
+                    .append("\n")
+                    .append("              value: \"")
+                    .append(escapeYamlValue(e.getValue()))
+                    .append("\"\n");
         }
         return sb.toString();
     }

@@ -18,7 +18,6 @@ package com.shipyard.service;
 
 import com.shipyard.entity.DockerfileTemplate;
 import com.shipyard.entity.ProjectDockerfile;
-
 import java.util.List;
 import java.util.Map;
 
@@ -43,12 +42,11 @@ public interface ProjectDockerfileService {
      * @return [渲染后内容, 创建的 project_dockerfile 记录]
      */
     ProjectDockerfile generate(
-        Long projectId,
-        DockerfileTemplate template,
-        Map<String, String> variables,
-        String repoBranch,
-        String commitMessage
-    );
+            Long projectId,
+            DockerfileTemplate template,
+            Map<String, String> variables,
+            String repoBranch,
+            String commitMessage);
 
     /** 按 project 列所有 Dockerfile 实例 (按 id DESC) */
     List<ProjectDockerfile> listByProject(Long projectId);

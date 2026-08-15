@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -62,11 +61,13 @@ public class DeployController {
      */
     @PostMapping("/api/projects/{id}/deployments")
     public ApiResponse<DeployResponse> createDeploy(
-            @PathVariable("id") Long projectId,
-            @RequestBody @Valid DeployCreateRequest request
-    ) {
-        log.info("触发部署: projectId={} envId={} buildRecordId={} imageTag={}",
-                projectId, request.getEnvId(), request.getBuildRecordId(), request.getImageTag());
+            @PathVariable("id") Long projectId, @RequestBody @Valid DeployCreateRequest request) {
+        log.info(
+                "触发部署: projectId={} envId={} buildRecordId={} imageTag={}",
+                projectId,
+                request.getEnvId(),
+                request.getBuildRecordId(),
+                request.getImageTag());
         return ApiResponse.ok(deployService.createDeploy(projectId, request));
     }
 
@@ -86,8 +87,7 @@ public class DeployController {
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long envId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
-    ) {
+            @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(deployService.listDeploys(projectId, envId, page, size));
     }
 
@@ -106,9 +106,7 @@ public class DeployController {
      */
     @GetMapping("/api/deployments/snapshots")
     public ApiResponse<List<DeploySnapshotResponse>> listSnapshotsByProjectEnv(
-            @RequestParam Long projectId,
-            @RequestParam Long envId
-    ) {
+            @RequestParam Long projectId, @RequestParam Long envId) {
         return ApiResponse.ok(deployService.listSnapshotsByProjectEnv(projectId, envId));
     }
 
@@ -119,8 +117,7 @@ public class DeployController {
     public ApiResponse<DeployResponse> rollback(
             @PathVariable Long id,
             @PathVariable Long snapshotId,
-            @RequestParam(required = false, defaultValue = "unknown") String triggeredBy
-    ) {
+            @RequestParam(required = false, defaultValue = "unknown") String triggeredBy) {
         log.info("回滚部署: id={} snapshotId={} triggeredBy={}", id, snapshotId, triggeredBy);
         return ApiResponse.ok(deployService.rollback(id, snapshotId, triggeredBy));
     }

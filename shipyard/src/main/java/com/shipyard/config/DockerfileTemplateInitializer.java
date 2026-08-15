@@ -18,6 +18,9 @@ package com.shipyard.config;
 
 import com.shipyard.entity.DockerfileTemplate;
 import com.shipyard.mapper.DockerfileTemplateMapper;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -26,10 +29,6 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
-
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 启动时幂等插入 5 套内置 Dockerfile 模板.
@@ -55,61 +54,54 @@ public class DockerfileTemplateInitializer implements ApplicationRunner {
     private final DockerfileTemplateMapper templateMapper;
 
     private record BuiltinTemplate(
-        String name,
-        String displayName,
-        String language,
-        String buildTool,
-        String resourcePath,
-        String variableSchema
-    ) {}
+            String name,
+            String displayName,
+            String language,
+            String buildTool,
+            String resourcePath,
+            String variableSchema) {}
 
     private static final List<BuiltinTemplate> BUILTIN = List.of(
-        new BuiltinTemplate(
-            "java_maven_jdk21",
-            "Java 21 + Maven (多阶段)",
-            "java",
-            "maven",
-            "dockerfile-templates/java_maven_jdk21.template",
-            "[{\"key\":\"jarName\",\"type\":\"string\",\"default\":\"app.jar\",\"description\":\"构建产物的 jar 文件名\",\"required\":true}," +
-            "{\"key\":\"mainClassArgs\",\"type\":\"string\",\"default\":\"\",\"description\":\"main 方法参数 (例: --server.port=8080)\",\"required\":false}," +
-            "{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":true}]"
-        ),
-        new BuiltinTemplate(
-            "java_gradle_jdk21",
-            "Java 21 + Gradle (多阶段)",
-            "java",
-            "gradle",
-            "dockerfile-templates/java_gradle_jdk21.template",
-            "[{\"key\":\"jarName\",\"type\":\"string\",\"default\":\"app.jar\",\"description\":\"构建产物的 jar 文件名\",\"required\":true}," +
-            "{\"key\":\"mainClassArgs\",\"type\":\"string\",\"default\":\"\",\"description\":\"main 方法参数\",\"required\":false}," +
-            "{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":true}]"
-        ),
-        new BuiltinTemplate(
-            "node_pnpm_20",
-            "Node 20 + pnpm (多阶段)",
-            "node",
-            "pnpm",
-            "dockerfile-templates/node_pnpm_20.template",
-            "[{\"key\":\"distDir\",\"type\":\"string\",\"default\":\"dist\",\"description\":\"前端 build 产物目录 (Vue/React dist, Next.js .next)\",\"required\":true}," +
-            "{\"key\":\"port\",\"type\":\"int\",\"default\":\"3000\",\"description\":\"应用监听端口\",\"required\":true}]"
-        ),
-        new BuiltinTemplate(
-            "python_poetry_312",
-            "Python 3.12 + Poetry (多阶段)",
-            "python",
-            "poetry",
-            "dockerfile-templates/python_poetry_312.template",
-            "[{\"key\":\"port\",\"type\":\"int\",\"default\":\"8000\",\"description\":\"应用监听端口 (FastAPI/Django/Flask)\",\"required\":true}]"
-        ),
-        new BuiltinTemplate(
-            "generic_alpine",
-            "Generic Alpine (兜底)",
-            "other",
-            "other",
-            "dockerfile-templates/generic_alpine.template",
-            "[{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":false}]"
-        )
-    );
+            new BuiltinTemplate(
+                    "java_maven_jdk21",
+                    "Java 21 + Maven (多阶段)",
+                    "java",
+                    "maven",
+                    "dockerfile-templates/java_maven_jdk21.template",
+                    "[{\"key\":\"jarName\",\"type\":\"string\",\"default\":\"app.jar\",\"description\":\"构建产物的 jar 文件名\",\"required\":true},"
+                            + "{\"key\":\"mainClassArgs\",\"type\":\"string\",\"default\":\"\",\"description\":\"main 方法参数 (例: --server.port=8080)\",\"required\":false},"
+                            + "{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":true}]"),
+            new BuiltinTemplate(
+                    "java_gradle_jdk21",
+                    "Java 21 + Gradle (多阶段)",
+                    "java",
+                    "gradle",
+                    "dockerfile-templates/java_gradle_jdk21.template",
+                    "[{\"key\":\"jarName\",\"type\":\"string\",\"default\":\"app.jar\",\"description\":\"构建产物的 jar 文件名\",\"required\":true},"
+                            + "{\"key\":\"mainClassArgs\",\"type\":\"string\",\"default\":\"\",\"description\":\"main 方法参数\",\"required\":false},"
+                            + "{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":true}]"),
+            new BuiltinTemplate(
+                    "node_pnpm_20",
+                    "Node 20 + pnpm (多阶段)",
+                    "node",
+                    "pnpm",
+                    "dockerfile-templates/node_pnpm_20.template",
+                    "[{\"key\":\"distDir\",\"type\":\"string\",\"default\":\"dist\",\"description\":\"前端 build 产物目录 (Vue/React dist, Next.js .next)\",\"required\":true},"
+                            + "{\"key\":\"port\",\"type\":\"int\",\"default\":\"3000\",\"description\":\"应用监听端口\",\"required\":true}]"),
+            new BuiltinTemplate(
+                    "python_poetry_312",
+                    "Python 3.12 + Poetry (多阶段)",
+                    "python",
+                    "poetry",
+                    "dockerfile-templates/python_poetry_312.template",
+                    "[{\"key\":\"port\",\"type\":\"int\",\"default\":\"8000\",\"description\":\"应用监听端口 (FastAPI/Django/Flask)\",\"required\":true}]"),
+            new BuiltinTemplate(
+                    "generic_alpine",
+                    "Generic Alpine (兜底)",
+                    "other",
+                    "other",
+                    "dockerfile-templates/generic_alpine.template",
+                    "[{\"key\":\"port\",\"type\":\"int\",\"default\":\"8080\",\"description\":\"应用监听端口\",\"required\":false}]"));
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -141,7 +133,6 @@ public class DockerfileTemplateInitializer implements ApplicationRunner {
             inserted++;
             log.info("[DockerfileTemplateInitializer] 插入内置模板: {}", bt.name());
         }
-        log.info("[DockerfileTemplateInitializer] Dockerfile 模板初始化完成: 新增 {} 套, 跳过 {} 套",
-            inserted, skipped);
+        log.info("[DockerfileTemplateInitializer] Dockerfile 模板初始化完成: 新增 {} 套, 跳过 {} 套", inserted, skipped);
     }
 }

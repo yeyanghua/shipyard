@@ -73,7 +73,5 @@ public interface DeployRecordMapper extends BaseMapper<DeployRecord> {
     @Select("SELECT * FROM deploy_record "
             + "WHERE project_id = #{projectId} AND env_id = #{envId} AND deleted = 0 "
             + "ORDER BY id DESC")
-    java.util.List<DeployRecord> selectByProjectAndEnv(
-            @Param("projectId") Long projectId,
-            @Param("envId") Long envId);
+    java.util.List<DeployRecord> selectByProjectAndEnv(@Param("projectId") Long projectId, @Param("envId") Long envId);
 }

@@ -341,9 +341,9 @@ class PipelineTemplateServiceImplTest {
         when(pipelineTemplateMapper.deleteByIdForce(999L)).thenReturn(0);
 
         assertThatThrownBy(() -> service.forceDelete(999L))
-            .isInstanceOf(BusinessException.class)
-            .extracting(e -> ((BusinessException) e).getErrorCode())
-            .isEqualTo(ErrorCode.NOT_FOUND);
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
     }
 
     // ==================== get / listByProject / getActive ====================

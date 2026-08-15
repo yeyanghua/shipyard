@@ -31,6 +31,7 @@ import com.shipyard.entity.Project;
 import com.shipyard.service.PipelineTemplateService;
 import com.shipyard.service.ProjectService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,8 +43,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * Pipeline Controller — 流水线模板版本管理 API.
@@ -81,24 +80,19 @@ public class PipelineController {
 
     @GetMapping("/versions")
     public ApiResponse<List<PipelineResponse>> listVersions(
-        @PathVariable Long projectId,
-        @RequestParam(defaultValue = "false") boolean includeDeleted
-    ) {
+            @PathVariable Long projectId, @RequestParam(defaultValue = "false") boolean includeDeleted) {
         // V1 demo 简化: 默认只返 deleted=0, E2E 清理阶段加 ?includeDeleted=true 看软删行
         List<PipelineTemplate> versions = includeDeleted
-            ? pipelineTemplateService.listByProjectIncludeDeleted(projectId)
-            : pipelineTemplateService.listByProject(projectId);
-        List<PipelineResponse> resp = versions.stream()
-            .map(PipelineResponse::from)
-            .toList();
+                ? pipelineTemplateService.listByProjectIncludeDeleted(projectId)
+                : pipelineTemplateService.listByProject(projectId);
+        List<PipelineResponse> resp =
+                versions.stream().map(PipelineResponse::from).toList();
         return ApiResponse.ok(resp);
     }
 
     @PostMapping
     public ApiResponse<PipelineResponse> create(
-        @PathVariable Long projectId,
-        @RequestBody @Valid PipelineCreateRequest req
-    ) {
+            @PathVariable Long projectId, @RequestBody @Valid PipelineCreateRequest req) {
         // 校验 project 存在
         Project project = projectService.get(projectId);
 
@@ -114,8 +108,7 @@ public class PipelineController {
         } else {
             // 用户手动
             if (req.getYamlContent() == null || req.getYamlContent().isBlank()) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "aiGenerate=false 时 yamlContent 必填");
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "aiGenerate=false 时 yamlContent 必填");
             }
             template.setYamlContent(req.getYamlContent());
         }
@@ -127,15 +120,11 @@ public class PipelineController {
 
     @PutMapping("/{versionId}")
     public ApiResponse<PipelineResponse> update(
-        @PathVariable Long projectId,
-        @PathVariable Long versionId,
-        @RequestBody @Valid PipelineUpdateRequest req
-    ) {
+            @PathVariable Long projectId, @PathVariable Long versionId, @RequestBody @Valid PipelineUpdateRequest req) {
         // projectId 在 path 里 — 校验它跟 versionId 对应的 pipeline 一致
         PipelineTemplate existing = pipelineTemplateService.get(versionId);
         if (!existing.getProjectId().equals(projectId)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "pipeline " + versionId + " 不属于 project " + projectId);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "pipeline " + versionId + " 不属于 project " + projectId);
         }
 
         PipelineTemplate patch = new PipelineTemplate();
@@ -154,38 +143,28 @@ public class PipelineController {
     }
 
     @PostMapping("/{versionId}/approve")
-    public ApiResponse<PipelineResponse> approve(
-        @PathVariable Long projectId,
-        @PathVariable Long versionId
-    ) {
+    public ApiResponse<PipelineResponse> approve(@PathVariable Long projectId, @PathVariable Long versionId) {
         assertBelongsToProject(projectId, versionId);
         return ApiResponse.ok(PipelineResponse.from(pipelineTemplateService.approve(versionId)));
     }
 
     @PostMapping("/{versionId}/reject")
-    public ApiResponse<PipelineResponse> reject(
-        @PathVariable Long projectId,
-        @PathVariable Long versionId
-    ) {
+    public ApiResponse<PipelineResponse> reject(@PathVariable Long projectId, @PathVariable Long versionId) {
         assertBelongsToProject(projectId, versionId);
         return ApiResponse.ok(PipelineResponse.from(pipelineTemplateService.reject(versionId)));
     }
 
     @PostMapping("/{versionId}/activate")
-    public ApiResponse<PipelineResponse> activate(
-        @PathVariable Long projectId,
-        @PathVariable Long versionId
-    ) {
+    public ApiResponse<PipelineResponse> activate(@PathVariable Long projectId, @PathVariable Long versionId) {
         assertBelongsToProject(projectId, versionId);
         return ApiResponse.ok(PipelineResponse.from(pipelineTemplateService.activate(versionId)));
     }
 
     @DeleteMapping("/{versionId}")
     public ApiResponse<Void> delete(
-        @PathVariable Long projectId,
-        @PathVariable Long versionId,
-        @RequestParam(defaultValue = "false") boolean force
-    ) {
+            @PathVariable Long projectId,
+            @PathVariable Long versionId,
+            @RequestParam(defaultValue = "false") boolean force) {
         // force=true 路径: 跳过 assertBelongsToProject (因为 row 可能 deleted=1 找不到了)
         if (!force) {
             assertBelongsToProject(projectId, versionId);
@@ -205,8 +184,7 @@ public class PipelineController {
     private void assertBelongsToProject(Long projectId, Long versionId) {
         PipelineTemplate t = pipelineTemplateService.get(versionId);
         if (!t.getProjectId().equals(projectId)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST,
-                "pipeline " + versionId + " 不属于 project " + projectId);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "pipeline " + versionId + " 不属于 project " + projectId);
         }
     }
 
@@ -222,9 +200,9 @@ public class PipelineController {
      */
     private String generateWithAi(Project project, String aiPrompt, String aiProvider) {
         AiRequestContext.Builder ctxBuilder = AiRequestContext.builder()
-            .userId("demo-user")
-            .project(project)
-            .put("projectType", project.getProjectType());
+                .userId("demo-user")
+                .project(project)
+                .put("projectType", project.getProjectType());
 
         // 把 user 加的 aiPrompt 拼进 context (PipelineGenHandler 可以读)
         if (aiPrompt != null && !aiPrompt.isBlank()) {
@@ -238,8 +216,11 @@ public class PipelineController {
         //   PipelineGenHandler.buildRequest 拼好 prompt, 然后调 LlmAdapter
         // V1 简化: 走默认 provider, aiProvider 字段在 PROGRESS.md 留 TODO V1.5 加
         // TODO V1.5: LlmService.callWithProvider(capability, provider, ctx)
-        log.info("[PipelineController] AI 生成 pipeline project={} provider={} hint={}",
-            project.getId(), aiProvider, aiPrompt);
+        log.info(
+                "[PipelineController] AI 生成 pipeline project={} provider={} hint={}",
+                project.getId(),
+                aiProvider,
+                aiPrompt);
         return llmService.call(AiCapability.PIPELINE_GEN, ctx);
     }
 

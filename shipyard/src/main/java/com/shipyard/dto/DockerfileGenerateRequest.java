@@ -18,9 +18,8 @@ package com.shipyard.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
-
 import java.util.Map;
+import lombok.Data;
 
 /**
  * 生成 / 预览 Dockerfile 请求.

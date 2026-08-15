@@ -10,23 +10,22 @@
 
 package com.shipyard.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import com.shipyard.common.exception.BusinessException;
 import com.shipyard.entity.DockerfileTemplate;
 import com.shipyard.mapper.DockerfileTemplateMapper;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DockerfileTemplateServiceImplTest {
@@ -47,13 +46,10 @@ class DockerfileTemplateServiceImplTest {
         tpl.setDisplayName("Java 21 + Maven");
         tpl.setLanguage("java");
         tpl.setBuildTool("maven");
-        tpl.setTemplateContent(
-            "FROM eclipse-temurin:21-jdk AS build\n" +
-            "COPY . /build\n" +
-            "RUN echo build ${jarName}\n" +
-            "EXPOSE ${port}\n" +
-            "CMD [\"java\", \"-jar\", \"/app/${jarName}\"]\n"
-        );
+        tpl.setTemplateContent("FROM eclipse-temurin:21-jdk AS build\n" + "COPY . /build\n"
+                + "RUN echo build ${jarName}\n"
+                + "EXPOSE ${port}\n"
+                + "CMD [\"java\", \"-jar\", \"/app/${jarName}\"]\n");
         tpl.setVariableSchema("[{\"key\":\"jarName\"}]");
         tpl.setVersion(1);
         tpl.setIsBuiltin(1);
@@ -73,8 +69,8 @@ class DockerfileTemplateServiceImplTest {
     void getByName_shouldThrow_whenNotFound() {
         when(templateMapper.selectByName("nope")).thenReturn(null);
         assertThatThrownBy(() -> service.getByName("nope"))
-            .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("nope");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("nope");
     }
 
     // ========== get ==========
@@ -89,8 +85,8 @@ class DockerfileTemplateServiceImplTest {
     void get_shouldThrow_whenNotFound() {
         when(templateMapper.selectById(99L)).thenReturn(null);
         assertThatThrownBy(() -> service.get(99L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessageContaining("99");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("99");
     }
 
     // ========== listAll ==========
@@ -108,9 +104,9 @@ class DockerfileTemplateServiceImplTest {
     void render_shouldReplaceAllOccurrences() {
         String out = service.render(tpl, Map.of("jarName", "app.jar", "port", "8080"));
         assertThat(out)
-            .contains("RUN echo build app.jar")
-            .contains("EXPOSE 8080")
-            .contains("\"/app/app.jar\"");
+                .contains("RUN echo build app.jar")
+                .contains("EXPOSE 8080")
+                .contains("\"/app/app.jar\"");
     }
 
     @Test
@@ -139,14 +135,12 @@ class DockerfileTemplateServiceImplTest {
     @Test
     void render_shouldThrow_whenTemplateContentNull() {
         tpl.setTemplateContent(null);
-        assertThatThrownBy(() -> service.render(tpl, Map.of()))
-            .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.render(tpl, Map.of())).isInstanceOf(BusinessException.class);
     }
 
     @Test
     void render_shouldThrow_whenTemplateNull() {
-        assertThatThrownBy(() -> service.render(null, Map.of()))
-            .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.render(null, Map.of())).isInstanceOf(BusinessException.class);
     }
 
     @Test

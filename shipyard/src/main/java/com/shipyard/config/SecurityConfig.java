@@ -95,7 +95,8 @@ public class SecurityConfig {
         List<String> whitelist = jwtProperties.getWhitelist();
         boolean demoMode = securityProperties.isDemoMode();
         boolean disableAll = Boolean.parseBoolean(System.getenv("SHIPYARD_DISABLE_SECURITY"));
-        log.info("=== shipyard SecurityFilterChain configured (demo-mode={}, disable-all={}) ===", demoMode, disableAll);
+        log.info(
+                "=== shipyard SecurityFilterChain configured (demo-mode={}, disable-all={}) ===", demoMode, disableAll);
         log.info("Whitelist ({} entries): {}", whitelist.size(), whitelist);
 
         if (disableAll) {
@@ -106,7 +107,7 @@ public class SecurityConfig {
             log.warn("[M9 deploy] SHIPYARD_DISABLE_SECURITY=true, 全路径不鉴权 (V1.5 重接鉴权时撤掉此路径)");
             // 完全空 chain, 不挂任何 filter, 不让 Spring Security 6.2 dispatch 链参与
             http.securityMatcher("/dev/null_never_match")
-                .authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
+                    .authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
             return http.build();
         }
 

@@ -50,7 +50,5 @@ public interface DeploySnapshotMapper extends BaseMapper<DeploySnapshot> {
     @Select("SELECT * FROM deploy_snapshot "
             + "WHERE project_id = #{projectId} AND env_id = #{envId} "
             + "ORDER BY id DESC")
-    List<DeploySnapshot> selectByProjectAndEnv(
-            @Param("projectId") Long projectId,
-            @Param("envId") Long envId);
+    List<DeploySnapshot> selectByProjectAndEnv(@Param("projectId") Long projectId, @Param("envId") Long envId);
 }

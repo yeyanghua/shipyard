@@ -111,10 +111,8 @@ class DeployTemplateRendererTest {
     @Test
     @DisplayName("renderNamespace: shipyard-{env_name} → shipyard-dev")
     void renderNamespaceReplace() {
-        assertThat(renderer.renderNamespace("shipyard-{env_name}", "dev"))
-                .isEqualTo("shipyard-dev");
-        assertThat(renderer.renderNamespace("team-a-{env_name}", "test"))
-                .isEqualTo("team-a-test");
+        assertThat(renderer.renderNamespace("shipyard-{env_name}", "dev")).isEqualTo("shipyard-dev");
+        assertThat(renderer.renderNamespace("team-a-{env_name}", "test")).isEqualTo("team-a-test");
     }
 
     @Test
@@ -168,8 +166,7 @@ class DeployTemplateRendererTest {
     @DisplayName("containerPort NULL 抛 BusinessException")
     void containerPortNull() {
         template.setContainerPort(null);
-        assertThatThrownBy(() ->
-                renderer.render(env, template, "r1", "nginx:1.27.0", null))
+        assertThatThrownBy(() -> renderer.render(env, template, "r1", "nginx:1.27.0", null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("containerPort");
     }
@@ -177,8 +174,7 @@ class DeployTemplateRendererTest {
     @Test
     @DisplayName("resourceName 空 抛 BusinessException")
     void resourceNameBlank() {
-        assertThatThrownBy(() ->
-                renderer.render(env, template, "", "nginx:1.27.0", null))
+        assertThatThrownBy(() -> renderer.render(env, template, "", "nginx:1.27.0", null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("resourceName");
     }
@@ -186,8 +182,7 @@ class DeployTemplateRendererTest {
     @Test
     @DisplayName("image 空 抛 BusinessException")
     void imageBlank() {
-        assertThatThrownBy(() ->
-                renderer.render(env, template, "r1", "", null))
+        assertThatThrownBy(() -> renderer.render(env, template, "r1", "", null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("image");
     }

@@ -25,15 +25,13 @@ import com.shipyard.entity.ProjectDockerfile;
 import com.shipyard.service.DockerfileTemplateService;
 import com.shipyard.service.ProjectDockerfileService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * Dockerfile Controller — 3 个端点:
@@ -56,18 +54,15 @@ public class DockerfileController {
     @GetMapping("/api/dockerfile-templates")
     public ApiResponse<List<DockerfileTemplateResponse>> listTemplates() {
         List<DockerfileTemplate> templates = templateService.listAll();
-        List<DockerfileTemplateResponse> resp = templates.stream()
-            .map(DockerfileTemplateResponse::from)
-            .toList();
+        List<DockerfileTemplateResponse> resp =
+                templates.stream().map(DockerfileTemplateResponse::from).toList();
         return ApiResponse.ok(resp);
     }
 
     /** POST /api/projects/{id}/dockerfile/preview — 预览渲染 */
     @PostMapping("/api/projects/{projectId}/dockerfile/preview")
     public ApiResponse<DockerfileGenerateResponse> preview(
-        @PathVariable Long projectId,
-        @RequestBody @Valid DockerfileGenerateRequest req
-    ) {
+            @PathVariable Long projectId, @RequestBody @Valid DockerfileGenerateRequest req) {
         // preview 不查 project (变量只跟 template 相关, 不跟 project 绑)
         // 但仍然要 template 存在
         DockerfileTemplate template = templateService.getByName(req.getTemplateName());
@@ -85,13 +80,10 @@ public class DockerfileController {
     /** POST /api/projects/{id}/dockerfile/generate — 真生成 (写 draft) */
     @PostMapping("/api/projects/{projectId}/dockerfile/generate")
     public ApiResponse<DockerfileGenerateResponse> generate(
-        @PathVariable Long projectId,
-        @RequestBody @Valid DockerfileGenerateRequest req
-    ) {
+            @PathVariable Long projectId, @RequestBody @Valid DockerfileGenerateRequest req) {
         DockerfileTemplate template = templateService.getByName(req.getTemplateName());
         ProjectDockerfile pd = projectDockerfileService.generate(
-            projectId, template, req.getVariables(), req.getRepoBranch(), req.getCommitMessage()
-        );
+                projectId, template, req.getVariables(), req.getRepoBranch(), req.getCommitMessage());
         return ApiResponse.ok(DockerfileGenerateResponse.from(pd, pd.getRenderedContent(), template.getName()));
     }
 }
